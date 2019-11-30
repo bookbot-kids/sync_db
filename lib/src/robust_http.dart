@@ -29,7 +29,7 @@ class HTTP {
   /// Does a http GET (with optional Dio BaseOptions overrides).
   /// You can pass the full url, or the path after the baseUrl.
   /// Will timeout, check connecctivity and retry until there is a response
-  static Future<Response> get(String url, [BaseOptions options]) async {
+  static Future<Response> get(String url, [BaseOptions options, Map<String, dynamic> queries = null] ) async {
     // Use Dio with properties from function or class
     options ??= options = new BaseOptions(
       baseUrl: HTTP.baseUrl,
@@ -43,7 +43,7 @@ class HTTP {
     // Will only throw an exception when it's sure that there is no internet connection, exhausts its retries or gets an unexpected server response
     for (var i = 1; i <= HTTP.httpRetries; i++) {
       try {
-        return await dio.get(url);
+        return await dio.get(url, queryParameters: queries);
       } catch(error) {
         if (error.type == DioErrorType.CONNECT_TIMEOUT || error.type == DioErrorType.RECEIVE_TIMEOUT) {
           if (await Connectivity().checkConnectivity() == ConnectivityResult.none) {
