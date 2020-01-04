@@ -7,7 +7,7 @@ class Awesome {
   bool get isAwesome => true;
 }
 
-/// There are 3 main classes - web access class, the DB model class and the DB sync class
+/// There are 4 main classes - web access class, the DB model class, DB dependency, and the DB sync dependency class
 /// 
 /// DB static model
 /// model - get all - list of objects
@@ -17,6 +17,11 @@ class Awesome {
 /// limit/offset
 
 class Model extends ChangeNotifier {
-  /// A static default DB class that comes from configuration
-  /// 
+  // Open Database and set to static property
+  // Database path or file name can be overridden
+  // queries returned as arrays - convert to object
+  // subscribe to changes: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
+  // on model save add uuid, created/updated
+  // after 0.5 seconds start sync
+
 }

@@ -18,7 +18,7 @@ void main() {
     });
 
     test('Test bad response gets exception', () async {
-      expect(HTTP.get('501'), throwsException);
+      expect(HTTP.get('500'), throwsException);
     });
 
     test('Test timeout', () async {
