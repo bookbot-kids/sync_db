@@ -10,11 +10,11 @@ void main() {
     });
   
     test('Test full url', () async {
-      expect((await HTTP.get('https://httpstat.us/200')).statusCode, equals(200));
+      expect((await HTTP.get('https://httpstat.us/200')), equals(""));
     });
 
     test('Test path', () async {
-      expect((await HTTP.get('200')).statusCode, equals(200));
+      expect((await HTTP.get('200')), equals(""));
     });
 
     test('Test bad response gets exception', () async {
