@@ -29,8 +29,9 @@ class HTTP {
 
   /// Does a http GET (with optional overrides).
   /// You can pass the full url, or the path after the baseUrl.
-  /// Will timeout, check connectivity and retry until there is a response
-  static Future<Response> get(String url, [String baseUrl, int connectTimeout, int receiveTimeout, int httpRetries]) async {
+  /// Will timeout, check connectivity and retry until there is a response.
+  /// Will handle most success or failure cases and will respond with either data or exception.
+  static Future<dynamic> get(String url, {Map<String, dynamic> parameters, String baseUrl, int connectTimeout, int receiveTimeout, int httpRetries}) async {
     // Use Dio with properties from function or class
     BaseOptions options = new BaseOptions(
       baseUrl: baseUrl ?? HTTP.baseUrl,
@@ -40,17 +41,14 @@ class HTTP {
 
     Dio dio = new Dio(options);
 
-
     // Make call, and manage the many network problems that can happen.
-    // Will only throw an exception when it's sure that there is no internet connection, exhausts its retries or gets an unexpected server response
-    for (var i = 1; i <= httpRetries ?? HTTP.httpRetries; i++) {
-      // dio.get(url).then((){
-      //   return
-      // }).catchError(onError)
-
-      try {
-        return await dio.get(url);
-      } catch(error) {
+    // Will only throw an exception when it's sure that there is no internet connection,
+    // exhausts its retries or gets an unexpected server response
+    for (var i = 1; i <= (httpRetries ?? HTTP.httpRetries); i++) {
+      dio.get(url, queryParameters: parameters).then((Response response) {
+        return response.data;
+      },
+      onError: (error) async {
         if (error.type == DioErrorType.CONNECT_TIMEOUT || error.type == DioErrorType.RECEIVE_TIMEOUT) {
           if (await Connectivity().checkConnectivity() == ConnectivityResult.none) {
             throw ConnectivityException();
@@ -59,8 +57,8 @@ class HTTP {
           throw UnexpectedResponseException();
         } else {
           throw UnknownException(error.message);
-        }
-      }
+        }        
+      });
     }
     // Exhausted retries, so send back exception
     throw RetryFailureException();
