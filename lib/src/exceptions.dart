@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-// Here are the excptions that are ready to go in public facing modal if needs be
+// The text in these exceptions are for public facing modals.
 class UnknownException implements Exception {
   String devDescription;
   UnknownException(this.devDescription);

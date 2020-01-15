@@ -8,6 +8,14 @@ class HTTP {
   static int receiveTimeout = 10000;
   static int httpRetries = 3;
 
+  /// Configure HTTP with defaults from a Map
+  static void config(Map<String, dynamic> map) {
+    baseUrl = map["baseUrl"] ?? baseUrl;
+    connectTimeout = map["connectTimeout"] ?? connectTimeout;
+    receiveTimeout = map["receiveTimeout"] ?? receiveTimeout;
+    httpRetries = map["httpRetries"] ?? httpRetries;
+  }
+
   /// Does a http GET (with optional overrides).
   /// You can pass the full url, or the path after the baseUrl.
   /// Will timeout, check connectivity and retry until there is a response.
