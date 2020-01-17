@@ -20,3 +20,4 @@ dev_dependencies:
   pedantic: ^1.8.0
   flutter_test:
     sdk: flutter
+  jaguar_jwt: ^2.1.6
