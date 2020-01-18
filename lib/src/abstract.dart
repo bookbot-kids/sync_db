@@ -13,8 +13,8 @@ abstract class User {
   bool authenticated;
   String role;
 
-  /// If access token is current (not expired), returns the access token in memory. Otherwises uses the ID token to get a new access token.
-  /// Put access token in memory. Refresh token goes in Shared Preferences.
+  /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
+  /// Refresh token is stored in Shared Preferences.
   Future<String> accessToken();
   void signout();
 }
