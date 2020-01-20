@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'token_helper.dart';
 
 void main() {
   group('HTTP: ', () {
@@ -25,10 +24,20 @@ void main() {
       expect(http.get('500'), throwsException);
     });
 
-    // test('Test timeout', () async {
-    //   TestWidgetsFlutterBinding.ensureInitialized();
-    //   expect(HTTP.get('https://httpstat.us/200?sleep=5000'), throwsException);
-    // });
+    test('Test timeout', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      expect(http.get('https://httpstat.us/200?sleep=5000'), throwsException);
+    });
+
+    test('Test getting resource tokens from refresh token', () async {
+      final file = new File('test/test_conf.json');
+      final config = jsonDecode(await file.readAsString());
+
+      final user = AzureADB2CUser(config);
+      final tokens = await user.resourceTokens();
+      print(tokens);
+      //expect(tokens.c)
+    });
 
     // test('Test getting resource tokens from refresh token', () async {
     //   // read json configs

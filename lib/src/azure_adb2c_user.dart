@@ -8,16 +8,18 @@ class AzureADB2CUser extends User {
   HTTP http;
   Map<String, dynamic> config;
   Map<String, String>_resourceTokens;
-  DateTime _tokenExpiry;
+  DateTime _tokenExpiry = DateTime.now();
 
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
   AzureADB2CUser(Map<String, dynamic> config) {
     this.config = config;
-    http = HTTP(config["baseUrl"], config);
+    http = HTTP(config["azure_auth_url"], config);
     resourceTokens().then((Map<String, String> map) {});
   }
+
+
   
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
@@ -26,17 +28,19 @@ class AzureADB2CUser extends User {
       return _resourceTokens;
     }
 
+    final expired = DateTime.now().add(Duration(hours: 5));
+
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
-    // TODO: setup refresh token code
+    // TODO: setup refresh token code to get from shared preferences
     final response = await http.get('/GetResourceTokens', parameters: {
-      "client_token": _clientToken(config),
+      "client_token": _clientToken(),
       "refresh_token": config['refresh_token'],
       "code": config['azure_code']});
 
-    final Map<String, dynamic> tokens = jsonDecode(response);
+    final Map<String, dynamic> tokens = jsonDecode(response)["permissions"];
     _resourceTokens = tokens;
-    _tokenExpiry = tokens["expired_at"];
+    _tokenExpiry = expired;
 
     return tokens;
   }
@@ -52,12 +56,12 @@ class AzureADB2CUser extends User {
   /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
-  static String _clientToken(Map<String, dynamic> conf) {
-    var encodedKey = base64.encode(utf8.encode(conf["azure_secret"]));
+  String _clientToken() {
+    var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
     final claimSet = new JwtClaim(
-        subject: conf["azure_subject"],
-        issuer: conf["azure_issuer"],
-        audience: <String>[conf["azure_audience"]],
+        subject: config["azure_subject"],
+        issuer: config["azure_issuer"],
+        audience: <String>[config["azure_audience"]],
         notBefore: new DateTime.now(),
         jwtId: new Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 5));
