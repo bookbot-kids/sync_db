@@ -8,14 +8,12 @@ import 'package:flutter/foundation.dart';
 abstract class User {
   static Database database;
 
-  String _accessToken;
-  DateTime _accessTokenExpiry;
-  bool authenticated;
+  DateTime _tokenExpiry;
   String role;
 
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
-  Future<String> accessToken();
+  Future<Map<String, dynamic>> resourceTokens();
   void signout();
 }
 
@@ -26,10 +24,9 @@ abstract class Sync {
   Map<String, dynamic> tableReadLock;
   Map<String, dynamic> tableWriteLock;
 
-  void config(Map<String, dynamic> config) {}
-  void syncAll() {}
-  void syncRead(String table) {}
-  void syncWrite(String table) {}
+  void syncAll();
+  void syncRead(String table);
+  void syncWrite(String table);
 }
 
 abstract class Database {
