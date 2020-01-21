@@ -6,52 +6,36 @@ import 'package:flutter/foundation.dart';
 //Database db = SemBastDatabase.shared;
 
 abstract class User {
-  static Database database;
-
-  DateTime _tokenExpiry;
   String role;
 
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
-  Future<Map<String, dynamic>> resourceTokens();
+  Future<Map<String, Map>> resourceTokens();
   void signout();
 }
 
 abstract class Sync {
-  Database database;
-  User user;
-  
-  Map<String, dynamic> tableReadLock;
-  Map<String, dynamic> tableWriteLock;
-
   void syncAll();
   void syncRead(String table);
   void syncWrite(String table);
 }
 
 abstract class Database {
-  Sync sync;
-  dynamic database;
-
-  void save(String modelName, Map<String, dynamic> map);
+  void save(Model model);
   List<dynamic> all(String modelName, Function instantiateModel);
-  dynamic find(String modelName, String key, Function instantiateModel);
+  dynamic find(String modelName, String id, Function instantiateModel);
   List<dynamic> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]);
 }
 
 abstract class Model extends ChangeNotifier {
   static Database database;
 
-  // These will readable from outside the class, but only writeable from inside the class. Need to work out how to do that.
-  String key;
+  String id;
   DateTime createdAt;
   DateTime updatedAt;
   DateTime _updatedAt;
 
   //Functions to create
-  String name() {
-    return "Model";
-  }
 
   // Function self() {
   //   return () { return new Model(); };
@@ -59,11 +43,11 @@ abstract class Model extends ChangeNotifier {
   Function self();
 
   Map<String, dynamic> export() {
-    return {"key": key, "createdAt": createdAt, "updatedAt": updatedAt, "_updatedAt": _updatedAt};
+    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt, "_updatedAt": _updatedAt};
   }
 
   void import(Map<String, dynamic> map) {
-    key = map["key"];
+    id = map["id"];
     createdAt = map["createdAt"];
     updatedAt = map["updatedAt"];
   }
@@ -73,7 +57,7 @@ abstract class Model extends ChangeNotifier {
   }
 
   // Implement this:
-  // static Model find(String key) {
+  // static Model find(String id) {
   //   return Model();
   // }
 
@@ -81,11 +65,8 @@ abstract class Model extends ChangeNotifier {
     return [];
   }
 
-  // Reusable functions
-
-  void save() {
-    // on new model (id is null) _create
-  }
+  // on new model (id is null) _create
+  void save();
 
   void _create() {
     // set id to https://pub.dev/packages/better_uuid

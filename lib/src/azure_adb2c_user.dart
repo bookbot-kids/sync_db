@@ -5,25 +5,26 @@ import 'dart:convert';
 import 'robust_http.dart';
 
 class AzureADB2CUser extends User {
-  HTTP http;
-  Map<String, dynamic> config;
-  Map<String, String>_resourceTokens;
+  static Database _database;
+  HTTP _http;
+  Map<String, dynamic> _config;
+  Map<String, Map>_resourceTokens = {};
   DateTime _tokenExpiry = DateTime.now();
 
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
   AzureADB2CUser(Map<String, dynamic> config) {
-    this.config = config;
-    http = HTTP(config["azure_auth_url"], config);
-    resourceTokens().then((Map<String, String> map) {});
+    _config = config;
+    _http = HTTP(config["azure_auth_url"], config);
+    resourceTokens().then((Map<String, Map> map) {});
   }
 
 
   
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
-  Future<Map<String, String>> resourceTokens([bool refresh = false]) async {
+  Future<Map<String, Map>> resourceTokens([bool refresh = false]) async {
     if (_tokenExpiry.isAfter(DateTime.now()) && refresh == false) {
       return _resourceTokens;
     }
@@ -33,16 +34,17 @@ class AzureADB2CUser extends User {
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
     // TODO: setup refresh token code to get from shared preferences
-    final response = await http.get('/GetResourceTokens', parameters: {
+    final response = await _http.get('/GetResourceTokens', parameters: {
       "client_token": _clientToken(),
-      "refresh_token": config['refresh_token'],
-      "code": config['azure_code']});
+      "refresh_token": _config['refresh_token'],
+      "code": _config['azure_code']});
 
-    final Map<String, dynamic> tokens = jsonDecode(response)["permissions"];
-    _resourceTokens = tokens;
+    for (final permission in response["permissions"]) {
+      _resourceTokens[permission["id"]] = permission;
+    }
     _tokenExpiry = expired;
 
-    return tokens;
+    return _resourceTokens;
   }
 
   /// Removes the refresh token from shared preferences
@@ -57,13 +59,13 @@ class AzureADB2CUser extends User {
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
   String _clientToken() {
-    var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
-    final claimSet = new JwtClaim(
-        subject: config["azure_subject"],
-        issuer: config["azure_issuer"],
-        audience: <String>[config["azure_audience"]],
-        notBefore: new DateTime.now(),
-        jwtId: new Random().nextInt(10000).toString(),
+    var encodedKey = base64.encode(utf8.encode(_config["azure_secret"]));
+    final claimSet = JwtClaim(
+        subject: _config["azure_subject"],
+        issuer: _config["azure_issuer"],
+        audience: <String>[_config["azure_audience"]],
+        notBefore: DateTime.now(),
+        jwtId: Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 5));
 
     return issueJwtHS256(claimSet, encodedKey);

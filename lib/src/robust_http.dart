@@ -3,20 +3,21 @@ import 'package:connectivity/connectivity.dart';
 import 'exceptions.dart';
 
 class HTTP {
-  String baseUrl = 'https://www.google.com';
-  int connectTimeout = 10000;
-  int receiveTimeout = 10000;
   int httpRetries = 3;
   Dio dio;
 
   /// Configure HTTP with defaults from a Map
-  HTTP(String baseUrl, [Map<String, dynamic> map = const {}]) {
-    this.baseUrl = baseUrl ?? map["baseUrl"] ?? this.baseUrl;
-    connectTimeout = map["connectTimeout"] ?? connectTimeout;
-    receiveTimeout = map["receiveTimeout"] ?? receiveTimeout;
-    httpRetries = map["httpRetries"] ?? httpRetries;
+  HTTP(String baseUrl, [Map<String, dynamic> options = const {}]) {
+    httpRetries = options["httpRetries"] ?? httpRetries;
 
-    dio = new Dio(_baseOptions());
+    final baseOptions = BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: options["connectTimeout"] ?? 10000,
+      receiveTimeout: options["receiveTimeout"] ?? 10000,
+      headers: options["headers"] ?? {}
+    );
+
+    dio = new Dio(baseOptions);
   }
 
   /// Does a http GET (with optional overrides).
@@ -50,15 +51,6 @@ class HTTP {
     }
     // Exhausted retries, so send back exception
     throw RetryFailureException();
-  }
-
-  /// Create Dio BaseOptions from an options Map
-  BaseOptions _baseOptions() {
-    return new BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: connectTimeout,
-      receiveTimeout: receiveTimeout,
-    );
   }
 
   /// Handle exceptions that come from various failures
