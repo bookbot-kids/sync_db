@@ -33,7 +33,6 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime createdAt;
   DateTime updatedAt;
-  DateTime _updatedAt;
 
   //Functions to create
 
@@ -43,7 +42,7 @@ abstract class Model extends ChangeNotifier {
   Function self();
 
   Map<String, dynamic> export() {
-    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt, "_updatedAt": _updatedAt};
+    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt};
   }
 
   void import(Map<String, dynamic> map) {

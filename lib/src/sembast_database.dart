@@ -31,11 +31,13 @@ class SembastDatabase extends Database {
     final name = model.runtimeType.toString();
     final db = _db[name];
     final store = Sembast.StoreRef.main();
-    final create = model.id == null;
+    final create = (model.id == null) || (model.createdAt == null);
 
     if (create) {
       model.id = Uuid.v4().toString();
+      model.createdAt = DateTime.now();
     }
+    model.updatedAt = DateTime.now();
 
     final map = model.export();
     map["_status"] = create ? "created" : "updated";

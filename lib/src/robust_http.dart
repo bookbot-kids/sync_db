@@ -36,12 +36,13 @@ class HTTP {
     return request("POST", url, parameters: parameters);
   }
 
+  /// Make call, and manage the many network problems that can happen.
+  /// Will only throw an exception when it's sure that there is no internet connection,
+  /// exhausts its retries or gets an unexpected server response
   Future<dynamic> request(String method, String url, {Map<String, dynamic> parameters}) async {
     dio.options.method = method;
 
-    // Make call, and manage the many network problems that can happen.
-    // Will only throw an exception when it's sure that there is no internet connection,
-    // exhausts its retries or gets an unexpected server response
+
     for (var i = 1; i <= (httpRetries ?? this.httpRetries); i++) {
       try {
         return (await dio.request(url, queryParameters: parameters)).data;
@@ -51,6 +52,11 @@ class HTTP {
     }
     // Exhausted retries, so send back exception
     throw RetryFailureException();
+  }
+
+  /// Change headers
+  void set header(Map<String, dynamic> map) {
+    dio.options.headers = map;
   }
 
   /// Handle exceptions that come from various failures
