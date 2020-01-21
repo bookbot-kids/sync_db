@@ -55,7 +55,7 @@ class HTTP {
   }
 
   /// Change headers
-  void set header(Map<String, dynamic> map) {
+  void set headers(Map<String, dynamic> map) {
     dio.options.headers = map;
   }
 
