@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:connectivity/connectivity.dart';
+import 'package:sync_db/src/robust_http_log.dart';
 import 'exceptions.dart';
 
 class HTTP {
@@ -7,17 +8,18 @@ class HTTP {
   Dio dio;
 
   /// Configure HTTP with defaults from a Map
-  HTTP(String baseUrl, [Map<String, dynamic> options = const {}]) {
+  HTTP(String baseUrl,
+      [Map<String, dynamic> options = const {}, int logLevel = Log.basic]) {
     httpRetries = options["httpRetries"] ?? httpRetries;
 
     final baseOptions = BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: options["connectTimeout"] ?? 10000,
-      receiveTimeout: options["receiveTimeout"] ?? 10000,
-      headers: options["headers"] ?? {}
-    );
+        baseUrl: baseUrl,
+        connectTimeout: options["connectTimeout"] ?? 10000,
+        receiveTimeout: options["receiveTimeout"] ?? 10000,
+        headers: options["headers"] ?? {});
 
     dio = new Dio(baseOptions);
+    dio.interceptors.add(Log(level: logLevel));
   }
 
   /// Does a http GET (with optional overrides).
@@ -36,17 +38,25 @@ class HTTP {
     return request("POST", url, parameters: parameters);
   }
 
+  /// Does a http PUT (with optional overrides).
+  /// You can pass the full url, or the path after the baseUrl.
+  /// Will timeout, check connectivity and retry until there is a response.
+  /// Will handle most success or failure cases and will respond with either data or exception.
+  Future<dynamic> put(String url, {Map<String, dynamic> parameters}) async {
+    return request("PUT", url, parameters: parameters);
+  }
+
   /// Make call, and manage the many network problems that can happen.
   /// Will only throw an exception when it's sure that there is no internet connection,
   /// exhausts its retries or gets an unexpected server response
-  Future<dynamic> request(String method, String url, {Map<String, dynamic> parameters}) async {
+  Future<dynamic> request(String method, String url,
+      {Map<String, dynamic> parameters}) async {
     dio.options.method = method;
-
 
     for (var i = 1; i <= (httpRetries ?? this.httpRetries); i++) {
       try {
         return (await dio.request(url, queryParameters: parameters)).data;
-      } catch(error) {
+      } catch (error) {
         await _handleException(error);
       }
     }
@@ -62,7 +72,8 @@ class HTTP {
   /// Handle exceptions that come from various failures
   void _handleException(dynamic error) async {
     print(error.toString());
-    if (error.type == DioErrorType.CONNECT_TIMEOUT || error.type == DioErrorType.RECEIVE_TIMEOUT) {
+    if (error.type == DioErrorType.CONNECT_TIMEOUT ||
+        error.type == DioErrorType.RECEIVE_TIMEOUT) {
       if (await Connectivity().checkConnectivity() == ConnectivityResult.none) {
         throw ConnectivityException();
       }
@@ -71,6 +82,6 @@ class HTTP {
     } else {
       print(error.toString());
       throw UnknownException(error.message);
-    } 
+    }
   }
 }
