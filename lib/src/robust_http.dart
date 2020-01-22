@@ -9,7 +9,7 @@ class HTTP {
 
   /// Configure HTTP with defaults from a Map
   HTTP(String baseUrl,
-      [Map<String, dynamic> options = const {}, int logLevel = Log.basic]) {
+      [Map<String, dynamic> options = const {}, int logLevel = Log.none]) {
     httpRetries = options["httpRetries"] ?? httpRetries;
 
     final baseOptions = BaseOptions(

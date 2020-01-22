@@ -7,7 +7,7 @@ class Log extends LogInterceptor {
   static const basic = 1;
   static const all = 2;
   int level;
-  Log({this.level = basic})
+  Log({this.level = none})
       : super(
           request: level >= basic,
           requestHeader: level > basic,
