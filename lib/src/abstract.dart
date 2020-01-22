@@ -22,7 +22,7 @@ abstract class Sync {
 
 abstract class Database {
   void save(Model model);
-  List<dynamic> all(String modelName, Function instantiateModel);
+  Future<List<dynamic>> all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Function instantiateModel);
   List<dynamic> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]);
 }
@@ -35,11 +35,6 @@ abstract class Model extends ChangeNotifier {
   DateTime updatedAt;
 
   //Functions to create
-
-  // Function self() {
-  //   return () { return new Model(); };
-  // }
-  Function self();
 
   Map<String, dynamic> export() {
     return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt};
@@ -66,11 +61,6 @@ abstract class Model extends ChangeNotifier {
 
   // on new model (id is null) _create
   void save();
-
-  void _create() {
-    // set id to https://pub.dev/packages/better_uuid
-    // set created_at
-  }
 
   // TODO: subscribe to changes: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
 }

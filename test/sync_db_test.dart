@@ -10,16 +10,35 @@ class Test extends Model {
   static Database database;
   String test = "Barf";
 
-  Function self() {
-    return () { return new Test(); };
-  }
-
   Map<String, dynamic> export() {
     return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt, "test": test};
   }
 
-  void save() {
-    Test.database.save(this);
+  void import(Map<String, dynamic> map) {
+    id = map["id"];
+    createdAt = DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
+    updatedAt = DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
+    test = map["test"];
+  }
+
+  Future<void> save() async {
+    await Test.database.save(this);
+  }
+
+  static Future<List<Test>> all() async {
+    var all = await Test.database.all("Test", () { return new Test(); });
+    List<Test> castAll = [];
+    for (Test test in all) { castAll.add(test); }
+    return Future<List<Test>>.value(castAll);
+  }
+
+  static Future<Test> find(String id) async {
+    Test model = await Test.database.find("Test", id, () { return new Test(); });
+    return Future<Test>.value(model);
+  }
+
+  String toString() {
+    return export().toString();
   }
 }
 
@@ -63,11 +82,13 @@ void main() {
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         return ".";
       });
+
       await SembastDatabase.config(null, ["Test"]);
       Test.database = SembastDatabase.shared;
-      final test = Test();
-      print(test);
-      test.save();
+      await Test().save();
+
+      print(await Test.all());
+      print(await Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
     });
 
   });
