@@ -34,7 +34,7 @@ abstract class Model extends ChangeNotifier {
   DateTime createdAt;
   DateTime updatedAt;
 
-  //Functions to create
+  //Functions to override
 
   Map<String, dynamic> export() {
     return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt};
@@ -50,20 +50,7 @@ abstract class Model extends ChangeNotifier {
     return export().toString();
   }
 
-  // static List<Model> all() {
-  //   return [];
-  // }
-
-  // Implement this:
-  // static Model find(String id) {
-  //   return Model();
-  // }
-
-  // static List<Model> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]) {
-  //   return [];
-  // }
-
-  // void save();
+  void save();
 
   // TODO: subscribe to changes: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
 }
