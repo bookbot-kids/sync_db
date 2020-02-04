@@ -36,11 +36,7 @@ class Test extends Model {
   }
 
   static where(dynamic condition) {
-    return Query().where(condition, () { return Test(); }, Test.database);
-  }
-
-  String toString() {
-    return export().toString();
+    return Query().where(condition, Test.database, () { return Test(); });
   }
 }
 

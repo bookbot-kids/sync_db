@@ -46,6 +46,10 @@ abstract class Model extends ChangeNotifier {
     updatedAt = map["updatedAt"];
   }
 
+  String toString() {
+    return export().toString();
+  }
+
   // static List<Model> all() {
   //   return [];
   // }
