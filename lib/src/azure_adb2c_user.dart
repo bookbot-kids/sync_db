@@ -19,8 +19,6 @@ class AzureADB2CUser extends User {
     _http = HTTP(config["azure_auth_url"], config);
     resourceTokens().then((Map<String, Map> map) {});
   }
-
-
   
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services

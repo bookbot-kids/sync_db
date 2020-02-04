@@ -1,4 +1,5 @@
 import "abstract.dart";
+import "query.dart";
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart' as Sembast;
@@ -9,10 +10,11 @@ class SembastDatabase extends Database {
   static SembastDatabase shared;
   Sync _sync;
   Map<String, Sembast.Database> _db = {};
+  //Map<String, List<String>> _dateTimeKeyNames = {};
 
   /// Connects sync to the Sembest Database
   /// Opens up each table connected to each model, which is stored in a separate file. 
-  static Future<void> config(Sync sync, List<String> models) async {
+  static Future<void> config(Sync sync, List<Model> models) async {
     shared = SembastDatabase();
     shared._sync = sync;
 
@@ -22,10 +24,10 @@ class SembastDatabase extends Database {
     await dir.create(recursive: true);
     final store = Sembast.StoreRef.main();
 
-    // Open all dbs
-    for (final name in models) {
+    // Open all databases
+    for (final model in models) {
+      final name = model.runtimeType.toString();
       final dbPath = join(dir.path, name + ".db");
-      // open the database
       shared._db[name] = await databaseFactoryIo.openDatabase(dbPath);
 
       // Warms up the database so it can work later (seems to be a bug in Sembast)
@@ -40,7 +42,7 @@ class SembastDatabase extends Database {
     final db = _db[name];
     final store = Sembast.StoreRef.main();
 
-    // Set id and createdAt if new record. ID is random
+    // Set id and createdAt if new record. ID is a random UUID
     final create = (model.id == null) || (model.createdAt == null);
     if (create) {
       model.id = Uuid.v4().toString();
@@ -62,6 +64,11 @@ class SembastDatabase extends Database {
     //_sync.syncWrite(name);
   }
 
+  Future<void> delete(Model model) async {
+
+  }
+
+  /// Get all model instances in a table
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
     final store = Sembast.StoreRef.main();
     var records = await store.find(_db[modelName], finder: Sembast.Finder());
@@ -69,21 +76,44 @@ class SembastDatabase extends Database {
     List<Model> models = [];
     for (final record in records) {
       final model = instantiateModel();
-      model.import(record.value);
+      model.import(_fixType(record.value));
       models.add(model);
     }
     return Future<List<Model>>.value(models);
   }
 
-  Future<Model> find(String modelName, String id, Function instantiateModel) async {
+  /// Find model instance by id
+  Future<Model> find(String modelName, String id, Model model) async {
     final store = Sembast.StoreRef.main();
     final record = await store.record(id).get(_db[modelName]);
-    final model = instantiateModel();
-    model.import(record);
+    model.import(_fixType(record));
     return Future<Model>.value(model);
   }
 
-  List<dynamic> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]) {
+  /// Query the table with the Query class
+  Future<List<T>> query<T>(Query query) async {
+    final store = Sembast.StoreRef.main();
+    List<T> results = [];
+    Sembast.Filter filter;
 
+    // parse condition in Query
+    // parse ordering in Query
+    // Add limit and index if not null
+    // if Model generate and import into model, otherwise return Map
+
+    return results;
+  }
+
+  // List<String> tableNames() {
+  //   return _db.keys;
+  // }
+
+  Map<String, dynamic> _fixType(Map<String, dynamic> map) {
+    Map<String, dynamic> copiedMap = {}..addAll(map);
+
+    copiedMap["createdAt"] = DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
+    copiedMap["updatedAt"] = DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
+
+    return copiedMap;
   }
 }

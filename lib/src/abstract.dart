@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+import 'query.dart';
 
 //AzureADB2CUser user = AzureADB2CUser.shared;
 //CosmosSync sync = CosmosSync.shared;
@@ -15,16 +15,16 @@ abstract class User {
 }
 
 abstract class Sync {
-  void syncAll();
-  void syncRead(String table);
-  void syncWrite(String table);
+  Future<void> syncAll();
+  Future<void> syncRead(String table);
+  Future<void> syncWrite(String table);
 }
 
 abstract class Database {
   void save(Model model);
-  Future<List<dynamic>> all(String modelName, Function instantiateModel);
-  dynamic find(String modelName, String id, Function instantiateModel);
-  List<dynamic> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]);
+  dynamic all(String modelName, Function instantiateModel);
+  dynamic find(String modelName, String id, Model model);
+  dynamic query<T>(Query query);
 }
 
 abstract class Model extends ChangeNotifier {
@@ -46,21 +46,20 @@ abstract class Model extends ChangeNotifier {
     updatedAt = map["updatedAt"];
   }
 
-  static List<Model> all() {
-    return [];
-  }
+  // static List<Model> all() {
+  //   return [];
+  // }
 
   // Implement this:
   // static Model find(String id) {
   //   return Model();
   // }
 
-  static List<Model> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]) {
-    return [];
-  }
+  // static List<Model> query(String filter, [List<dynamic> literals = const [], String order, int start, int end]) {
+  //   return [];
+  // }
 
-  // on new model (id is null) _create
-  void save();
+  // void save();
 
   // TODO: subscribe to changes: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
 }

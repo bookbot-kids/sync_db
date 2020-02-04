@@ -12,8 +12,8 @@ class HTTP {
 
     final baseOptions = BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: options["connectTimeout"] ?? 10000,
-      receiveTimeout: options["receiveTimeout"] ?? 10000,
+      connectTimeout: options["connectTimeout"] ?? 20000,
+      receiveTimeout: options["receiveTimeout"] ?? 20000,
       headers: options["headers"] ?? {}
     );
 

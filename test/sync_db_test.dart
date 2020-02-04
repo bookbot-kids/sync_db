@@ -16,8 +16,8 @@ class Test extends Model {
 
   void import(Map<String, dynamic> map) {
     id = map["id"];
-    createdAt = DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
-    updatedAt = DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
+    createdAt = map["createdAt"];
+    updatedAt = map["updatedAt"];
     test = map["test"];
   }
 
@@ -26,15 +26,17 @@ class Test extends Model {
   }
 
   static Future<List<Test>> all() async {
-    var all = await Test.database.all("Test", () { return new Test(); });
-    List<Test> castAll = [];
-    for (Test test in all) { castAll.add(test); }
-    return Future<List<Test>>.value(castAll);
+    var all = await Test.database.all("Test", () { return Test(); });
+    return Future<List<Test>>.value(all.cast<Test>());
   }
 
   static Future<Test> find(String id) async {
-    Test model = await Test.database.find("Test", id, () { return new Test(); });
+    Test model = await Test.database.find("Test", id, Test());
     return Future<Test>.value(model);
+  }
+
+  static where(dynamic condition) {
+    return Query().where(condition, () { return Test(); }, Test.database);
   }
 
   String toString() {
@@ -83,7 +85,7 @@ void main() {
         return ".";
       });
 
-      await SembastDatabase.config(null, ["Test"]);
+      await SembastDatabase.config(null, [Test()]);
       Test.database = SembastDatabase.shared;
       await Test().save();
 
