@@ -51,6 +51,4 @@ abstract class Model extends ChangeNotifier {
   }
 
   void save();
-
-  // TODO: subscribe to changes: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
 }

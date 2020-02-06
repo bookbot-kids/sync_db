@@ -96,6 +96,7 @@ class SembastDatabase extends Database {
     List<T> results = [];
     Sembast.Filter filter;
 
+    // TODO:
     // parse condition in Query
     // parse ordering in Query
     // Add limit and index if not null
@@ -103,10 +104,6 @@ class SembastDatabase extends Database {
 
     return results;
   }
-
-  // List<String> tableNames() {
-  //   return _db.keys;
-  // }
 
   Map<String, dynamic> _fixType(Map<String, dynamic> map) {
     Map<String, dynamic> copiedMap = {}..addAll(map);
@@ -116,4 +113,6 @@ class SembastDatabase extends Database {
 
     return copiedMap;
   }
+
+  // Note on subscribe to changes from Sembast: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
 }

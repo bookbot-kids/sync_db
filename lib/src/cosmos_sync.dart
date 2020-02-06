@@ -20,6 +20,7 @@ class CosmosSync extends Sync {
 
   /// SyncAll will run the sync across the complete database.
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
+  /// Reading and writing of tables is done sequentially to manage load to the server.
   Future<void> syncAll() async {
     final resourceTokens = await _user.resourceTokens();
     final keys = resourceTokens.keys;
@@ -60,10 +61,10 @@ class CosmosSync extends Sync {
     final parameters = {"query": select};
 
 
-
+    // TODO:
     // Get updated records from last _ts timestamp as a map
-    // Compare who has the newer _ts or updated_at (if status is _updated), and use that
-    // Save complete cosmos document into sembast
+    // Compare who has the newer _ts or updated_at (if status is updated), and use that record
+    // If cosmos record is newest, save all fields into sembast
   }
 
   /// Write sync this table if it has permission and is not locked.
@@ -97,14 +98,9 @@ class CosmosSync extends Sync {
 
     }
 
-
-
-
-    // Get models marked created/updated
-    // Get record if updated and compare record to save (for time being - until we add notifications)
-    // Save record
-    // see if there are any new updated records after this to upload
+    // TODO:
+    // Get record from Cosmos (if updated) and compare record to see which one is newer (newer _ts or updated_at)
+    // Save record to Cosmos
+    // (for Adrian) do another check to see if there are any local updated records after this to upload
   }
 }
-
-String tellMe() => "something";

@@ -31,7 +31,7 @@ class AzureADB2CUser extends User {
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
-    // TODO: setup refresh token code to get from shared preferences
+    // TODO: setup refresh token code to get from shared preferences (at the moment it is getting a fixed refresh token from yaml for testing)
     final response = await _http.get('/GetResourceTokens', parameters: {
       "client_token": _clientToken(),
       "refresh_token": _config['refresh_token'],
