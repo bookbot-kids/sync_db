@@ -13,7 +13,7 @@ class SembastDatabase extends Database {
   //Map<String, List<String>> _dateTimeKeyNames = {};
 
   /// Connects sync to the Sembest Database
-  /// Opens up each table connected to each model, which is stored in a separate file. 
+  /// Opens up each table connected to each model, which is stored in a separate file.
   static Future<void> config(Sync sync, List<Model> models) async {
     shared = SembastDatabase();
     shared._sync = sync;
@@ -64,9 +64,7 @@ class SembastDatabase extends Database {
     //_sync.syncWrite(name);
   }
 
-  Future<void> delete(Model model) async {
-
-  }
+  Future<void> delete(Model model) async {}
 
   /// Get all model instances in a table
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
@@ -91,16 +89,65 @@ class SembastDatabase extends Database {
   }
 
   /// Query the table with the Query class
-  Future<List<T>> query<T>(Query query) async {
+  Future<List<T>> query<T>(String tableName, Query query) async {
     final store = Sembast.StoreRef.main();
     List<T> results = [];
-    Sembast.Filter filter;
+    var finder = Sembast.Finder();
 
-    // TODO:
-    // parse condition in Query
-    // parse ordering in Query
-    // Add limit and index if not null
-    // if Model generate and import into model, otherwise return Map
+    // parse condition query
+    if (query.condition != null) {
+      if (query.condition is String) {
+        // expect condition format likes a > b
+        List<String> conditions = query.condition.split(' ');
+        if (conditions.length == 3) {
+          switch (conditions[1].trim()) {
+            case '<':
+              finder.filter = Sembast.Filter.lessThan(
+                  conditions[0].trim(), conditions[2].trim());
+              break;
+            case '<=':
+              finder.filter = Sembast.Filter.lessThanOrEquals(
+                  conditions[0].trim(), conditions[2].trim());
+              break;
+            case '>':
+              finder.filter = Sembast.Filter.greaterThan(
+                  conditions[0].trim(), conditions[2].trim());
+              break;
+            case '>=':
+              finder.filter = Sembast.Filter.greaterThanOrEquals(
+                  conditions[0].trim(), conditions[2].trim());
+              break;
+          }
+        }
+      } else if (query.condition is Map) {
+        Map conditions = query.condition;
+        // AND query conditions
+        if (conditions.length > 1) {
+          List<Sembast.Filter> filters = List<Sembast.Filter>();
+          conditions.forEach((key, value) {
+            filters.add(Sembast.Filter.equals(key, value));
+          });
+
+          finder.filter = Sembast.Filter.and(filters);
+        } else {
+          var entry = conditions.entries.toList()[0];
+          finder.filter = Sembast.Filter.equals(entry.key, entry.value);
+        }
+      }
+    }
+
+    // query order
+    if (query.ordering != null) {
+      finder.sortOrder = Sembast.SortOrder(query.ordering);
+    }
+
+    final db = _db[tableName];
+    var records = await store.find(db, finder: finder);
+    for (var record in records) {
+      final model = query.instantiateModel();
+      model.import(_fixType(record.value));
+      results.add(model);
+    }
 
     return results;
   }
@@ -108,8 +155,10 @@ class SembastDatabase extends Database {
   Map<String, dynamic> _fixType(Map<String, dynamic> map) {
     Map<String, dynamic> copiedMap = {}..addAll(map);
 
-    copiedMap["createdAt"] = DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
-    copiedMap["updatedAt"] = DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
+    copiedMap["createdAt"] =
+        DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
+    copiedMap["updatedAt"] =
+        DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
 
     return copiedMap;
   }

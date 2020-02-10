@@ -24,7 +24,7 @@ abstract class Database {
   void save(Model model);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);
-  dynamic query<T>(Query query);
+  dynamic query<T>(String tableName, Query query);
 }
 
 abstract class Model extends ChangeNotifier {

@@ -12,7 +12,8 @@ class Query {
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
-  Query where([dynamic condition, Database database, Function instantiateModel]) {
+  Query where(
+      [dynamic condition, Database database, Function instantiateModel]) {
     if (condition is String || condition is Map || condition == null) {
       _set(instantiateModel, database);
       this.condition = condition;
@@ -23,9 +24,9 @@ class Query {
 
   /// Sets the sort order on the query and other optionals
   Query order([String order, Database database, Function instantiateModel]) {
-      _set(instantiateModel, database);
-      this.ordering = order;
-      return this;
+    _set(instantiateModel, database);
+    this.ordering = order;
+    return this;
   }
 
   /// Set the limit on the number of results
@@ -43,8 +44,8 @@ class Query {
   }
 
   /// Loads the query results into a List
-  Future<List> load() {
-    return database.query(this);
+  Future<List> load(String modelName) {
+    return database.query(modelName, this);
   }
 
   /// Sets instantiateModel function and database
@@ -59,5 +60,6 @@ class Query {
 }
 
 class QueryException implements Exception {
-  String toString() => Intl.message('Query was incorrectly constructed.', name: 'queryFailure');
+  String toString() =>
+      Intl.message('Query was incorrectly constructed.', name: 'queryFailure');
 }
