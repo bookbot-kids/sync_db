@@ -44,6 +44,8 @@ class CosmosSync extends Sync {
       await syncRead(tableName, resourceTokens[tableName]["_token"]);
     }
 
+    // await syncRead('Category', resourceTokens['Category']["_token"]);
+
     // Loop through tables to write sync
     for (final tableName in keys) {
       if (resourceTokens[tableName]["permissionMode"] == "All") {
@@ -84,10 +86,19 @@ class CosmosSync extends Sync {
     // Get updated records from last _ts timestamp as a map
     // Compare who has the newer _ts or updated_at (if status is updated), and use that record
     // If cosmos record is newest, save all fields into sembast
-    var cosmosRecords =
+    var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
-    print(cosmosRecords);
-    for (var cosmosRecord in cosmosRecords) {}
+    print(cosmosResult);
+    for (var cosmosRecord in cosmosResult['Documents']) {
+      final query = Query().where({"id": cosmosRecord['id']});
+      var records = await database.query(table, query);
+      var localRecord = records.isNotEmpty ? records[0] : null;
+      if (localRecord == null) {
+        // save new to local
+      } else {
+        // update from cosmos to local
+      }
+    }
   }
 
   /// Write sync this table if it has permission and is not locked.
