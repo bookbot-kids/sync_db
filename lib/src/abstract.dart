@@ -21,6 +21,7 @@ abstract class Sync {
 }
 
 abstract class Database {
+  void saveMap(String tableName, String id, Map map);
   void save(Model model);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);

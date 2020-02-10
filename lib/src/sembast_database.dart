@@ -64,6 +64,12 @@ class SembastDatabase extends Database {
     //_sync.syncWrite(name);
   }
 
+  Future<void> saveMap(String tableName, String id, Map map) async {
+    final db = _db[tableName];
+    final store = Sembast.StoreRef.main();
+    await store.record(id).put(db, map);
+  }
+
   Future<void> delete(Model model) async {}
 
   /// Get all model instances in a table
@@ -145,7 +151,7 @@ class SembastDatabase extends Database {
       }
     }
 
-    if (query.resultLimit > 0) {
+    if (query.resultLimit != null) {
       finder.limit = query.resultLimit;
     }
 

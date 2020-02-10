@@ -90,13 +90,17 @@ class CosmosSync extends Sync {
         await _queryDocuments(token, table, partition, select, parameters);
     print(cosmosResult);
     for (var cosmosRecord in cosmosResult['Documents']) {
-      final query = Query().where({"id": cosmosRecord['id']});
+      final query = Query().where({"id": cosmosRecord['id']}).limit(1);
       var records = await database.query(table, query);
       var localRecord = records.isNotEmpty ? records[0] : null;
       if (localRecord == null) {
         // save new to local
+        await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
       } else {
         // update from cosmos to local
+        if (localRecord['_ts'] < cosmosRecord['_ts']) {
+          await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
+        }
       }
     }
   }
