@@ -16,8 +16,8 @@ abstract class User {
 
 abstract class Sync {
   Future<void> syncAll();
-  Future<void> syncRead(String table);
-  Future<void> syncWrite(String table);
+  Future<void> syncRead(String table, String token);
+  Future<void> syncWrite(String table, String token);
 }
 
 abstract class Database {

@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import "abstract.dart";
 import "query.dart";
 import "robust_http.dart";
-import 'package:crypto/crypto.dart';
 
 import 'robust_http_log.dart';
 
@@ -15,7 +13,6 @@ class CosmosSync extends Sync {
   User user;
   static const String _apiVersion = "2018-12-31";
   String databaseId;
-  String masterKey;
   String defaultPartition;
   String partitionKey;
 
@@ -31,7 +28,6 @@ class CosmosSync extends Sync {
         {"connectTimeout": 60000, "receiveTimeout": 60000},
         Log.all);
     shared.databaseId = config["dbId"];
-    shared.masterKey = config["dbMasterKey"];
     shared.defaultPartition = config["dbDefaultPartition"];
     shared.partitionKey = config["dbPartitionKey"];
   }
@@ -45,19 +41,19 @@ class CosmosSync extends Sync {
 
     // Loop through tables to read sync
     for (final tableName in keys) {
-      await syncRead(tableName);
+      await syncRead(tableName, resourceTokens[tableName]["_token"]);
     }
 
     // Loop through tables to write sync
     for (final tableName in keys) {
       if (resourceTokens[tableName]["permissionMode"] == "All") {
-        await syncWrite(tableName);
+        await syncWrite(tableName, resourceTokens[tableName]["_token"]);
       }
     }
   }
 
   /// Read sync this table if it is not locked.
-  Future<void> syncRead(String table) async {
+  Future<void> syncRead(String table, String token) async {
     // Check if table is locked and return if it is
     if (_tableWriteLock[table] != null &&
         _tableWriteLock[table].isAfter(DateTime.now())) {
@@ -74,7 +70,7 @@ class CosmosSync extends Sync {
     String select;
     String partition = defaultPartition;
     if (record == null || (record != null && record["_ts"] == null)) {
-      select = "SELECT * FROM $table c WHERE c.id = @id";
+      select = "SELECT * FROM $table c";
     } else {
       select = "SELECT * FROM $table c WHERE c._ts > ${record["_ts"]}";
       partition = record[partitionKey];
@@ -88,12 +84,14 @@ class CosmosSync extends Sync {
     // Get updated records from last _ts timestamp as a map
     // Compare who has the newer _ts or updated_at (if status is updated), and use that record
     // If cosmos record is newest, save all fields into sembast
-    var response = await _queryDocuments(table, partition, select, parameters);
-    print(response);
+    var cosmosRecords =
+        await _queryDocuments(token, table, partition, select, parameters);
+    print(cosmosRecords);
+    for (var cosmosRecord in cosmosRecords) {}
   }
 
   /// Write sync this table if it has permission and is not locked.
-  Future<void> syncWrite(String table) async {
+  Future<void> syncWrite(String table, String token) async {
     // Check if table is locked and return if it is
     if (_tableReadLock[table] != null &&
         _tableReadLock[table].isAfter(DateTime.now())) {
@@ -126,37 +124,16 @@ class CosmosSync extends Sync {
     // (for Adrian) do another check to see if there are any local updated records after this to upload
   }
 
-  /// Generate AuthorizationToken from master key & other resources
-  String _getAuthorizationToken(String verb, String resourceType,
-      String resourceId, String date, String masterKey) {
-    List<int> base64Key = base64.decode(masterKey);
-    var hmacSha256 = new Hmac(sha256, base64Key);
-    var payLoad = verb.toLowerCase() +
-        "\n" +
-        resourceType.toLowerCase() +
-        "\n" +
-        resourceId +
-        "\n" +
-        date.toLowerCase() +
-        "\n" +
-        "" +
-        "\n";
-    var hashPayLoad = hmacSha256.convert(utf8.encode(payLoad)).bytes;
-    var signature = base64.encode(hashPayLoad);
-    return Uri.encodeComponent("type=master&ver=1.0&sig=$signature");
-  }
-
-  Future<dynamic> _queryDocuments(String table, String partitionKey,
-      String query, List<Map<String, String>> parameters) async {
-    var now = new DateTime.now().toUtc();
-    var httpDate = HttpDate.format(now);
-    var key = _getAuthorizationToken(
-        "post", "docs", "dbs/${databaseId}/colls/$table", httpDate, masterKey);
+  Future<dynamic> _queryDocuments(
+      String resouceToken,
+      String table,
+      String partitionKey,
+      String query,
+      List<Map<String, String>> parameters) async {
     try {
       http.headers = {
-        "authorization": key,
+        "authorization": Uri.encodeComponent(resouceToken),
         "content-type": "application/query+json",
-        "x-ms-date": httpDate,
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
         "x-ms-documentdb-isquery": true
@@ -171,17 +148,12 @@ class CosmosSync extends Sync {
     return null;
   }
 
-  Future<void> _createDocument(
-      String table, String partitionKey, Map<String, dynamic> json) async {
-    var now = new DateTime.now().toUtc();
-    var httpDate = HttpDate.format(now);
-    var key = _getAuthorizationToken(
-        "post", "docs", "dbs/${databaseId}/colls/$table", httpDate, masterKey);
+  Future<void> _createDocument(String resouceToken, String table,
+      String partitionKey, Map<String, dynamic> json) async {
     try {
       http.headers = {
-        "Authorization": key,
-        "Content-Type": "application/json",
-        "x-ms-date": httpDate,
+        "authorization": resouceToken,
+        "content-type": "application/json",
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
@@ -192,17 +164,12 @@ class CosmosSync extends Sync {
     }
   }
 
-  Future<void> _updateDocument(String table, String id, String partitionKey,
-      Map<String, dynamic> json) async {
-    var now = new DateTime.now().toUtc();
-    var httpDate = HttpDate.format(now);
-    var key = _getAuthorizationToken("put", "docs",
-        "dbs/$databaseId/colls/$table/docs/$id", httpDate, masterKey);
+  Future<void> _updateDocument(String resouceToken, String table, String id,
+      String partitionKey, Map<String, dynamic> json) async {
     try {
       http.headers = {
-        "Authorization": key,
-        "Content-Type": "application/json",
-        "x-ms-date": httpDate,
+        "authorization": resouceToken,
+        "content-type": "application/json",
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
