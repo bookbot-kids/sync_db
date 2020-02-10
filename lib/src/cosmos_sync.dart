@@ -6,14 +6,18 @@ import "query.dart";
 import "robust_http.dart";
 import 'package:crypto/crypto.dart';
 
+import 'robust_http_log.dart';
+
 class CosmosSync extends Sync {
   static CosmosSync shared;
   HTTP http;
-  Database _database;
+  Database database;
   User user;
   static const String _apiVersion = "2018-12-31";
   String databaseId;
   String masterKey;
+  String defaultPartition;
+  String partitionKey;
 
   Map<String, DateTime> _tableReadLock = {};
   Map<String, DateTime> _tableWriteLock = {};
@@ -24,9 +28,12 @@ class CosmosSync extends Sync {
     shared = CosmosSync();
     shared.http = HTTP(
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
-        {"connectTimeout": 60000, "receiveTimeout": 60000});
+        {"connectTimeout": 60000, "receiveTimeout": 60000},
+        Log.all);
     shared.databaseId = config["dbId"];
     shared.masterKey = config["dbMasterKey"];
+    shared.defaultPartition = config["dbDefaultPartition"];
+    shared.partitionKey = config["dbPartitionKey"];
   }
 
   /// SyncAll will run the sync across the complete database.
@@ -62,19 +69,27 @@ class CosmosSync extends Sync {
 
     // Get the last record change timestamp on server side
     final query = Query().order("_ts desc").limit(1);
-    final record = _database.query(table, query)[0];
+    var records = await database.query(table, query);
+    final record = records.isNotEmpty ? records[0] : null;
     String select;
+    String partition = defaultPartition;
     if (record == null || (record != null && record["_ts"] == null)) {
-      select = "SELECT * FROM $table";
+      select = "SELECT * FROM $table c WHERE c.id = @id";
     } else {
-      select = "SELECT * FROM $table WHERE _ts > ${record["_ts"]}";
+      select = "SELECT * FROM $table c WHERE c._ts > ${record["_ts"]}";
+      partition = record[partitionKey];
     }
-    final parameters = {"query": select};
+
+    List<Map<String, String>> parameters = List<Map<String, String>>();
+    // sample parameter
+    // _addparameter(parameters, "@id", "16334e9f-06de-4a87-9c36-977f6fba2f4f");
 
     // TODO:
     // Get updated records from last _ts timestamp as a map
     // Compare who has the newer _ts or updated_at (if status is updated), and use that record
     // If cosmos record is newest, save all fields into sembast
+    var response = await _queryDocuments(table, partition, select, parameters);
+    print(response);
   }
 
   /// Write sync this table if it has permission and is not locked.
@@ -95,13 +110,13 @@ class CosmosSync extends Sync {
 
     // Get created records and save to Cosmos DB
     var query = Query().where({"_status": "createdAt"}).order("createdAt asc");
-    var records = _database.query<Map>(table, query);
+    var records = database.query<Map>(table, query);
 
     for (final record in records) {}
 
     // Get records that have been updated and update Cosmos
     query = Query().where({"_status": "updatedAt"}).order("updatedAt asc");
-    records = _database.query<Map>(table, query);
+    records = database.query<Map>(table, query);
 
     for (final record in records) {}
 
@@ -111,6 +126,7 @@ class CosmosSync extends Sync {
     // (for Adrian) do another check to see if there are any local updated records after this to upload
   }
 
+  /// Generate AuthorizationToken from master key & other resources
   String _getAuthorizationToken(String verb, String resourceType,
       String resourceId, String date, String masterKey) {
     List<int> base64Key = base64.decode(masterKey);
@@ -130,6 +146,31 @@ class CosmosSync extends Sync {
     return Uri.encodeComponent("type=master&ver=1.0&sig=$signature");
   }
 
+  Future<dynamic> _queryDocuments(String table, String partitionKey,
+      String query, List<Map<String, String>> parameters) async {
+    var now = new DateTime.now().toUtc();
+    var httpDate = HttpDate.format(now);
+    var key = _getAuthorizationToken(
+        "post", "docs", "dbs/${databaseId}/colls/$table", httpDate, masterKey);
+    try {
+      http.headers = {
+        "authorization": key,
+        "content-type": "application/query+json",
+        "x-ms-date": httpDate,
+        "x-ms-version": _apiVersion,
+        "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
+        "x-ms-documentdb-isquery": true
+      };
+      var data = "{\"query\": \"$query\",\"parameters\": $parameters}";
+      var response = await http.post("colls/$table/docs", data: data);
+      return response;
+    } catch (e) {
+      print(e);
+    }
+
+    return null;
+  }
+
   Future<void> _createDocument(
       String table, String partitionKey, Map<String, dynamic> json) async {
     var now = new DateTime.now().toUtc();
@@ -144,8 +185,7 @@ class CosmosSync extends Sync {
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
-      var response =
-          await http.post("/dbs/${databaseId}/colls/$table/docs", data: json);
+      var response = await http.post("colls/$table/docs", data: json);
       print(response);
     } catch (e) {
       print(e);
@@ -166,11 +206,15 @@ class CosmosSync extends Sync {
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
-      var response =
-          await http.put("/dbs/$databaseId/colls/$table/docs/$id", data: json);
+      var response = await http.put("colls/$table/docs/$id", data: json);
       print(response);
     } catch (e) {
       print(e);
     }
+  }
+
+  void _addparameter(
+      List<Map<String, String>> parameters, String key, String value) {
+    parameters.add({"\"name\"": "\"$key\"", "\"value\"": "\"$value\""});
   }
 }

@@ -10,8 +10,8 @@ class Log extends LogInterceptor {
   Log({this.level = none})
       : super(
           request: level >= basic,
-          requestHeader: level > basic,
-          requestBody: level > all,
+          requestHeader: level >= basic,
+          requestBody: level >= all,
           responseHeader: level >= all,
           responseBody: level >= all,
         );

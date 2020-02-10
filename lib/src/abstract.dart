@@ -33,17 +33,24 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime createdAt;
   DateTime updatedAt;
+  String partition;
 
   //Functions to override
 
   Map<String, dynamic> export() {
-    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt};
+    return {
+      "id": id,
+      "createdAt": createdAt,
+      "updatedAt": updatedAt,
+      "partition": partition
+    };
   }
 
   void import(Map<String, dynamic> map) {
     id = map["id"];
     createdAt = map["createdAt"];
     updatedAt = map["updatedAt"];
+    partition = map["partition"];
   }
 
   String toString() {

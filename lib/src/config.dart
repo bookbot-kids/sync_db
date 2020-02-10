@@ -12,11 +12,11 @@ class Configuration {
 
   Map<String, dynamic> conf = new Map();
 
-  void appendConfigs(Map<String, dynamic> otherConf, {String environment}) {
+  void appendConfigs(Map<String, dynamic> otherConf) {
     conf.addAll(otherConf);
   }
 
-  Future<void> appendAsset(String asset, {String environment}) async {
+  Future<void> appendAsset(String asset) async {
     String data = await rootBundle.loadString(asset);
     var jsonResult = json.decode(data);
     conf.addAll(jsonResult);

@@ -138,15 +138,27 @@ class SembastDatabase extends Database {
 
     // query order
     if (query.ordering != null) {
-      finder.sortOrder = Sembast.SortOrder(query.ordering);
+      var sort = query.ordering.toLowerCase().split(" ");
+      if (sort.length == 2) {
+        var isAscending = "asc" == sort[1].trim();
+        finder.sortOrder = Sembast.SortOrder(sort[0].trim(), isAscending);
+      }
+    }
+
+    if (query.resultLimit > 0) {
+      finder.limit = query.resultLimit;
     }
 
     final db = _db[tableName];
     var records = await store.find(db, finder: finder);
     for (var record in records) {
-      final model = query.instantiateModel();
-      model.import(_fixType(record.value));
-      results.add(model);
+      if (query.instantiateModel != null) {
+        final model = query.instantiateModel();
+        model.import(_fixType(record.value));
+        results.add(model);
+      } else {
+        results.add(record.value);
+      }
     }
 
     return results;
