@@ -124,9 +124,9 @@ class CosmosSync extends Sync {
 
     for (final record in records) {
       var newRecord = await _createDocument(token, table, partition, record);
-      // update local status after syncing
+      // update to local & set synced status after syncing
       if (newRecord != null) {
-        await database.saveMap(table, record['id'], record,
+        await database.saveMap(table, newRecord['id'], newRecord,
             status: 'synced', updatedAt: newRecord['_ts'] * 1000);
       }
     }
@@ -172,9 +172,9 @@ class CosmosSync extends Sync {
 
             var updatedRecord = await _updateDocument(
                 token, table, cosmosRecord['id'], partition, cosmosRecord);
-            // update local status after syncing
+            // update to local & set synced status after syncing
             if (updatedRecord != null) {
-              await database.saveMap(table, localRecord['id'], localRecord,
+              await database.saveMap(table, updatedRecord['id'], updatedRecord,
                   status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
             }
           }
