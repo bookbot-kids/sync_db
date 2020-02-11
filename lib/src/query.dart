@@ -9,6 +9,9 @@ class Query {
   String ordering;
   int resultLimit;
   int index;
+  String tableName;
+
+  Query(this.tableName);
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
@@ -44,8 +47,8 @@ class Query {
   }
 
   /// Loads the query results into a List
-  Future<List> load(String modelName) {
-    return database.query(modelName, this);
+  Future<List> load() {
+    return database.query(this);
   }
 
   /// Sets instantiateModel function and database

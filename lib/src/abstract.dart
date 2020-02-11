@@ -16,16 +16,17 @@ abstract class User {
 
 abstract class Sync {
   Future<void> syncAll();
-  Future<void> syncRead(String table, String token);
-  Future<void> syncWrite(String table, String token);
+  Future<void> syncRead(String table);
+  Future<void> syncWrite(String table);
 }
 
 abstract class Database {
   void saveMap(String tableName, String id, Map map);
   void save(Model model);
+  bool hasTable(String tableName);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);
-  dynamic query<T>(String tableName, Query query);
+  dynamic query<T>(Query query);
 }
 
 abstract class Model extends ChangeNotifier {
@@ -34,7 +35,6 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime createdAt;
   DateTime updatedAt;
-  String partition;
 
   //Functions to override
 
@@ -43,7 +43,6 @@ abstract class Model extends ChangeNotifier {
       "id": id,
       "createdAt": createdAt,
       "updatedAt": updatedAt,
-      "partition": partition
     };
   }
 
@@ -51,7 +50,6 @@ abstract class Model extends ChangeNotifier {
     id = map["id"];
     createdAt = map["createdAt"];
     updatedAt = map["updatedAt"];
-    partition = map["partition"];
   }
 
   String toString() {

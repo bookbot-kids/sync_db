@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import "abstract.dart";
 import "query.dart";
 import "robust_http.dart";
@@ -13,23 +11,21 @@ class CosmosSync extends Sync {
   User user;
   static const String _apiVersion = "2018-12-31";
   String databaseId;
-  String defaultPartition;
-  String partitionKey;
+  int logLevel;
 
   Map<String, DateTime> _tableReadLock = {};
   Map<String, DateTime> _tableWriteLock = {};
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
-  static Future<void> config(Map config) {
+  static void config(Map config, {int logLevel = Log.none}) {
     shared = CosmosSync();
     shared.http = HTTP(
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
         {"connectTimeout": 60000, "receiveTimeout": 60000},
-        Log.all);
+        logLevel);
+    shared.logLevel = logLevel;
     shared.databaseId = config["dbId"];
-    shared.defaultPartition = config["dbDefaultPartition"];
-    shared.partitionKey = config["dbPartitionKey"];
   }
 
   /// SyncAll will run the sync across the complete database.
@@ -41,21 +37,24 @@ class CosmosSync extends Sync {
 
     // Loop through tables to read sync
     for (final tableName in keys) {
-      await syncRead(tableName, resourceTokens[tableName]["_token"]);
+      if (database.hasTable(tableName)) {
+        await syncRead(tableName);
+      }
     }
 
     // await syncRead('Category', resourceTokens['Category']["_token"]);
 
     // Loop through tables to write sync
     for (final tableName in keys) {
-      if (resourceTokens[tableName]["permissionMode"] == "All") {
-        await syncWrite(tableName, resourceTokens[tableName]["_token"]);
+      if (resourceTokens[tableName]["permissionMode"] == "All" &&
+          database.hasTable(tableName)) {
+        await syncWrite(tableName);
       }
     }
   }
 
   /// Read sync this table if it is not locked.
-  Future<void> syncRead(String table, String token) async {
+  Future<void> syncRead(String table) async {
     // Check if table is locked and return if it is
     if (_tableWriteLock[table] != null &&
         _tableWriteLock[table].isAfter(DateTime.now())) {
@@ -65,33 +64,30 @@ class CosmosSync extends Sync {
     // Lock this specific table for reading
     _tableWriteLock[table] = DateTime.now().add(Duration(minutes: 1));
 
+    final resourceTokens = await user.resourceTokens();
+    String token = resourceTokens[table]["_token"];
+    String partition = resourceTokens[table]["resourcePartitionKey"][0];
     // Get the last record change timestamp on server side
-    final query = Query().order("_ts desc").limit(1);
-    var records = await database.query(table, query);
+    final query = Query(table).order("_ts desc").limit(1);
+    var records = await database.query(query);
     final record = records.isNotEmpty ? records[0] : null;
     String select;
-    String partition = defaultPartition;
     if (record == null || (record != null && record["_ts"] == null)) {
       select = "SELECT * FROM $table c";
     } else {
       select = "SELECT * FROM $table c WHERE c._ts > ${record["_ts"]}";
-      partition = record[partitionKey];
     }
 
-    List<Map<String, String>> parameters = List<Map<String, String>>();
-    // sample parameter
-    // _addparameter(parameters, "@id", "16334e9f-06de-4a87-9c36-977f6fba2f4f");
-
-    // TODO:
-    // Get updated records from last _ts timestamp as a map
-    // Compare who has the newer _ts or updated_at (if status is updated), and use that record
-    // If cosmos record is newest, save all fields into sembast
+    var parameters = List<Map<String, String>>();
     var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
-    print(cosmosResult);
+    if (logLevel > Log.none) {
+      print(cosmosResult);
+    }
+
     for (var cosmosRecord in cosmosResult['Documents']) {
-      final query = Query().where({"id": cosmosRecord['id']}).limit(1);
-      var records = await database.query(table, query);
+      final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
+      var records = await database.query(query);
       var localRecord = records.isNotEmpty ? records[0] : null;
       if (localRecord == null) {
         // save new to local
@@ -106,7 +102,7 @@ class CosmosSync extends Sync {
   }
 
   /// Write sync this table if it has permission and is not locked.
-  Future<void> syncWrite(String table, String token) async {
+  Future<void> syncWrite(String table) async {
     // Check if table is locked and return if it is
     if (_tableReadLock[table] != null &&
         _tableReadLock[table].isAfter(DateTime.now())) {
@@ -121,17 +117,26 @@ class CosmosSync extends Sync {
     // Lock this specific table for reading
     _tableReadLock[table] = DateTime.now().add(Duration(minutes: 1));
 
-    // Get created records and save to Cosmos DB
-    var query = Query().where({"_status": "createdAt"}).order("createdAt asc");
-    var records = database.query<Map>(table, query);
+    String token = resourceTokens[table]["_token"];
+    String partition = resourceTokens[table]["resourcePartitionKey"][0];
 
-    for (final record in records) {}
+    // Get created records and save to Cosmos DB
+    var query =
+        Query(table).where({"_status": "created"}).order("createdAt asc");
+    var records = await database.query<Map>(query);
+
+    for (final record in records) {
+      await _createDocument(token, table, partition, record);
+    }
 
     // Get records that have been updated and update Cosmos
-    query = Query().where({"_status": "updatedAt"}).order("updatedAt asc");
-    records = database.query<Map>(table, query);
+    query = Query(table).where({"_status": "updated"}).order("updatedAt asc");
+    records = await database.query<Map>(query);
 
-    for (final record in records) {}
+    for (final record in records) {
+      // compare cosmos
+
+    }
 
     // TODO:
     // Get record from Cosmos (if updated) and compare record to see which one is newer (newer _ts or updated_at)
@@ -139,6 +144,18 @@ class CosmosSync extends Sync {
     // (for Adrian) do another check to see if there are any local updated records after this to upload
   }
 
+  /// Cosmos API to Query documents
+  ///
+  /// Example:
+  ///
+  /// "query": "select * from docs d where d.id = @id and d.prop = @prop",
+  ///
+  /// "parameters": [
+  ///      {"@id": "newdoc"},
+  ///      {"@prop": 5}
+  ///  ]
+  ///
+  /// Return a list of document in `Documents` json key
   Future<dynamic> _queryDocuments(
       String resouceToken,
       String table,
@@ -163,6 +180,7 @@ class CosmosSync extends Sync {
     return null;
   }
 
+  /// Cosmos api to create document
   Future<void> _createDocument(String resouceToken, String table,
       String partitionKey, Map<String, dynamic> json) async {
     try {
@@ -173,12 +191,15 @@ class CosmosSync extends Sync {
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
       var response = await http.post("colls/$table/docs", data: json);
-      print(response);
+      if (logLevel > Log.none) {
+        print(response);
+      }
     } catch (e) {
       print(e);
     }
   }
 
+  /// Cosmos api to update document
   Future<void> _updateDocument(String resouceToken, String table, String id,
       String partitionKey, Map<String, dynamic> json) async {
     try {
@@ -189,13 +210,16 @@ class CosmosSync extends Sync {
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
       };
       var response = await http.put("colls/$table/docs/$id", data: json);
-      print(response);
+      if (logLevel > Log.none) {
+        print(response);
+      }
     } catch (e) {
       print(e);
     }
   }
 
-  void _addparameter(
+  /// Add parameter in list of map for cosmos query
+  void _addParameter(
       List<Map<String, String>> parameters, String key, String value) {
     parameters.add({"\"name\"": "\"$key\"", "\"value\"": "\"$value\""});
   }

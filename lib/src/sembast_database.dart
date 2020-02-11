@@ -36,6 +36,11 @@ class SembastDatabase extends Database {
     }
   }
 
+  /// Check whether database table has initialized
+  bool hasTable(String tableName) {
+    return _db[tableName] != null;
+  }
+
   Future<void> save(Model model) async {
     // Get DB
     final name = model.runtimeType.toString();
@@ -95,7 +100,7 @@ class SembastDatabase extends Database {
   }
 
   /// Query the table with the Query class
-  Future<List<T>> query<T>(String tableName, Query query) async {
+  Future<List<T>> query<T>(Query query) async {
     final store = Sembast.StoreRef.main();
     List<T> results = [];
     var finder = Sembast.Finder();
@@ -155,7 +160,7 @@ class SembastDatabase extends Database {
       finder.limit = query.resultLimit;
     }
 
-    final db = _db[tableName];
+    final db = _db[query.tableName];
     var records = await store.find(db, finder: finder);
     for (var record in records) {
       if (query.instantiateModel != null) {
