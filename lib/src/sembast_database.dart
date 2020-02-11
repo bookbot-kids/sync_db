@@ -70,20 +70,32 @@ class SembastDatabase extends Database {
     //_sync.syncWrite(name);
   }
 
-  Future<void> saveMap(String tableName, String id, Map map) async {
+  Future<void> saveMap(String tableName, String id, Map map,
+      {int updatedAt, String status}) async {
     final db = _db[tableName];
     final store = Sembast.StoreRef.main();
     final create = id == null;
     if (create) {
       id = Uuid.v4().toString();
+      map['id'] = id;
     }
 
     if (!map.containsKey('createdAt')) {
       map['createdAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
     }
 
-    map['updatedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
-    map["_status"] = create ? "created" : "updated";
+    if (updatedAt == null) {
+      map['updatedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+    } else {
+      map['updatedAt'] = updatedAt;
+    }
+
+    if (status == null) {
+      map["_status"] = create ? "created" : "updated";
+    } else {
+      map["_status"] = status;
+    }
+
     await store.record(id).put(db, map);
   }
 

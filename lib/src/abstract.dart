@@ -21,7 +21,8 @@ abstract class Sync {
 }
 
 abstract class Database {
-  void saveMap(String tableName, String id, Map map);
+  void saveMap(String tableName, String id, Map map,
+      {int updatedAt, String status});
   void save(Model model);
   bool hasTable(String tableName);
   dynamic all(String modelName, Function instantiateModel);

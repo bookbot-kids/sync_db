@@ -60,6 +60,11 @@ class AzureADB2CUser extends User {
 
   String get refreshToken => _prefs.getString("refresh_token");
 
+  static Future<bool> hasSignedIn() async {
+    var prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey("refresh_token");
+  }
+
   /// Removes the refresh token from shared preferences
   void signout() {
     _prefs.remove('refresh_token');

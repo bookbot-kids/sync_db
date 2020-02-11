@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:synchronized/synchronized.dart';
+
 import "abstract.dart";
 import "query.dart";
 import "robust_http.dart";
@@ -14,9 +16,7 @@ class CosmosSync extends Sync {
   static const String _apiVersion = "2018-12-31";
   String databaseId;
   int logLevel;
-
-  Map<String, DateTime> _tableReadLock = {};
-  Map<String, DateTime> _tableWriteLock = {};
+  final _lock = new Lock();
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -33,38 +33,39 @@ class CosmosSync extends Sync {
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
   /// Reading and writing of tables is done sequentially to manage load to the server.
   Future<void> syncAll() async {
-    final resourceTokens = await user.resourceTokens();
-    final keys = resourceTokens.keys;
+    try {
+      await _lock.synchronized(() async {
+        final resourceTokens = await user.resourceTokens();
+        final keys = resourceTokens.keys;
 
-    // Loop through tables to read sync
-    for (final tableName in keys) {
-      if (database.hasTable(tableName)) {
-        await syncRead(tableName);
+        // Loop through tables to read sync
+        for (final tableName in keys) {
+          if (database.hasTable(tableName)) {
+            await syncRead(tableName);
+          }
+        }
+
+        // Loop through tables to write sync
+        for (final tableName in keys) {
+          if (resourceTokens[tableName]["permissionMode"] == "All" &&
+              database.hasTable(tableName)) {
+            await syncWrite(tableName);
+          }
+        }
+      });
+
+      if (logLevel > Log.none) {
+        print('Sync completed');
       }
-    }
-
-    // await syncRead('Category', resourceTokens['Category']["_token"]);
-
-    // Loop through tables to write sync
-    for (final tableName in keys) {
-      if (resourceTokens[tableName]["permissionMode"] == "All" &&
-          database.hasTable(tableName)) {
-        await syncWrite(tableName);
+    } catch (err) {
+      if (logLevel > Log.none) {
+        print('Sync error: $err');
       }
     }
   }
 
-  /// Read sync this table if it is not locked.
+  /// Read sync this table
   Future<void> syncRead(String table) async {
-    // Check if table is locked and return if it is
-    if (_tableWriteLock[table] != null &&
-        _tableWriteLock[table].isAfter(DateTime.now())) {
-      return;
-    }
-
-    // Lock this specific table for reading
-    _tableWriteLock[table] = DateTime.now().add(Duration(minutes: 1));
-
     final resourceTokens = await user.resourceTokens();
     String token = resourceTokens[table]["_token"];
     String partition = resourceTokens[table]["resourcePartitionKey"][0];
@@ -91,33 +92,27 @@ class CosmosSync extends Sync {
       var records = await database.query(query);
       var localRecord = records.isNotEmpty ? records[0] : null;
       if (localRecord == null) {
-        // save new to local
-        await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
+        // save new to local, set status to synced to prevent sync again
+        await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
+            updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
       } else {
-        // update from cosmos to local
+        // update from cosmos to local, set status to synced to prevent sync again
         var localDate = localRecord['updatedAt'] / 1000;
         if (localDate < cosmosRecord['_ts']) {
-          await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
+          await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
+              updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
         }
       }
     }
   }
 
-  /// Write sync this table if it has permission and is not locked.
+  /// Write sync this table if it has permission
   Future<void> syncWrite(String table) async {
-    // Check if table is locked and return if it is
-    if (_tableReadLock[table] != null &&
-        _tableReadLock[table].isAfter(DateTime.now())) {
-      return;
-    }
     // Check if we have write permission on table
     final resourceTokens = await user.resourceTokens();
     if (resourceTokens[table]["permissionMode"] != "All") {
       return;
     }
-
-    // Lock this specific table for reading
-    _tableReadLock[table] = DateTime.now().add(Duration(minutes: 1));
 
     String token = resourceTokens[table]["_token"];
     String partition = resourceTokens[table]["resourcePartitionKey"][0];
@@ -128,7 +123,12 @@ class CosmosSync extends Sync {
     var records = await database.query<Map>(query);
 
     for (final record in records) {
-      await _createDocument(token, table, partition, record);
+      var newRecord = await _createDocument(token, table, partition, record);
+      // update local status after syncing
+      if (newRecord != null) {
+        await database.saveMap(table, record['id'], record,
+            status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+      }
     }
 
     // Get records that have been updated and update Cosmos
@@ -147,9 +147,10 @@ class CosmosSync extends Sync {
         _addParameter(parameters, "@id$index", value);
       });
 
-      select = select + " WHERE " + where;
-      var cosmosResult =
-          await _queryDocuments(token, table, partition, select, parameters);
+      // build query & remove last OR
+      select = select + " WHERE " + where.substring(0, where.length - 3);
+      var cosmosResult = await _queryDocuments(
+          token, table, partition, select.trim(), parameters);
 
       cosmosRecords = cosmosResult['Documents'];
     } else {
@@ -169,8 +170,13 @@ class CosmosSync extends Sync {
               }
             });
 
-            await _updateDocument(
+            var updatedRecord = await _updateDocument(
                 token, table, cosmosRecord['id'], partition, cosmosRecord);
+            // update local status after syncing
+            if (updatedRecord != null) {
+              await database.saveMap(table, localRecord['id'], localRecord,
+                  status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
+            }
           }
         }
       }
@@ -219,16 +225,15 @@ class CosmosSync extends Sync {
   }
 
   /// Cosmos api to create document
-  Future<void> _createDocument(
+  Future<dynamic> _createDocument(
       String resouceToken, String table, String partition, Map json) async {
     var now = HttpDate.format(DateTime.now().toUtc());
 
     // make sure there is partition in model
     json['partition'] = partition;
 
-    // we don't want to save updatedAt & _status in cosmos
-    json.remove("updatedAt");
-    json.remove("_status");
+    // we don't want to save updatedAt & _field in cosmos
+    _excludeLocalFields(json);
 
     try {
       http.headers = {
@@ -242,21 +247,21 @@ class CosmosSync extends Sync {
       if (logLevel > Log.none) {
         print(response);
       }
+      return response;
     } catch (e) {
       print(e);
     }
   }
 
   /// Cosmos api to update document
-  Future<void> _updateDocument(String resouceToken, String table, String id,
+  Future<dynamic> _updateDocument(String resouceToken, String table, String id,
       String partition, Map json) async {
     var now = HttpDate.format(DateTime.now().toUtc());
     // make sure there is partition in model
     json['partition'] = partition;
 
-    // we don't want to save updatedAt & _status in cosmos
-    json.remove("updatedAt");
-    json.remove("_status");
+    // we don't want to save updatedAt & _field in cosmos
+    _excludeLocalFields(json);
 
     try {
       http.headers = {
@@ -270,9 +275,16 @@ class CosmosSync extends Sync {
       if (logLevel > Log.none) {
         print(response);
       }
+
+      return response;
     } catch (e) {
       print(e);
     }
+  }
+
+  /// Remove local fields before saving to cosmos
+  void _excludeLocalFields(Map map) {
+    map.removeWhere((key, value) => key == 'updatedAt' || key.startsWith('_'));
   }
 
   /// Add parameter in list of map for cosmos query
