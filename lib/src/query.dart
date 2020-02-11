@@ -15,6 +15,14 @@ class Query {
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
+  ///
+  /// *String query*: `Query(table).where('column <= 3')`
+  ///
+  /// *Accepted operators*: `<`, `<=`, `=`, `>`, `>=`
+  ///
+  /// *Map query*: `Query(table).where({"column1" : 3, "column2": "a"})`
+  /// It's equals: `column1 = 3 AND column2 = "a"`
+  ///
   Query where(
       [dynamic condition, Database database, Function instantiateModel]) {
     if (condition is String || condition is Map || condition == null) {

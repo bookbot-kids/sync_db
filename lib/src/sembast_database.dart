@@ -152,6 +152,10 @@ class SembastDatabase extends Database {
               finder.filter = Sembast.Filter.greaterThanOrEquals(
                   conditions[0].trim(), conditions[2].trim());
               break;
+            case '=':
+              finder.filter = Sembast.Filter.equals(
+                  conditions[0].trim(), conditions[2].trim());
+              break;
           }
         }
       } else if (query.condition is Map) {
