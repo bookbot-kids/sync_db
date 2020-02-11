@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sync_db/src/robust_http_log.dart';
 
 import "abstract.dart";
 import 'dart:math';
@@ -17,9 +18,10 @@ class AzureADB2CUser extends User {
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
-  AzureADB2CUser(Map<String, dynamic> config, String refreshToken) {
+  AzureADB2CUser(Map<String, dynamic> config, String refreshToken,
+      {int logLevel = Log.none}) {
     _config = config;
-    _http = HTTP(config["azure_auth_url"], config);
+    _http = HTTP(config["azure_auth_url"], config, logLevel);
     SharedPreferences.getInstance().then((value) {
       _prefs = value;
       this.refreshToken = refreshToken;

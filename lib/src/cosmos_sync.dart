@@ -94,7 +94,8 @@ class CosmosSync extends Sync {
         await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
       } else {
         // update from cosmos to local
-        if (localRecord['_ts'] < cosmosRecord['_ts']) {
+        var localDate = localRecord['updatedAt'] / 1000;
+        if (localDate < cosmosRecord['_ts']) {
           await database.saveMap(table, cosmosRecord['id'], cosmosRecord);
         }
       }
@@ -126,16 +127,54 @@ class CosmosSync extends Sync {
     var records = await database.query<Map>(query);
 
     for (final record in records) {
+      record['partition'] = partition;
+      record.remove("updatedAt");
       await _createDocument(token, table, partition, record);
     }
 
     // Get records that have been updated and update Cosmos
     query = Query(table).where({"_status": "updated"}).order("updatedAt asc");
     records = await database.query<Map>(query);
+    List recordIds = records.map((item) => item['id']).toList();
 
-    for (final record in records) {
+    dynamic cosmosRecords;
+    if (recordIds.isNotEmpty) {
+      // get cosmos records base the local id list
+      var select = "SELECT * FROM $table c ";
+      var parameters = List<Map<String, String>>();
+      var where = "";
+      recordIds.asMap().forEach((index, value) {
+        where += " c.id = @id$index OR ";
+        _addParameter(parameters, "@id$index", value);
+      });
+
+      select = select + " WHERE " + where;
+      var cosmosResult =
+          await _queryDocuments(token, table, partition, select, parameters);
+
+      cosmosRecords = cosmosResult['Documents'];
+    } else {
+      cosmosRecords = List();
+    }
+
+    for (final localRecord in records) {
       // compare cosmos
+      for (var cosmosRecord in cosmosRecords) {
+        if (cosmosRecord['id'] == localRecord['id']) {
+          var localDate = localRecord['updatedAt'] / 1000;
+          // if local is newest, merge and save to cosmos
+          if (localDate > cosmosRecord['_ts']) {
+            localRecord.forEach((key, value) {
+              if (key != 'updatedAt') {
+                cosmosRecord[key] = value;
+              }
+            });
 
+            await _updateDocument(
+                token, table, cosmosRecord['id'], partition, cosmosRecord);
+          }
+        }
+      }
     }
 
     // TODO:

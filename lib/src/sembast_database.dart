@@ -51,11 +51,11 @@ class SembastDatabase extends Database {
     final create = (model.id == null) || (model.createdAt == null);
     if (create) {
       model.id = Uuid.v4().toString();
-      model.createdAt = DateTime.now();
+      model.createdAt = DateTime.now().toUtc();
     }
 
     // Export model as map and convert DateTime to int
-    model.updatedAt = DateTime.now();
+    model.updatedAt = DateTime.now().toUtc();
     final map = model.export();
     for (final entry in map.entries) {
       if (entry.value is DateTime) {
@@ -72,6 +72,11 @@ class SembastDatabase extends Database {
   Future<void> saveMap(String tableName, String id, Map map) async {
     final db = _db[tableName];
     final store = Sembast.StoreRef.main();
+    if (!map.containsKey('createdAt')) {
+      map['createdAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+    }
+
+    map['updatedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
     await store.record(id).put(db, map);
   }
 
