@@ -8,19 +8,17 @@ class HTTP {
   Dio dio;
 
   /// Configure HTTP with defaults from a Map
-  HTTP(String baseUrl,
-      [Map<String, dynamic> options = const {}, int logLevel = Log.none]) {
+  HTTP(String baseUrl, [Map<String, dynamic> options = const {}]) {
     httpRetries = options["httpRetries"] ?? httpRetries;
 
     final baseOptions = BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: options["connectTimeout"] ?? 20000,
-      receiveTimeout: options["receiveTimeout"] ?? 20000,
-      headers: options["headers"] ?? {}
-    );
+        baseUrl: baseUrl,
+        connectTimeout: options["connectTimeout"] ?? 60000,
+        receiveTimeout: options["receiveTimeout"] ?? 60000,
+        headers: options["headers"] ?? {});
 
     dio = new Dio(baseOptions);
-    dio.interceptors.add(Log(level: logLevel));
+    dio.interceptors.add(Log(level: options["logLevel"] ?? Log.none));
   }
 
   /// Does a http GET (with optional overrides).

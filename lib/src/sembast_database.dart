@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart' as Sembast;
 import 'package:sembast/sembast_io.dart';
 import 'package:better_uuid/uuid.dart';
+import 'package:sembast/src/utils.dart' as SembastUtils;
 
 class SembastDatabase extends Database {
   static SembastDatabase shared;
@@ -72,11 +73,17 @@ class SembastDatabase extends Database {
   Future<void> saveMap(String tableName, String id, Map map) async {
     final db = _db[tableName];
     final store = Sembast.StoreRef.main();
+    final create = id == null;
+    if (create) {
+      id = Uuid.v4().toString();
+    }
+
     if (!map.containsKey('createdAt')) {
       map['createdAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
     }
 
     map['updatedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+    map["_status"] = create ? "created" : "updated";
     await store.record(id).put(db, map);
   }
 
@@ -173,7 +180,9 @@ class SembastDatabase extends Database {
         model.import(_fixType(record.value));
         results.add(model);
       } else {
-        results.add(record.value);
+        // clone map for writable
+        var value = SembastUtils.cloneValue(record.value);
+        results.add(value);
       }
     }
 

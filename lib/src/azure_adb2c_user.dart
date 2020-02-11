@@ -21,7 +21,7 @@ class AzureADB2CUser extends User {
   AzureADB2CUser(Map<String, dynamic> config, String refreshToken,
       {int logLevel = Log.none}) {
     _config = config;
-    _http = HTTP(config["azure_auth_url"], config, logLevel);
+    _http = HTTP(config["azure_auth_url"], config);
     SharedPreferences.getInstance().then((value) {
       _prefs = value;
       this.refreshToken = refreshToken;

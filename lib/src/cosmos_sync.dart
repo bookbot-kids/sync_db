@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import "abstract.dart";
 import "query.dart";
 import "robust_http.dart";
@@ -18,13 +20,12 @@ class CosmosSync extends Sync {
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
-  static void config(Map config, {int logLevel = Log.none}) {
+  static void config(Map config) {
     shared = CosmosSync();
     shared.http = HTTP(
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
-        {"connectTimeout": 60000, "receiveTimeout": 60000},
-        logLevel);
-    shared.logLevel = logLevel;
+        config);
+    shared.logLevel = config['logLevel'] ?? Log.none;
     shared.databaseId = config["dbId"];
   }
 
@@ -127,8 +128,6 @@ class CosmosSync extends Sync {
     var records = await database.query<Map>(query);
 
     for (final record in records) {
-      record['partition'] = partition;
-      record.remove("updatedAt");
       await _createDocument(token, table, partition, record);
     }
 
@@ -220,14 +219,24 @@ class CosmosSync extends Sync {
   }
 
   /// Cosmos api to create document
-  Future<void> _createDocument(String resouceToken, String table,
-      String partitionKey, Map<String, dynamic> json) async {
+  Future<void> _createDocument(
+      String resouceToken, String table, String partition, Map json) async {
+    var now = HttpDate.format(DateTime.now().toUtc());
+
+    // make sure there is partition in model
+    json['partition'] = partition;
+
+    // we don't want to save updatedAt & _status in cosmos
+    json.remove("updatedAt");
+    json.remove("_status");
+
     try {
       http.headers = {
-        "authorization": resouceToken,
+        "x-ms-date": now,
+        "authorization": Uri.encodeComponent(resouceToken),
         "content-type": "application/json",
         "x-ms-version": _apiVersion,
-        "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
+        "x-ms-documentdb-partitionkey": "[\"$partition\"]"
       };
       var response = await http.post("colls/$table/docs", data: json);
       if (logLevel > Log.none) {
@@ -240,13 +249,22 @@ class CosmosSync extends Sync {
 
   /// Cosmos api to update document
   Future<void> _updateDocument(String resouceToken, String table, String id,
-      String partitionKey, Map<String, dynamic> json) async {
+      String partition, Map json) async {
+    var now = HttpDate.format(DateTime.now().toUtc());
+    // make sure there is partition in model
+    json['partition'] = partition;
+
+    // we don't want to save updatedAt & _status in cosmos
+    json.remove("updatedAt");
+    json.remove("_status");
+
     try {
       http.headers = {
-        "authorization": resouceToken,
+        "x-ms-date": now,
+        "authorization": Uri.encodeComponent(resouceToken),
         "content-type": "application/json",
         "x-ms-version": _apiVersion,
-        "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]"
+        "x-ms-documentdb-partitionkey": "[\"$partition\"]"
       };
       var response = await http.put("colls/$table/docs/$id", data: json);
       if (logLevel > Log.none) {
