@@ -6,13 +6,15 @@ import 'query.dart';
 //Database db = SemBastDatabase.shared;
 
 abstract class User {
-  String role;
-
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
   Future<Map<String, Map>> resourceTokens();
   void signout();
   Future<bool> hasSignedIn();
+  set refreshToken(String token);
+  String get refreshToken;
+  set role(String role);
+  String get role;
 }
 
 abstract class Sync {

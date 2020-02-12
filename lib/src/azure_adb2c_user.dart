@@ -71,6 +71,12 @@ class AzureADB2CUser extends User {
 
   String get refreshToken => _prefs.getString("refresh_token");
 
+  set role(String role) {
+    _prefs.setString("role", role);
+  }
+
+  String get role => _prefs.getString("role");
+
   Future<bool> hasSignedIn() async {
     return refreshToken != null && refreshToken.isNotEmpty;
   }
