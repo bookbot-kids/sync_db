@@ -11,7 +11,12 @@ class Test extends Model {
   String test = "Barf";
 
   Map<String, dynamic> export() {
-    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt, "test": test};
+    return {
+      "id": id,
+      "createdAt": createdAt,
+      "updatedAt": updatedAt,
+      "test": test
+    };
   }
 
   void import(Map<String, dynamic> map) {
@@ -26,7 +31,9 @@ class Test extends Model {
   }
 
   static Future<List<Test>> all() async {
-    var all = await Test.database.all("Test", () { return Test(); });
+    var all = await Test.database.all("Test", () {
+      return Test();
+    });
     return Future<List<Test>>.value(all.cast<Test>());
   }
 
@@ -35,8 +42,10 @@ class Test extends Model {
     return Future<Test>.value(model);
   }
 
-  static where(dynamic condition) {
-    return Query().where(condition, Test.database, () { return Test(); });
+  static Query where(dynamic condition) {
+    return Query("Test").where(condition, Test.database, () {
+      return Test();
+    });
   }
 }
 
@@ -44,7 +53,8 @@ void main() {
   group('HTTP: ', () {
     HTTP http;
     setUp(() {
-      http = HTTP('https://httpstat.us/', {"connectTimeout": 3000, "receiveTimeout": 3000});
+      http = HTTP('https://httpstat.us/',
+          {"connectTimeout": 3000, "receiveTimeout": 3000});
     });
 
     test('Test full url', () async {
@@ -76,7 +86,8 @@ void main() {
 
     test('Test model creation', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
-      const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
+      const MethodChannel channel =
+          MethodChannel('plugins.flutter.io/path_provider');
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         return ".";
       });
@@ -88,6 +99,5 @@ void main() {
       print(await Test.all());
       print(await Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
     });
-
   });
 }

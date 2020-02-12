@@ -1,5 +1,4 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sync_db/src/robust_http_log.dart';
 
 import "abstract.dart";
 import 'dart:math';
@@ -18,20 +17,32 @@ class AzureADB2CUser extends User {
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
-  AzureADB2CUser(Map<String, dynamic> config, String refreshToken,
-      {int logLevel = Log.none}) {
+  AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
     _config = config;
     _http = HTTP(config["azure_auth_url"], config);
     SharedPreferences.getInstance().then((value) {
       _prefs = value;
-      this.refreshToken = refreshToken;
-      resourceTokens().then((Map<String, Map> map) {});
+      if (refreshToken != null) {
+        this.refreshToken = refreshToken;
+      }
+
+      if (this.refreshToken != null) {
+        resourceTokens().then((Map<String, Map> map) {});
+      }
     });
   }
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
   Future<Map<String, Map>> resourceTokens([bool refresh = false]) async {
+    if (_prefs == null) {
+      _prefs = await SharedPreferences.getInstance();
+    }
+
+    if (!(await hasSignedIn())) {
+      return _resourceTokens;
+    }
+
     if (_tokenExpiry.isAfter(DateTime.now()) && refresh == false) {
       return _resourceTokens;
     }
@@ -60,9 +71,8 @@ class AzureADB2CUser extends User {
 
   String get refreshToken => _prefs.getString("refresh_token");
 
-  static Future<bool> hasSignedIn() async {
-    var prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey("refresh_token");
+  Future<bool> hasSignedIn() async {
+    return refreshToken != null && refreshToken.isNotEmpty;
   }
 
   /// Removes the refresh token from shared preferences

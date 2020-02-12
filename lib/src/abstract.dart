@@ -12,6 +12,7 @@ abstract class User {
   /// Refresh token is stored in Shared Preferences.
   Future<Map<String, Map>> resourceTokens();
   void signout();
+  Future<bool> hasSignedIn();
 }
 
 abstract class Sync {
