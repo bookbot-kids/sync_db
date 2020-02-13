@@ -112,7 +112,7 @@ class SembastDatabase extends Database {
       model.import(_fixType(record.value));
       models.add(model);
     }
-    return Future<List<Model>>.value(models);
+    return models;
   }
 
   /// Find model instance by id
@@ -120,7 +120,7 @@ class SembastDatabase extends Database {
     final store = Sembast.StoreRef.main();
     final record = await store.record(id).get(_db[modelName]);
     model.import(_fixType(record));
-    return Future<Model>.value(model);
+    return model;
   }
 
   /// Query the table with the Query class
