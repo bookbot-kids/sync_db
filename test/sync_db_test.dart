@@ -31,9 +31,11 @@ class Test extends Model {
   }
 
   static Future<List<Test>> all() async {
-    return await Test.database.all("Test", () {
+    var all = await Test.database.all("Test", () {
       return Test();
     });
+
+    return List<Test>.from(all);
   }
 
   static Future<Test> find(String id) async {
