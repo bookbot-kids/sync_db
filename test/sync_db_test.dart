@@ -31,15 +31,13 @@ class Test extends Model {
   }
 
   static Future<List<Test>> all() async {
-    var all = await Test.database.all("Test", () {
+    return await Test.database.all("Test", () {
       return Test();
     });
-    return Future<List<Test>>.value(all.cast<Test>());
   }
 
   static Future<Test> find(String id) async {
-    Test model = await Test.database.find("Test", id, Test());
-    return Future<Test>.value(model);
+    return await Test.database.find("Test", id, Test());
   }
 
   static Query where(dynamic condition) {
