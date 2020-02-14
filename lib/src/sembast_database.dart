@@ -177,9 +177,9 @@ class SembastDatabase extends Database {
 
     // query order
     if (query.ordering != null) {
-      var sort = query.ordering.toLowerCase().split(" ");
+      var sort = query.ordering.split(" ");
       if (sort.length == 2) {
-        var isAscending = "asc" == sort[1].trim();
+        var isAscending = "asc" == sort[1].toLowerCase().trim();
         finder.sortOrder = Sembast.SortOrder(sort[0].trim(), isAscending);
       }
     }
