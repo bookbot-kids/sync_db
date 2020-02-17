@@ -34,10 +34,10 @@ class CosmosSync extends Sync {
   /// Reading and writing of tables is done sequentially to manage load to the server.
   Future<void> syncAll() async {
     try {
-      await _lock.synchronized(() async {
-        final resourceTokens = await user.resourceTokens();
-        final keys = resourceTokens.keys;
+      final resourceTokens = await user.resourceTokens();
+      final keys = resourceTokens.keys;
 
+      await _lock.synchronized(() async {
         // Loop through tables to read sync
         for (final tableName in keys) {
           if (database.hasTable(tableName)) {
