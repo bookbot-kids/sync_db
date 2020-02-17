@@ -10,6 +10,7 @@ class Query {
   int resultLimit;
   int index;
   String tableName;
+  String filterOperator = 'and';
 
   Query(this.tableName);
 
@@ -21,13 +22,24 @@ class Query {
   /// *Accepted operators*: `<`, `<=`, `=`, `>`, `>=`
   ///
   /// *Map query*: `Query(table).where({"column1" : 3, "column2": "a"})`
-  /// It's equals: `column1 = 3 AND column2 = "a"`
+  /// The `filterOperator` must be `and` or `or`
+  /// It's equals: `column1 = 3 {filterOperator} column2 = "a"`
   ///
   Query where(
-      [dynamic condition, Database database, Function instantiateModel]) {
+      [dynamic condition,
+      Database database,
+      Function instantiateModel,
+      String filterOperator]) {
     if (condition is String || condition is Map || condition == null) {
+      if (filterOperator != null &&
+          filterOperator.toLowerCase() != 'and' &&
+          filterOperator.toLowerCase() != 'or') {
+        throw QueryException();
+      }
+
       _set(instantiateModel, database);
       this.condition = condition;
+      this.filterOperator = filterOperator;
       return this;
     }
     throw QueryException();

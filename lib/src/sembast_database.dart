@@ -167,7 +167,11 @@ class SembastDatabase extends Database {
             filters.add(Sembast.Filter.equals(key, value));
           });
 
-          finder.filter = Sembast.Filter.and(filters);
+          if (query.filterOperator.toLowerCase() == 'or') {
+            finder.filter = Sembast.Filter.or(filters);
+          } else {
+            finder.filter = Sembast.Filter.and(filters);
+          }
         } else {
           var entry = conditions.entries.toList()[0];
           finder.filter = Sembast.Filter.equals(entry.key, entry.value);
