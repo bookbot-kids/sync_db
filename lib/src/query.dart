@@ -39,7 +39,10 @@ class Query {
 
       _set(instantiateModel, database);
       this.condition = condition;
-      this.filterOperator = filterOperator;
+      if (filterOperator != null) {
+        this.filterOperator = filterOperator;
+      }
+
       return this;
     }
     throw QueryException();

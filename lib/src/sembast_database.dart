@@ -132,35 +132,33 @@ class SembastDatabase extends Database {
     // parse condition query
     if (query.condition != null) {
       if (query.condition is String) {
-        // expect condition format likes a > b
+        // remove spaces
+        query.condition.replaceAll('  ', ' ');
+        // check one filter a > b
         List<String> conditions = query.condition.split(' ');
         if (conditions.length == 3) {
-          switch (conditions[1].trim()) {
-            case '<':
-              finder.filter = Sembast.Filter.lessThan(
-                  conditions[0].trim(), conditions[2].trim());
-              break;
-            case '<=':
-              finder.filter = Sembast.Filter.lessThanOrEquals(
-                  conditions[0].trim(), conditions[2].trim());
-              break;
-            case '>':
-              finder.filter = Sembast.Filter.greaterThan(
-                  conditions[0].trim(), conditions[2].trim());
-              break;
-            case '>=':
-              finder.filter = Sembast.Filter.greaterThanOrEquals(
-                  conditions[0].trim(), conditions[2].trim());
-              break;
-            case '=':
-              finder.filter = Sembast.Filter.equals(
-                  conditions[0].trim(), conditions[2].trim());
-              break;
+          var filter =
+              _buildFilter(conditions[0], conditions[1], conditions[2]);
+          finder.filter = filter;
+        } else if (query.condition.toLowerCase().contains(' or ') ||
+            query.condition.toLowerCase().contains(' and ')) {
+          // multiple filter a = x or b > 2
+          List<Sembast.Filter> filters = List<Sembast.Filter>();
+          for (var i = 0; i < conditions.length; i += 4) {
+            var filter = _buildFilter(
+                conditions[i], conditions[i + 1], conditions[i + 2]);
+            filters.add(filter);
+          }
+
+          if (query.condition.toLowerCase().contains(' or ')) {
+            finder.filter = Sembast.Filter.or(filters);
+          } else {
+            finder.filter = Sembast.Filter.and(filters);
           }
         }
       } else if (query.condition is Map) {
         Map conditions = query.condition;
-        // AND query conditions
+        // AND/OR query conditions
         if (conditions.length > 1) {
           List<Sembast.Filter> filters = List<Sembast.Filter>();
           conditions.forEach((key, value) {
@@ -207,6 +205,24 @@ class SembastDatabase extends Database {
     }
 
     return results;
+  }
+
+  Sembast.Filter _buildFilter(
+      String left, String filterOperator, String right) {
+    switch (filterOperator.trim()) {
+      case '<':
+        return Sembast.Filter.lessThan(left.trim(), right.trim());
+      case '<=':
+        return Sembast.Filter.lessThanOrEquals(left.trim(), right.trim());
+      case '>':
+        return Sembast.Filter.greaterThan(left.trim(), right.trim());
+      case '>=':
+        return Sembast.Filter.greaterThanOrEquals(left.trim(), right.trim());
+      case '=':
+        return Sembast.Filter.equals(left.trim(), right.trim());
+      default:
+        return null;
+    }
   }
 
   Map<String, dynamic> _fixType(Map<String, dynamic> map) {
