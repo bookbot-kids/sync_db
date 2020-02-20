@@ -78,6 +78,10 @@ class AzureADB2CUser extends User {
   String get role => _prefs.getString("role");
 
   Future<bool> hasSignedIn() async {
+    if (_prefs == null) {
+      _prefs = await SharedPreferences.getInstance();
+    }
+
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
