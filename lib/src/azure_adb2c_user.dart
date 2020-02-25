@@ -9,7 +9,7 @@ import 'robust_http.dart';
 class AzureADB2CUser extends BaseUser {
   static Database database;
   HTTP http;
-  Map<String, dynamic> _config;
+  Map<String, dynamic> config;
   Map<String, Map> _resourceTokens = {};
   DateTime _tokenExpiry = DateTime.now();
   SharedPreferences prefs;
@@ -18,7 +18,7 @@ class AzureADB2CUser extends BaseUser {
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
   AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
-    _config = config;
+    this.config = config;
     http = HTTP(config["azure_auth_url"], config);
     SharedPreferences.getInstance().then((value) {
       prefs = value;
@@ -52,9 +52,9 @@ class AzureADB2CUser extends BaseUser {
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
     final response = await http.get('/GetResourceTokens', parameters: {
-      "client_token": _clientToken(),
+      "client_token": clientToken(),
       "refresh_token": refreshToken,
-      "code": _config['azure_code']
+      "code": config['azure_code']
     });
 
     for (final permission in response["permissions"]) {
@@ -96,12 +96,12 @@ class AzureADB2CUser extends BaseUser {
   /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
-  String _clientToken() {
-    var encodedKey = base64.encode(utf8.encode(_config["azure_secret"]));
+  String clientToken() {
+    var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
     final claimSet = JwtClaim(
-        subject: _config["azure_subject"],
-        issuer: _config["azure_issuer"],
-        audience: <String>[_config["azure_audience"]],
+        subject: config["azure_subject"],
+        issuer: config["azure_issuer"],
+        audience: <String>[config["azure_audience"]],
         notBefore: DateTime.now(),
         jwtId: Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 5));
