@@ -6,22 +6,22 @@ import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'dart:convert';
 import 'robust_http.dart';
 
-class AzureADB2CUser extends User {
-  static Database _database;
-  HTTP _http;
+class AzureADB2CUser extends BaseUser {
+  static Database database;
+  HTTP http;
   Map<String, dynamic> _config;
   Map<String, Map> _resourceTokens = {};
   DateTime _tokenExpiry = DateTime.now();
-  SharedPreferences _prefs;
+  SharedPreferences prefs;
 
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
   AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
     _config = config;
-    _http = HTTP(config["azure_auth_url"], config);
+    http = HTTP(config["azure_auth_url"], config);
     SharedPreferences.getInstance().then((value) {
-      _prefs = value;
+      prefs = value;
       if (refreshToken != null) {
         this.refreshToken = refreshToken;
       }
@@ -35,8 +35,8 @@ class AzureADB2CUser extends User {
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
   Future<Map<String, Map>> resourceTokens([bool refresh = false]) async {
-    if (_prefs == null) {
-      _prefs = await SharedPreferences.getInstance();
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
     }
 
     if (!(await hasSignedIn())) {
@@ -51,7 +51,7 @@ class AzureADB2CUser extends User {
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
-    final response = await _http.get('/GetResourceTokens', parameters: {
+    final response = await http.get('/GetResourceTokens', parameters: {
       "client_token": _clientToken(),
       "refresh_token": refreshToken,
       "code": _config['azure_code']
@@ -66,20 +66,20 @@ class AzureADB2CUser extends User {
   }
 
   set refreshToken(String token) {
-    _prefs.setString("refresh_token", token);
+    prefs.setString("refresh_token", token);
   }
 
-  String get refreshToken => _prefs.getString("refresh_token");
+  String get refreshToken => prefs.getString("refresh_token");
 
   set role(String role) {
-    _prefs.setString("role", role);
+    prefs.setString("role", role);
   }
 
-  String get role => _prefs.getString("role");
+  String get role => prefs.getString("role");
 
   Future<bool> hasSignedIn() async {
-    if (_prefs == null) {
-      _prefs = await SharedPreferences.getInstance();
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
     }
 
     return refreshToken != null && refreshToken.isNotEmpty;
@@ -87,7 +87,7 @@ class AzureADB2CUser extends User {
 
   /// Removes the refresh token from shared preferences
   void signout() {
-    _prefs.remove('refresh_token');
+    prefs.remove('refresh_token');
   }
 
   /// Client Token is used to secure the anonymous web services.

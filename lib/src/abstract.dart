@@ -5,7 +5,7 @@ import 'query.dart';
 //CosmosSync sync = CosmosSync.shared;
 //Database db = SemBastDatabase.shared;
 
-abstract class User {
+abstract class BaseUser {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
   Future<Map<String, Map>> resourceTokens();
