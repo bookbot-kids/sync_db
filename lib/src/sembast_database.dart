@@ -119,8 +119,12 @@ class SembastDatabase extends Database {
   Future<Model> find(String modelName, String id, Model model) async {
     final store = Sembast.StoreRef.main();
     final record = await store.record(id).get(_db[modelName]);
-    model.import(_fixType(record));
-    return model;
+    if (record != null) {
+      model.import(_fixType(record));
+      return model;
+    }
+
+    return null;
   }
 
   /// Query the table with the Query class
