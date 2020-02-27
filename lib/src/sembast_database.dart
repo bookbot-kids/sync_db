@@ -50,8 +50,11 @@ class SembastDatabase extends Database {
 
     // Set id and createdAt if new record. ID is a random UUID
     final create = (model.id == null) || (model.createdAt == null);
-    if (create) {
+    if (model.id == null) {
       model.id = Uuid.v4().toString();
+    }
+
+    if (model.createdAt == null) {
       model.createdAt = DateTime.now().toUtc();
     }
 
