@@ -47,7 +47,7 @@ class AzureADB2CUser extends BaseUser {
       return _resourceTokens;
     }
 
-    final expired = DateTime.now().add(Duration(hours: 5));
+    final expired = DateTime.now().add(Duration(hours: 4, minutes: 45));
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
