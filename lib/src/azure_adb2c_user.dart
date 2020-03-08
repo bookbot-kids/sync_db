@@ -10,7 +10,7 @@ class AzureADB2CUser extends BaseUser {
   static Database database;
   HTTP http;
   Map<String, dynamic> config;
-  Map<String, Map> _resourceTokens = {};
+  List<MapEntry> _resourceTokens = List();
   DateTime _tokenExpiry = DateTime.now();
   SharedPreferences prefs;
 
@@ -27,14 +27,14 @@ class AzureADB2CUser extends BaseUser {
       }
 
       if (this.refreshToken != null) {
-        resourceTokens().then((Map<String, Map> map) {});
+        resourceTokens().then((list) {});
       }
     });
   }
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
-  Future<Map<String, Map>> resourceTokens([bool refresh = false]) async {
+  Future<List<MapEntry>> resourceTokens([bool refresh = false]) async {
     if (prefs == null) {
       prefs = await SharedPreferences.getInstance();
     }
@@ -57,8 +57,9 @@ class AzureADB2CUser extends BaseUser {
       "code": config['azure_code']
     });
 
+    _resourceTokens.clear();
     for (final permission in response["permissions"]) {
-      _resourceTokens[permission["id"]] = permission;
+      _resourceTokens.add(MapEntry(permission["id"], permission));
     }
     _tokenExpiry = expired;
 

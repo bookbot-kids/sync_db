@@ -32,24 +32,33 @@ class CosmosSync extends Sync {
   /// SyncAll will run the sync across the complete database.
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
   /// Reading and writing of tables is done sequentially to manage load to the server.
-  Future<void> syncAll() async {
+  Future<void> syncAll([bool refresh = false]) async {
     try {
-      final resourceTokens = await user.resourceTokens();
-      final keys = resourceTokens.keys;
+      final resourceTokens = await user.resourceTokens(refresh);
 
       await _lock.synchronized(() async {
         // Loop through tables to read sync
-        for (final tableName in keys) {
+        for (final token in resourceTokens) {
+          String tableName = token.key;
+          if (tableName.endsWith("-shared")) {
+            tableName = tableName.replaceAll("-shared", "");
+          }
           if (database.hasTable(tableName)) {
-            await syncRead(tableName);
+            await syncRead(tableName, token.value);
           }
         }
 
         // Loop through tables to write sync
-        for (final tableName in keys) {
-          if (resourceTokens[tableName]["permissionMode"] == "All" &&
+        for (final token in resourceTokens) {
+          String tableName = token.key;
+          if (tableName.endsWith("-shared")) {
+            tableName = tableName.replaceAll("-shared", "");
+          }
+
+          var permission = token.value;
+          if (permission["permissionMode"] == "All" &&
               database.hasTable(tableName)) {
-            await syncWrite(tableName);
+            await syncWrite(tableName, token.value);
           }
         }
       });
@@ -65,12 +74,12 @@ class CosmosSync extends Sync {
   }
 
   /// Read sync this table
-  Future<void> syncRead(String table) async {
-    final resourceTokens = await user.resourceTokens();
-    String token = resourceTokens[table]["_token"];
-    String partition = resourceTokens[table]["resourcePartitionKey"][0];
+  Future<void> syncRead(String table, dynamic permission) async {
+    String token = permission["_token"];
+    String partition = permission["resourcePartitionKey"][0];
     // Get the last record change timestamp on server side
-    final query = Query(table).order("_ts desc").limit(1);
+    final query =
+        Query(table).where('partition = $partition').order("_ts desc").limit(1);
     var records = await database.query(query);
     final record = records.isNotEmpty ? records[0] : null;
     String select;
@@ -107,19 +116,19 @@ class CosmosSync extends Sync {
   }
 
   /// Write sync this table if it has permission
-  Future<void> syncWrite(String table) async {
+  Future<void> syncWrite(String table, dynamic permission) async {
     // Check if we have write permission on table
-    final resourceTokens = await user.resourceTokens();
-    if (resourceTokens[table]["permissionMode"] != "All") {
+    if (permission["permissionMode"] != "All") {
       return;
     }
 
-    String token = resourceTokens[table]["_token"];
-    String partition = resourceTokens[table]["resourcePartitionKey"][0];
+    String token = permission["_token"];
+    String partition = permission["resourcePartitionKey"][0];
 
     // Get created records and save to Cosmos DB
-    var query =
-        Query(table).where({"_status": "created"}).order("createdAt asc");
+    var query = Query(table)
+        .where("_status = created and partition = $partition")
+        .order("createdAt asc");
     var records = await database.query<Map>(query);
 
     for (final record in records) {
@@ -132,7 +141,9 @@ class CosmosSync extends Sync {
     }
 
     // Get records that have been updated and update Cosmos
-    query = Query(table).where({"_status": "updated"}).order("updatedAt asc");
+    query = Query(table)
+        .where("_status = updated and partition = $partition")
+        .order("updatedAt asc");
     records = await database.query<Map>(query);
     List recordIds = records.map((item) => item['id']).toList();
 

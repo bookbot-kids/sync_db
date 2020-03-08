@@ -8,7 +8,7 @@ import 'query.dart';
 abstract class BaseUser {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
-  Future<Map<String, Map>> resourceTokens();
+  Future<List<MapEntry>> resourceTokens([bool refresh = false]);
   void signout();
   Future<bool> hasSignedIn();
   set refreshToken(String token);
@@ -19,14 +19,14 @@ abstract class BaseUser {
 
 abstract class Sync {
   Future<void> syncAll();
-  Future<void> syncRead(String table);
-  Future<void> syncWrite(String table);
+  Future<void> syncRead(String table, dynamic permission);
+  Future<void> syncWrite(String table, dynamic permission);
 }
 
 abstract class Database {
   void saveMap(String tableName, String id, Map map,
       {int updatedAt, String status});
-  void save(Model model);
+  Future<void> save(Model model);
   bool hasTable(String tableName);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);
@@ -60,5 +60,5 @@ abstract class Model extends ChangeNotifier {
     return export().toString();
   }
 
-  void save();
+  Future<void> save();
 }
