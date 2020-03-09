@@ -126,9 +126,7 @@ class CosmosSync extends Sync {
     String partition = permission["resourcePartitionKey"][0];
 
     // Get created records and save to Cosmos DB
-    var query = Query(table)
-        .where("_status = created and partition = $partition")
-        .order("createdAt asc");
+    var query = Query(table).where("_status = created").order("createdAt asc");
     var records = await database.query<Map>(query);
 
     for (final record in records) {
@@ -141,9 +139,7 @@ class CosmosSync extends Sync {
     }
 
     // Get records that have been updated and update Cosmos
-    query = Query(table)
-        .where("_status = updated and partition = $partition")
-        .order("updatedAt asc");
+    query = Query(table).where("_status = updated").order("updatedAt asc");
     records = await database.query<Map>(query);
     List recordIds = records.map((item) => item['id']).toList();
 
