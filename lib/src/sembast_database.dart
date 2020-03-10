@@ -1,3 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:sembast_web/sembast_web.dart';
+
 import "abstract.dart";
 import "query.dart";
 import 'package:path/path.dart';
@@ -18,18 +23,27 @@ class SembastDatabase extends Database {
   static Future<void> config(Sync sync, List<Model> models) async {
     shared = SembastDatabase();
     shared._sync = sync;
+    Sembast.DatabaseFactory dbFactory;
+    Directory dir;
+    if (kIsWeb) {
+      dbFactory = databaseFactoryWeb;
+    } else {
+      dbFactory = databaseFactoryIo;
 
-    // get the application documents directory
-    final dir = await getApplicationDocumentsDirectory();
-    // make sure it exists
-    await dir.create(recursive: true);
+      // get the application documents directory
+      dir = await getApplicationDocumentsDirectory();
+      // make sure it exists
+      await dir.create(recursive: true);
+    }
+
     final store = Sembast.StoreRef.main();
 
     // Open all databases
     for (final model in models) {
       final name = model.runtimeType.toString();
-      final dbPath = join(dir.path, name + ".db");
-      shared._db[name] = await databaseFactoryIo.openDatabase(dbPath);
+      final dbPath =
+          dir != null ? join(dir.path, name + ".db") : (name + ".db");
+      shared._db[name] = await dbFactory.openDatabase(dbPath);
 
       // Warms up the database so it can work later (seems to be a bug in Sembast)
       await store.record("Cold start").put(shared._db[name], "Warm up");
