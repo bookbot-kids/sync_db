@@ -1,9 +1,8 @@
 import "abstract.dart";
+import 'locator/locator.dart';
+import 'locator/sembast_base.dart';
 import "query.dart";
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast.dart' as Sembast;
-import 'package:sembast/sembast_io.dart';
 import 'package:better_uuid/uuid.dart';
 import 'package:sembast/src/utils.dart' as SembastUtils;
 
@@ -19,22 +18,8 @@ class SembastDatabase extends Database {
     shared = SembastDatabase();
     shared._sync = sync;
 
-    // get the application documents directory
-    final dir = await getApplicationDocumentsDirectory();
-    // make sure it exists
-    await dir.create(recursive: true);
-    final store = Sembast.StoreRef.main();
-
-    // Open all databases
-    for (final model in models) {
-      final name = model.runtimeType.toString();
-      final dbPath = join(dir.path, name + ".db");
-      shared._db[name] = await databaseFactoryIo.openDatabase(dbPath);
-
-      // Warms up the database so it can work later (seems to be a bug in Sembast)
-      await store.record("Cold start").put(shared._db[name], "Warm up");
-      await store.record("Cold start").delete(shared._db[name]);
-    }
+    SembastLocator locator = Locator();
+    await locator.initDatabase(shared._db, models);
   }
 
   /// Check whether database table has initialized

@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter/services.dart';
+import 'package:universal_io/io.dart';
 
 class Test extends Model {
   static Database database;
