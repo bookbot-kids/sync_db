@@ -22,4 +22,9 @@ class SembastWebLocator extends SembastLocator {
       await store.record("Cold start").delete(map[name]);
     }
   }
+
+  @override
+  Future<void> import(String content, Model model) {
+    throw new UnsupportedError('Not support import in web');
+  }
 }

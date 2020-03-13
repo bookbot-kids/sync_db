@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
@@ -26,5 +28,20 @@ class SembastMobileLocator extends SembastLocator {
       await store.record("Cold start").put(map[name], "Warm up");
       await store.record("Cold start").delete(map[name]);
     }
+  }
+
+  @override
+  Future<void> import(String content, Model model) async {
+    final dir = await getApplicationDocumentsDirectory();
+    // make sure it exists
+    await dir.create(recursive: true);
+    final name = model.runtimeType.toString();
+    final dbPath = join(dir.path, name + ".db");
+    var file = File(dbPath);
+    if (await file.exists()) {
+      await file.delete();
+    }
+
+    await file.writeAsString(content);
   }
 }

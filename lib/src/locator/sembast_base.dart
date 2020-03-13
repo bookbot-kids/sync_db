@@ -5,4 +5,5 @@ import 'locator.dart';
 
 abstract class SembastLocator implements Locator {
   void initDatabase(Map<String, Sembast.Database> map, List<Model> models);
+  Future<void> import(String content, Model model);
 }

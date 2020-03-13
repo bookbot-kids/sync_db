@@ -22,6 +22,11 @@ class SembastDatabase extends Database {
     await locator.initDatabase(shared._db, models);
   }
 
+  static Future<void> importTable(String data, Model model) async {
+    SembastLocator locator = Locator();
+    await locator.import(data, model);
+  }
+
   /// Check whether database table has initialized
   bool hasTable(String tableName) {
     return _db[tableName] != null;
