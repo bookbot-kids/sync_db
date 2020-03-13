@@ -22,6 +22,7 @@ class SembastMobileLocator extends SembastLocator {
     for (final model in models) {
       final name = model.runtimeType.toString();
       final dbPath = join(dir.path, name + ".db");
+      print('model $name has path $dbPath');
       map[name] = await databaseFactoryIo.openDatabase(dbPath);
 
       // Warms up the database so it can work later (seems to be a bug in Sembast)

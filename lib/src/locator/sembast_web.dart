@@ -24,7 +24,7 @@ class SembastWebLocator extends SembastLocator {
   }
 
   @override
-  Future<void> import(String content, Model model) {
-    throw new UnsupportedError('Not support import in web');
+  Future<void> import(String content, Model model) async {
+    print('Not support import in web');
   }
 }
