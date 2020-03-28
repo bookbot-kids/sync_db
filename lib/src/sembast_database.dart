@@ -1,9 +1,10 @@
+import 'package:uuid/uuid.dart';
+
 import "abstract.dart";
 import 'locator/locator.dart';
 import 'locator/sembast_base.dart';
 import "query.dart";
 import 'package:sembast/sembast.dart' as Sembast;
-import 'package:better_uuid/uuid.dart';
 import 'package:sembast/src/utils.dart' as SembastUtils;
 
 class SembastDatabase extends Database {
@@ -41,7 +42,7 @@ class SembastDatabase extends Database {
     // Set id and createdAt if new record. ID is a random UUID
     final create = (model.id == null) || (model.createdAt == null);
     if (model.id == null) {
-      model.id = Uuid.v4().toString();
+      model.id = Uuid().v4().toString();
     }
 
     if (model.createdAt == null) {
@@ -69,7 +70,7 @@ class SembastDatabase extends Database {
     final store = Sembast.StoreRef.main();
     final create = id == null;
     if (create) {
-      id = Uuid.v4().toString();
+      id = Uuid().v4().toString();
       map['id'] = id;
     }
 
