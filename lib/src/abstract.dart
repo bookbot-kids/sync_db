@@ -60,5 +60,14 @@ abstract class Model extends ChangeNotifier {
     return export().toString();
   }
 
+  String tableName() {
+    // This doesn't work for Flutter web.
+    if (kIsWeb) {
+      throw Exception(
+          'Must be override this method and return a string on web');
+    }
+    return runtimeType.toString();
+  }
+
   Future<void> save();
 }

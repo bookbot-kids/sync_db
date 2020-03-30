@@ -13,7 +13,7 @@ class SembastWebLocator extends SembastLocator {
 
     // Open all databases
     for (final model in models) {
-      final name = model.runtimeType.toString();
+      final name = model.tableName();
       final dbPath = name + ".db";
       map[name] = await databaseFactoryWeb.openDatabase(dbPath);
 

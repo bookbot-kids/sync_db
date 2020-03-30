@@ -20,7 +20,7 @@ class SembastMobileLocator extends SembastLocator {
 
     // Open all databases
     for (final model in models) {
-      final name = model.runtimeType.toString();
+      final name = model.tableName();
       final dbPath = join(dir.path, name + ".db");
       print('model $name has path $dbPath');
       map[name] = await databaseFactoryIo.openDatabase(dbPath);
@@ -36,7 +36,7 @@ class SembastMobileLocator extends SembastLocator {
     final dir = await getApplicationDocumentsDirectory();
     // make sure it exists
     await dir.create(recursive: true);
-    final name = model.runtimeType.toString();
+    final name = model.tableName();
     final dbPath = join(dir.path, name + ".db");
     var file = File(dbPath);
     if (await file.exists()) {
