@@ -63,6 +63,11 @@ class AzureADB2CUser extends BaseUser {
     }
     _tokenExpiry = expired;
 
+    // set role along with the resource tokens
+    if (response['group'] != null) {
+      role = response['group'];
+    }
+
     return _resourceTokens;
   }
 
