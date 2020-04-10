@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' as dio;
 import 'package:universal_io/io.dart';
 
 import 'package:synchronized/synchronized.dart';
@@ -17,6 +18,7 @@ class CosmosSync extends Sync {
   String databaseId;
   int logLevel;
   final _lock = new Lock();
+  int pageSize;
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -27,6 +29,7 @@ class CosmosSync extends Sync {
         config);
     shared.logLevel = config['logLevel'] ?? Log.none;
     shared.databaseId = config["dbId"];
+    shared.pageSize = config["pageSize"] ?? 100;
   }
 
   /// SyncAll will run the sync across the complete database.
@@ -96,7 +99,7 @@ class CosmosSync extends Sync {
       print(cosmosResult);
     }
 
-    for (var cosmosRecord in cosmosResult['Documents']) {
+    for (var cosmosRecord in cosmosResult) {
       final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
       var records = await database.query(query);
       var localRecord = records.isNotEmpty ? records[0] : null;
@@ -159,7 +162,7 @@ class CosmosSync extends Sync {
       var cosmosResult = await _queryDocuments(
           token, table, partition, select.trim(), parameters);
 
-      cosmosRecords = cosmosResult['Documents'];
+      cosmosRecords = cosmosResult;
     } else {
       cosmosRecords = List();
     }
@@ -206,7 +209,7 @@ class CosmosSync extends Sync {
   ///      {"@prop": 5}
   ///  ]
   ///
-  /// Return a list of document in `Documents` json key
+  /// Return a list of documents
   Future<dynamic> _queryDocuments(
       String resouceToken,
       String table,
@@ -219,11 +222,34 @@ class CosmosSync extends Sync {
         "content-type": "application/query+json",
         "x-ms-version": _apiVersion,
         "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
-        "x-ms-documentdb-isquery": true
+        "x-ms-documentdb-isquery": true,
+        "x-ms-max-item-count": pageSize
       };
       var data = "{\"query\": \"$query\",\"parameters\": $parameters}";
-      var response = await http.post("colls/$table/docs", data: data);
-      return response;
+      dio.Response response =
+          await http.post("colls/$table/docs", data: data, fullResponse: true);
+      var responseData = response.data;
+      List docs = responseData['Documents'];
+      String nextToken = response.headers.value('x-ms-continuation');
+      while (nextToken != null) {
+        // get next page
+        http.headers = {
+          "authorization": Uri.encodeComponent(resouceToken),
+          "content-type": "application/query+json",
+          "x-ms-version": _apiVersion,
+          "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
+          "x-ms-documentdb-isquery": true,
+          "x-ms-max-item-count": pageSize,
+          "x-ms-continuation": nextToken
+        };
+
+        response = await http.post("colls/$table/docs",
+            data: data, fullResponse: true);
+        docs.addAll(response.data['Documents']);
+        nextToken = response.headers.value('x-ms-continuation');
+      }
+
+      return docs;
     } catch (e) {
       print(e);
     }

@@ -25,7 +25,8 @@ class HTTP {
   /// You can pass the full url, or the path after the baseUrl.
   /// Will timeout, check connectivity and retry until there is a response.
   /// Will handle most success or failure cases and will respond with either data or exception.
-  Future<dynamic> get(String url, {Map<String, dynamic> parameters}) async {
+  Future<dynamic> get(String url,
+      {Map<String, dynamic> parameters, bool fullResponse}) async {
     return request("GET", url, parameters: parameters);
   }
 
@@ -34,8 +35,11 @@ class HTTP {
   /// Will timeout, check connectivity and retry until there is a response.
   /// Will handle most success or failure cases and will respond with either data or exception.
   Future<dynamic> post(String url,
-      {Map<String, dynamic> parameters, dynamic data}) async {
-    return request("POST", url, parameters: parameters, data: data);
+      {Map<String, dynamic> parameters,
+      dynamic data,
+      bool fullResponse}) async {
+    return request("POST", url,
+        parameters: parameters, data: data, fullResponse: fullResponse);
   }
 
   /// Does a http PUT (with optional overrides).
@@ -43,21 +47,27 @@ class HTTP {
   /// Will timeout, check connectivity and retry until there is a response.
   /// Will handle most success or failure cases and will respond with either data or exception.
   Future<dynamic> put(String url,
-      {Map<String, dynamic> parameters, dynamic data}) async {
-    return request("PUT", url, parameters: parameters, data: data);
+      {Map<String, dynamic> parameters,
+      dynamic data,
+      bool fullResponse}) async {
+    return request("PUT", url,
+        parameters: parameters, data: data, fullResponse: fullResponse);
   }
 
   /// Make call, and manage the many network problems that can happen.
   /// Will only throw an exception when it's sure that there is no internet connection,
   /// exhausts its retries or gets an unexpected server response
   Future<dynamic> request(String method, String url,
-      {Map<String, dynamic> parameters, dynamic data}) async {
+      {Map<String, dynamic> parameters,
+      dynamic data,
+      bool fullResponse = false}) async {
     dio.options.method = method;
 
     for (var i = 1; i <= (httpRetries ?? this.httpRetries); i++) {
       try {
-        return (await dio.request(url, queryParameters: parameters, data: data))
-            .data;
+        var response =
+            (await dio.request(url, queryParameters: parameters, data: data));
+        return fullResponse ? response : response.data;
       } catch (error) {
         await _handleException(error);
       }
