@@ -26,8 +26,9 @@ class HTTP {
   /// Will timeout, check connectivity and retry until there is a response.
   /// Will handle most success or failure cases and will respond with either data or exception.
   Future<dynamic> get(String url,
-      {Map<String, dynamic> parameters, bool fullResponse}) async {
-    return request("GET", url, parameters: parameters);
+      {Map<String, dynamic> parameters, bool fullResponse = false}) async {
+    return request("GET", url,
+        parameters: parameters, fullResponse: fullResponse);
   }
 
   /// Does a http POST (with optional overrides).
@@ -37,7 +38,7 @@ class HTTP {
   Future<dynamic> post(String url,
       {Map<String, dynamic> parameters,
       dynamic data,
-      bool fullResponse}) async {
+      bool fullResponse = false}) async {
     return request("POST", url,
         parameters: parameters, data: data, fullResponse: fullResponse);
   }
@@ -49,7 +50,7 @@ class HTTP {
   Future<dynamic> put(String url,
       {Map<String, dynamic> parameters,
       dynamic data,
-      bool fullResponse}) async {
+      bool fullResponse = false}) async {
     return request("PUT", url,
         parameters: parameters, data: data, fullResponse: fullResponse);
   }
@@ -67,7 +68,7 @@ class HTTP {
       try {
         var response =
             (await dio.request(url, queryParameters: parameters, data: data));
-        return fullResponse ? response : response.data;
+        return fullResponse == true ? response : response.data;
       } catch (error) {
         await _handleException(error);
       }
