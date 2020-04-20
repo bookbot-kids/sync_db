@@ -93,7 +93,10 @@ class SembastDatabase extends Database {
     await store.record(id).put(db, map);
   }
 
-  Future<void> delete(Model model) async {}
+  Future<void> delete(Model model) async {
+    model.deletedAt = DateTime.now();
+    await save(model);
+  }
 
   /// Get all model instances in a table
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
@@ -104,7 +107,9 @@ class SembastDatabase extends Database {
     for (final record in records) {
       final model = instantiateModel();
       model.import(_fixType(record.value));
-      models.add(model);
+      if (model.deletedAt == null) {
+        models.add(model);
+      }
     }
     return models;
   }
@@ -115,7 +120,9 @@ class SembastDatabase extends Database {
     final record = await store.record(id).get(_db[modelName]);
     if (record != null) {
       model.import(_fixType(record));
-      return model;
+      if (model.deletedAt == null) {
+        return model;
+      }
     }
 
     return null;
@@ -194,7 +201,9 @@ class SembastDatabase extends Database {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();
         model.import(_fixType(record.value));
-        results.add(model);
+        if (model.deletedAt == null) {
+          results.add(model);
+        }
       } else {
         // clone map for writable
         var value = SembastUtils.cloneValue(record.value);
@@ -230,6 +239,10 @@ class SembastDatabase extends Database {
         DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
     copiedMap["updatedAt"] =
         DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
+    if (map["deletedAt"] is int) {
+      copiedMap["deletedAt"] =
+          DateTime.fromMillisecondsSinceEpoch(map["deletedAt"]);
+    }
 
     return copiedMap;
   }

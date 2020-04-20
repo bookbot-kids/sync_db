@@ -31,6 +31,7 @@ abstract class Database {
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);
   dynamic query<T>(Query query);
+  Future<void> delete(Model model);
 }
 
 abstract class Model extends ChangeNotifier {
@@ -39,21 +40,32 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime createdAt;
   DateTime updatedAt;
+  DateTime deletedAt;
 
   //Functions to override
 
   Map<String, dynamic> export() {
-    return {
-      "id": id,
-      "createdAt": createdAt,
-      "updatedAt": updatedAt,
-    };
+    var map = Map<String, dynamic>();
+    map["id"] = id;
+    map["createdAt"] = createdAt;
+    map["updatedAt"] = updatedAt;
+    if (deletedAt != null) {
+      map["deletedAt"] = deletedAt?.millisecondsSinceEpoch;
+    }
+
+    return map;
   }
 
   void import(Map<String, dynamic> map) {
     id = map["id"];
     createdAt = map["createdAt"];
     updatedAt = map["updatedAt"];
+
+    if (map["deletedAt"] is DateTime) {
+      deletedAt = map["deletedAt"];
+    } else if (map["deletedAt"] is int) {
+      deletedAt = DateTime.fromMillisecondsSinceEpoch(map["deletedAt"]);
+    }
   }
 
   String toString() {
@@ -70,4 +82,5 @@ abstract class Model extends ChangeNotifier {
   }
 
   Future<void> save();
+  Future<void> delete();
 }
