@@ -9,15 +9,15 @@ import 'package:sembast/src/utils.dart' as SembastUtils;
 
 class SembastDatabase extends Database {
   SembastDatabase._privateConstructor();
-  static final SembastDatabase shared = SembastDatabase._privateConstructor();
-  Sync _sync;
+  static SembastDatabase shared = SembastDatabase._privateConstructor();
   Map<String, Sembast.Database> _db = {};
+  List<Model> _models = List();
   //Map<String, List<String>> _dateTimeKeyNames = {};
 
   /// Connects sync to the Sembest Database
   /// Opens up each table connected to each model, which is stored in a separate file.
-  static Future<void> config(Sync sync, List<Model> models) async {
-    shared._sync = sync;
+  static Future<void> config(List<Model> models) async {
+    shared._models = models;
 
     SembastLocator locator = Locator();
     await locator.initDatabase(shared._db, models);
@@ -31,6 +31,20 @@ class SembastDatabase extends Database {
   /// Check whether database table has initialized
   bool hasTable(String tableName) {
     return _db[tableName] != null;
+  }
+
+  Future<void> cleanDatabase() async {
+    for (var model in _models) {
+      var db = _db[model.tableName()];
+      final store = Sembast.StoreRef.main();
+      await store.delete(db, finder: Sembast.Finder());
+      await store.drop(db);
+      await db.close();
+    }
+
+    _db.clear();
+    _models.clear();
+    shared = SembastDatabase._privateConstructor();
   }
 
   Future<void> save(Model model) async {

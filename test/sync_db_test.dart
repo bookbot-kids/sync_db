@@ -47,6 +47,12 @@ class Test extends Model {
       return Test();
     });
   }
+
+  @override
+  Future<void> delete() {
+    // TODO: implement delete
+    throw UnimplementedError();
+  }
 }
 
 void main() {
@@ -92,7 +98,7 @@ void main() {
         return ".";
       });
 
-      await SembastDatabase.config(null, [Test()]);
+      await SembastDatabase.config([Test()]);
       Test.database = SembastDatabase.shared;
       await Test().save();
 
