@@ -1,17 +1,22 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter/services.dart';
+import 'package:universal_io/io.dart';
 
 class Test extends Model {
   static Database database;
   String test = "Barf";
 
   Map<String, dynamic> export() {
-    return {"id": id, "createdAt": createdAt, "updatedAt": updatedAt, "test": test};
+    return {
+      "id": id,
+      "createdAt": createdAt,
+      "updatedAt": updatedAt,
+      "test": test
+    };
   }
 
   void import(Map<String, dynamic> map) {
@@ -26,17 +31,27 @@ class Test extends Model {
   }
 
   static Future<List<Test>> all() async {
-    var all = await Test.database.all("Test", () { return Test(); });
-    return Future<List<Test>>.value(all.cast<Test>());
+    var all = await Test.database.all("Test", () {
+      return Test();
+    });
+
+    return List<Test>.from(all);
   }
 
   static Future<Test> find(String id) async {
-    Test model = await Test.database.find("Test", id, Test());
-    return Future<Test>.value(model);
+    return await Test.database.find("Test", id, Test());
   }
 
-  static where(dynamic condition) {
-    return Query().where(condition, Test.database, () { return Test(); });
+  static Query where(dynamic condition) {
+    return Query("Test").where(condition, Test.database, () {
+      return Test();
+    });
+  }
+
+  @override
+  Future<void> delete() {
+    // TODO: implement delete
+    throw UnimplementedError();
   }
 }
 
@@ -44,7 +59,8 @@ void main() {
   group('HTTP: ', () {
     HTTP http;
     setUp(() {
-      http = HTTP('https://httpstat.us/', {"connectTimeout": 3000, "receiveTimeout": 3000});
+      http = HTTP('https://httpstat.us/',
+          {"connectTimeout": 3000, "receiveTimeout": 3000});
     });
 
     test('Test full url', () async {
@@ -76,18 +92,18 @@ void main() {
 
     test('Test model creation', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
-      const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
+      const MethodChannel channel =
+          MethodChannel('plugins.flutter.io/path_provider');
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
         return ".";
       });
 
-      await SembastDatabase.config(null, [Test()]);
+      await SembastDatabase.config([Test()]);
       Test.database = SembastDatabase.shared;
       await Test().save();
 
       print(await Test.all());
       print(await Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
     });
-
   });
 }

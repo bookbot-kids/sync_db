@@ -1,53 +1,99 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import "abstract.dart";
 import 'dart:math';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'dart:convert';
 import 'robust_http.dart';
 
-class AzureADB2CUser extends User {
-  static Database _database;
-  HTTP _http;
-  Map<String, dynamic> _config;
-  Map<String, Map>_resourceTokens = {};
+class AzureADB2CUser extends BaseUser {
+  static Database database;
+  HTTP http;
+  Map<String, dynamic> config;
+  List<MapEntry> _resourceTokens = List();
   DateTime _tokenExpiry = DateTime.now();
+  SharedPreferences prefs;
 
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
-  AzureADB2CUser(Map<String, dynamic> config) {
-    _config = config;
-    _http = HTTP(config["azure_auth_url"], config);
-    resourceTokens().then((Map<String, Map> map) {});
+  AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
+    this.config = config;
+    http = HTTP(config["azure_auth_url"], config);
+    SharedPreferences.getInstance().then((value) {
+      prefs = value;
+      if (refreshToken != null) {
+        this.refreshToken = refreshToken;
+      }
+
+      if (this.refreshToken != null) {
+        resourceTokens().then((list) {});
+      }
+    });
   }
-  
+
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
-  Future<Map<String, Map>> resourceTokens([bool refresh = false]) async {
+  Future<List<MapEntry>> resourceTokens([bool refresh = false]) async {
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
+    }
+
+    if (!(await hasSignedIn())) {
+      return _resourceTokens;
+    }
+
     if (_tokenExpiry.isAfter(DateTime.now()) && refresh == false) {
       return _resourceTokens;
     }
 
-    final expired = DateTime.now().add(Duration(hours: 5));
+    final expired = DateTime.now().add(Duration(hours: 4, minutes: 45));
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
-    // TODO: setup refresh token code to get from shared preferences (at the moment it is getting a fixed refresh token from yaml for testing)
-    final response = await _http.get('/GetResourceTokens', parameters: {
-      "client_token": _clientToken(),
-      "refresh_token": _config['refresh_token'],
-      "code": _config['azure_code']});
+    final response = await http.get('/GetResourceTokens', parameters: {
+      "client_token": clientToken(),
+      "refresh_token": refreshToken,
+      "code": config['azure_code']
+    });
 
+    _resourceTokens.clear();
     for (final permission in response["permissions"]) {
-      _resourceTokens[permission["id"]] = permission;
+      _resourceTokens.add(MapEntry(permission["id"], permission));
     }
     _tokenExpiry = expired;
+
+    // set role along with the resource tokens
+    if (response['group'] != null) {
+      role = response['group'];
+    }
 
     return _resourceTokens;
   }
 
+  set refreshToken(String token) {
+    prefs.setString("refresh_token", token);
+  }
+
+  String get refreshToken => prefs.getString("refresh_token");
+
+  set role(String role) {
+    prefs.setString("role", role);
+  }
+
+  String get role => prefs.getString("role");
+
+  Future<bool> hasSignedIn() async {
+    if (prefs == null) {
+      prefs = await SharedPreferences.getInstance();
+    }
+
+    return refreshToken != null && refreshToken.isNotEmpty;
+  }
+
   /// Removes the refresh token from shared preferences
   void signout() {
-
+    prefs.remove('refresh_token');
   }
 
   /// Client Token is used to secure the anonymous web services.
@@ -56,12 +102,12 @@ class AzureADB2CUser extends User {
   /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
-  String _clientToken() {
-    var encodedKey = base64.encode(utf8.encode(_config["azure_secret"]));
+  String clientToken() {
+    var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
     final claimSet = JwtClaim(
-        subject: _config["azure_subject"],
-        issuer: _config["azure_issuer"],
-        audience: <String>[_config["azure_audience"]],
+        subject: config["azure_subject"],
+        issuer: config["azure_issuer"],
+        audience: <String>[config["azure_audience"]],
         notBefore: DateTime.now(),
         jwtId: Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 5));
