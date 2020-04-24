@@ -7,15 +7,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path: ^1.6.0
-  path_provider: ^1.5.1
+  path: ^1.7.0
+  path_provider: ^1.6.7
   uuid: ^2.0.4
-  intl: ^0.16.0
-  sembast: ^2.1.2+3
-  dio: ^3.0.5
-  connectivity: ^0.4.5+3
+  intl: ^0.16.1
+  sembast: ^2.4.2
+  dio: ^3.0.9
+  connectivity: ^0.4.8+2
   jaguar_jwt: ^2.1.6
-  shared_preferences: ^0.5.6+3
+  shared_preferences: ^0.5.7
   synchronized: ^2.2.0
   universal_io: ^1.0.1
   sembast_web: ^1.1.0
