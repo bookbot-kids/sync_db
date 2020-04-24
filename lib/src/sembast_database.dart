@@ -12,12 +12,14 @@ class SembastDatabase extends Database {
   static SembastDatabase shared = SembastDatabase._privateConstructor();
   Map<String, Sembast.Database> _db = {};
   List<Model> _models = List();
+  Sync _sync;
   //Map<String, List<String>> _dateTimeKeyNames = {};
 
   /// Connects sync to the Sembest Database
   /// Opens up each table connected to each model, which is stored in a separate file.
-  static Future<void> config(List<Model> models) async {
+  static Future<void> config(Sync remoteSync, List<Model> models) async {
     shared._models = models;
+    shared._sync = remoteSync;
 
     SembastLocator locator = Locator();
     await locator.initDatabase(shared._db, models);
@@ -75,7 +77,9 @@ class SembastDatabase extends Database {
 
     // Store and then start the sync
     await store.record(model.id).put(db, map);
-    //_sync.syncWrite(name);
+
+    // sync to server
+    _sync.syncModel(name, map, create).then((value) => null);
   }
 
   Future<void> saveMap(String tableName, String id, Map map,

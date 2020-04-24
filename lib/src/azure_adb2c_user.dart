@@ -40,11 +40,11 @@ class AzureADB2CUser extends BaseUser {
     }
 
     if (!(await hasSignedIn())) {
-      return _resourceTokens;
+      return List<MapEntry>.from(_resourceTokens);
     }
 
     if (_tokenExpiry.isAfter(DateTime.now()) && refresh == false) {
-      return _resourceTokens;
+      return List<MapEntry>.from(_resourceTokens);
     }
 
     final expired = DateTime.now().add(Duration(hours: 4, minutes: 45));
@@ -68,7 +68,7 @@ class AzureADB2CUser extends BaseUser {
       role = response['group'];
     }
 
-    return _resourceTokens;
+    return List<MapEntry>.from(_resourceTokens);
   }
 
   set refreshToken(String token) {

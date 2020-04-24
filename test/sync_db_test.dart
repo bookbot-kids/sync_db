@@ -98,7 +98,7 @@ void main() {
         return ".";
       });
 
-      await SembastDatabase.config([Test()]);
+      await SembastDatabase.config(null, [Test()]);
       Test.database = SembastDatabase.shared;
       await Test().save();
 
