@@ -96,11 +96,8 @@ class AppSync extends Sync {
           }
       """;
 
-      var response = await _queryDocuments(graphClient, query, null);
-      if (logLevel > Log.none) {
-        print(response);
-      }
-
+      var response = await _queryDocuments(graphClient, query);
+      printLog(response, logLevel);
       dynamic remoteRecord;
       if (response != null) {
         remoteRecord = response['data']['get$table'];
@@ -158,10 +155,7 @@ class AppSync extends Sync {
     var records = await database.query(query);
     final record = records.isNotEmpty ? records[0] : null;
     String select;
-    var schemaData = schema[table];
-    // generate field types
-    Map types = json.decode(schemaData['types']);
-    var fields = types.entries.map((e) => e.key).toList().join('\n');
+    var fields = _getFields(table).join('\n');
     fields += '\n _ts\n id';
 
     int limit = 10000;
@@ -177,21 +171,21 @@ class AppSync extends Sync {
       """;
     } else {
       select = """
-        query list$table (filter: {
-        _ts: {
-          ge: ${record["_ts"]}
-        }
-      }, limit: $limit){
-          list${table}s {
+      query list$table {
+          list${table}s(filter: {
+            _ts: {
+              gt: ${record["_ts"]}
+            }
+          }, limit: $limit){
             items{
               $fields
             }
           }
-        }
+      }
       """;
     }
 
-    var response = await _queryDocuments(graphClient, select, null);
+    var response = await _queryDocuments(graphClient, select);
     printLog('get table $table response $response', logLevel);
     if (response != null) {
       var documents = response['list${table}s']['items'];
@@ -226,7 +220,8 @@ class AppSync extends Sync {
 
     for (final record in records) {
       _excludeLocalFields(record);
-      var fields = record.keys.toList().join('\n');
+      var fields = _getFields(table).join('\n');
+      fields += '\n _ts\n id';
       var newQuery = """
          mutation put${table}(\$input: Create${table}Input!) {
           create${table}(input: \$input) {
@@ -316,7 +311,8 @@ class AppSync extends Sync {
   }
 
   void _excludeLocalFields(Map map) {
-    map.removeWhere((key, value) => key == 'updatedAt' || key.startsWith('_'));
+    map.removeWhere((key, value) =>
+        key == 'updatedAt' || key == 'createdAt' || key.startsWith('_'));
   }
 
   Future<dynamic> _createOrUpdateDocument(GraphQLClient graphClient,
@@ -328,7 +324,7 @@ class AppSync extends Sync {
   }
 
   Future<dynamic> _queryDocuments(GraphQLClient graphClient, String query,
-      Map<String, dynamic> variables) async {
+      [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
     return result.data;
@@ -355,13 +351,25 @@ class AppSync extends Sync {
         }
       }
     """;
-    var documents = await _queryDocuments(graphClient, query, null);
-    print(documents);
+    var documents = await _queryDocuments(graphClient, query);
+    printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listSchemata')) {
       List list = documents['listSchemata']['items'];
       schema = Map.fromIterable(list, key: (e) => e['table'], value: (e) => e);
     }
+  }
+
+  List _getFields(String table) {
+    if (schema == null || !schema.containsKey(table)) {
+      return List();
+    }
+
+    var schemaData = schema[table];
+    // generate field types
+    Map types = json.decode(schemaData['types']);
+    var fields = types.entries.map((e) => e.key).toList();
+    return fields;
   }
 }

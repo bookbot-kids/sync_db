@@ -17,8 +17,8 @@ class Log extends LogInterceptor {
         );
 }
 
-void printLog(String message, [int level = Log.none]) {
+void printLog(Object object, [int level = Log.none]) {
   if (level > Log.none) {
-    print(message);
+    print(object);
   }
 }
