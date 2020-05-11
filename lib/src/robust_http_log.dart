@@ -16,3 +16,9 @@ class Log extends LogInterceptor {
           responseBody: level >= all,
         );
 }
+
+void printLog(String message, [int level = Log.none]) {
+  if (level > Log.none) {
+    print(message);
+  }
+}
