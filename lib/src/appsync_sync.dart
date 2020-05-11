@@ -15,6 +15,7 @@ class AppSync extends Sync {
   List<Model> _models;
   Map schema;
   int logLevel = Log.none;
+  GraphQLClient graphClient;
 
   static void config(Map config, List<Model> models) {
     shared = AppSync();
@@ -27,35 +28,11 @@ class AppSync extends Sync {
 
   @override
   Future<void> syncAll() async {
-    // Get token
-    final AuthLink authLink = AuthLink(getToken: () => user.refreshToken);
-    final Link link = authLink.concat(shared._httpLink);
-    GraphQLClient graphClient = GraphQLClient(
-      cache: InMemoryCache(),
-      link: link,
-    );
+    // Get graph client base on token
+    await _getGraphClient();
 
     // query all schema
-    var query = """
-      query ListSchema {
-        listSchemata(limit: 1000) {
-          items {
-            id
-            table
-            types
-          }
-        }
-      }
-    """;
-
-    var documents = await _queryDocuments(graphClient, query, null);
-    print(documents);
-    if (documents != null &&
-        documents is Map &&
-        documents.containsKey('listSchemata')) {
-      List list = documents['listSchemata']['items'];
-      schema = Map.fromIterable(list, key: (e) => e['table'], value: (e) => e);
-    }
+    await _getSchema();
 
     if (schema == null) {
       throw SyncException('Can not get schema');
@@ -83,8 +60,96 @@ class AppSync extends Sync {
   }
 
   @override
-  Future<void> syncModel(String table, Map<String, dynamic> map, bool isCreated,
-      [bool refresh]) async {}
+  Future<void> syncModel(
+      String table, Map<String, dynamic> localRecord, bool isCreated,
+      [bool refresh]) async {
+    await _getGraphClient();
+    if (isCreated) {
+      _excludeLocalFields(localRecord);
+      var fields = localRecord.keys.toList().join('\n');
+      fields += "\n _ts";
+      var newQuery = """
+         mutation put${table}(\$input: Create${table}Input!) {
+          create${table}(input: \$input) {
+            $fields
+          }
+        }
+      """;
+      var variables = Map<String, dynamic>();
+      variables['input'] = Map<String, dynamic>.from(localRecord);
+      var response =
+          await _createOrUpdateDocument(graphClient, newQuery, variables);
+      // update to local & set synced status after syncing
+      if (response != null) {
+        var newRecord = response['data']['create${table}'];
+        await database.saveMap(table, newRecord['id'], newRecord,
+            status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+      }
+    } else {
+      // sync read
+      var fields = localRecord.keys.toList().join('\n');
+      var query = """
+         query get$table {
+            get$table(id:"${localRecord['id']}") {
+            $fields
+            }
+          }
+      """;
+
+      var response = await _queryDocuments(graphClient, query, null);
+      if (logLevel > Log.none) {
+        print(response);
+      }
+
+      dynamic remoteRecord;
+      if (response != null) {
+        remoteRecord = response['data']['get$table'];
+        // update from appsync to local, set status to synced to prevent sync again
+        var localDate = localRecord['updatedAt'] / 1000;
+        if (localDate < remoteRecord['_ts']) {
+          await database.saveMap(table, remoteRecord['id'], remoteRecord,
+              updatedAt: remoteRecord['_ts'] * 1000, status: 'synced');
+        }
+      }
+
+      // sync write
+      if (remoteRecord != null) {
+        if (remoteRecord['id'] == localRecord['id']) {
+          var localDate = localRecord['updatedAt'] / 1000;
+          // if local is newest, merge and save to appsync
+          if (localDate > remoteRecord['_ts']) {
+            localRecord.forEach((key, value) {
+              if (key != 'updatedAt') {
+                remoteRecord[key] = value;
+              }
+            });
+
+            _excludeLocalFields(remoteRecord);
+            var fields = remoteRecord.keys.toList().join('\n');
+            var updateQuery = """
+              mutation update${table}(\$input: Update${table}Input!) {
+                update${table}(input: \$input) {
+                  $fields
+                }
+              }
+            """;
+
+            var variables = Map<String, dynamic>();
+            variables['input'] = Map<String, dynamic>.from(remoteRecord);
+
+            var response = await _createOrUpdateDocument(
+                graphClient, updateQuery, variables);
+            // update to local & set synced status after syncing
+            if (response != null) {
+              var updatedRecord = response['data']['update${table}'];
+              await database.saveMap(table, updatedRecord['id'], updatedRecord,
+                  status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
+            }
+          }
+        }
+      }
+    }
+  }
 
   @override
   Future<void> syncRead(String table, dynamic graphClient) async {
@@ -267,5 +332,36 @@ class AppSync extends Sync {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
     return result.data;
+  }
+
+  Future<void> _getGraphClient() async {
+    final AuthLink authLink = AuthLink(getToken: () => user.refreshToken);
+    final Link link = authLink.concat(shared._httpLink);
+    graphClient = GraphQLClient(
+      cache: InMemoryCache(),
+      link: link,
+    );
+  }
+
+  Future<void> _getSchema() async {
+    var query = """
+      query ListSchema {
+        listSchemata(limit: 1000) {
+          items {
+            id
+            table
+            types
+          }
+        }
+      }
+    """;
+    var documents = await _queryDocuments(graphClient, query, null);
+    print(documents);
+    if (documents != null &&
+        documents is Map &&
+        documents.containsKey('listSchemata')) {
+      List list = documents['listSchemata']['items'];
+      schema = Map.fromIterable(list, key: (e) => e['table'], value: (e) => e);
+    }
   }
 }
