@@ -68,21 +68,15 @@ class AppSync extends Sync {
       await _getSchema();
     }
 
+    if (schema == null) {
+      throw SyncException('Can not get schema');
+    }
+
     if (isCreated) {
-      _excludeLocalFields(localRecord);
       var fields = _getFields(table).join('\n');
       fields += "\n _ts \n id";
-      var newQuery = """
-         mutation put${table}(\$input: Create${table}Input!) {
-          create${table}(input: \$input) {
-            $fields
-          }
-        }
-      """;
-      var variables = Map<String, dynamic>();
-      variables['input'] = Map<String, dynamic>.from(localRecord);
-      var response =
-          await _createOrUpdateDocument(graphClient, newQuery, variables);
+      var response = await _createDocument(table, fields, localRecord);
+
       // update to local & set synced status after syncing
       if (response != null) {
         var newRecord = response['create${table}'];
@@ -126,20 +120,7 @@ class AppSync extends Sync {
               }
             });
 
-            _excludeLocalFields(remoteRecord);
-            var updateQuery = """
-              mutation update${table}(\$input: Update${table}Input!) {
-                update${table}(input: \$input) {
-                  $fields
-                }
-              }
-            """;
-
-            var variables = Map<String, dynamic>();
-            variables['input'] = Map<String, dynamic>.from(remoteRecord);
-
-            var response = await _createOrUpdateDocument(
-                graphClient, updateQuery, variables);
+            var response = await _updateDocument(table, fields, remoteRecord);
             // update to local & set synced status after syncing
             if (response != null) {
               var updatedRecord = response['update${table}'];
@@ -223,20 +204,10 @@ class AppSync extends Sync {
     var records = await database.query<Map>(query);
 
     for (final record in records) {
-      _excludeLocalFields(record);
       var fields = _getFields(table).join('\n');
       fields += '\n _ts\n id';
-      var newQuery = """
-         mutation put${table}(\$input: Create${table}Input!) {
-          create${table}(input: \$input) {
-            $fields
-          }
-        }
-      """;
-      var variables = Map<String, dynamic>();
-      variables['input'] = Map<String, dynamic>.from(record);
-      var response =
-          await _createOrUpdateDocument(graphClient, newQuery, variables);
+
+      var response = await _createDocument(table, fields, record);
       // update to local & set synced status after syncing
       if (response != null) {
         var newRecord = response['create${table}'];
@@ -276,20 +247,7 @@ class AppSync extends Sync {
               }
             });
 
-            _excludeLocalFields(remoteRecord);
-            var updateQuery = """
-              mutation update${table}(\$input: Update${table}Input!) {
-                update${table}(input: \$input) {
-                  $fields
-                }
-              }
-            """;
-
-            var variables = Map<String, dynamic>();
-            variables['input'] = Map<String, dynamic>.from(remoteRecord);
-
-            var response = await _createOrUpdateDocument(
-                graphClient, updateQuery, variables);
+            var response = await _updateDocument(table, fields, remoteRecord);
             // update to local & set synced status after syncing
             if (response != null) {
               var updatedRecord = response['update${table}'];
@@ -307,11 +265,44 @@ class AppSync extends Sync {
         key == 'updatedAt' || key == 'createdAt' || key.startsWith('_'));
   }
 
-  Future<dynamic> _createOrUpdateDocument(GraphQLClient graphClient,
-      String query, Map<String, dynamic> variables) async {
+  Future<dynamic> _createDocument(
+      String table, String fields, Map record) async {
+    _excludeLocalFields(record);
+    var query = """
+         mutation put${table}(\$input: Create${table}Input!) {
+          create${table}(input: \$input) {
+            $fields
+          }
+        }
+      """;
+
+    var variables = Map<String, dynamic>();
+    variables['input'] = Map<String, dynamic>.from(record);
+    return _mutationDocument(graphClient, query, variables);
+  }
+
+  Future<dynamic> _updateDocument(
+      String table, String fields, Map record) async {
+    _excludeLocalFields(record);
+    var query = """
+              mutation update${table}(\$input: Update${table}Input!) {
+                update${table}(input: \$input) {
+                  $fields
+                }
+              }
+            """;
+
+    var variables = Map<String, dynamic>();
+    variables['input'] = Map<String, dynamic>.from(record);
+    return _mutationDocument(graphClient, query, variables);
+  }
+
+  Future<dynamic> _mutationDocument(GraphQLClient graphClient, String query,
+      Map<String, dynamic> variables) async {
     var options =
         MutationOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.mutate(options);
+    printLog('_mutationDocument ${result.data}', logLevel);
     return result.data;
   }
 
@@ -319,6 +310,7 @@ class AppSync extends Sync {
       [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
+    printLog('_queryDocuments $result', logLevel);
     return result.data;
   }
 
