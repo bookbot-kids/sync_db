@@ -35,6 +35,10 @@ class AppSync extends Sync {
 
   @override
   Future<void> syncAll() async {
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
+
     _pool.withResource(() async {
       try {
         // Get graph client base on token
@@ -78,6 +82,10 @@ class AppSync extends Sync {
   Future<void> syncWriteOne(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh]) async {
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
+
     _modelPool.withResource(() async {
       try {
         await _getGraphClient();
@@ -355,6 +363,10 @@ class AppSync extends Sync {
    * Get graph client base on token from cognito
    */
   Future<void> _getGraphClient() async {
+    if (!user.tokenValid) {
+      await user.resourceTokens();
+    }
+
     final AuthLink authLink = AuthLink(getToken: () => user.refreshToken);
     final Link link = authLink.concat(shared._httpLink);
     graphClient = GraphQLClient(

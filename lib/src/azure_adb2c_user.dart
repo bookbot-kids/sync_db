@@ -71,6 +71,10 @@ class AzureADB2CUser extends BaseUser {
     return List<MapEntry>.from(_resourceTokens);
   }
 
+  bool get tokenValid {
+    return _tokenExpiry.isAfter(DateTime.now());
+  }
+
   set refreshToken(String token) {
     prefs.setString("refresh_token", token);
   }
