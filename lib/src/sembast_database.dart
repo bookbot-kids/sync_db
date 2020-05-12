@@ -79,7 +79,7 @@ class SembastDatabase extends Database {
     await store.record(model.id).put(db, map);
 
     // sync to server
-    _sync.syncModel(name, map, create).then((value) => null);
+    _sync.syncWriteOne(name, map, create).then((value) => null);
   }
 
   Future<void> saveMap(String tableName, String id, Map map,

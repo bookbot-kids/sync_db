@@ -202,13 +202,13 @@ class CosmosSync extends Sync {
     // (for Adrian) do another check to see if there are any local updated records after this to upload
   }
 
-  Future<void> syncModel(
+  Future<void> syncWriteOne(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
       _pool.withResource(
-          () => _syncModel(table, localRecord, isCreated, resourceTokens));
+          () => _syncWriteOne(table, localRecord, isCreated, resourceTokens));
     } catch (err) {
       if (logLevel > Log.none) {
         print('Sync error: $err');
@@ -216,7 +216,7 @@ class CosmosSync extends Sync {
     }
   }
 
-  Future<void> _syncModel(String table, Map<String, dynamic> localRecord,
+  Future<void> _syncWriteOne(String table, Map<String, dynamic> localRecord,
       bool isCreated, List<MapEntry> resourceTokens) async {
     try {
       var resourceToken = resourceTokens

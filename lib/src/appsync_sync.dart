@@ -60,14 +60,18 @@ class AppSync extends Sync {
   }
 
   @override
-  Future<void> syncModel(
+  Future<void> syncWriteOne(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh]) async {
     await _getGraphClient();
+    if (schema == null) {
+      await _getSchema();
+    }
+
     if (isCreated) {
       _excludeLocalFields(localRecord);
-      var fields = localRecord.keys.toList().join('\n');
-      fields += "\n _ts";
+      var fields = _getFields(table).join('\n');
+      fields += "\n _ts \n id";
       var newQuery = """
          mutation put${table}(\$input: Create${table}Input!) {
           create${table}(input: \$input) {
@@ -81,13 +85,14 @@ class AppSync extends Sync {
           await _createOrUpdateDocument(graphClient, newQuery, variables);
       // update to local & set synced status after syncing
       if (response != null) {
-        var newRecord = response['data']['create${table}'];
+        var newRecord = response['create${table}'];
         await database.saveMap(table, newRecord['id'], newRecord,
             status: 'synced', updatedAt: newRecord['_ts'] * 1000);
       }
     } else {
       // sync read
-      var fields = localRecord.keys.toList().join('\n');
+      var fields = _getFields(table).join('\n');
+      fields += "\n _ts \n id";
       var query = """
          query get$table {
             get$table(id:"${localRecord['id']}") {
@@ -100,7 +105,7 @@ class AppSync extends Sync {
       printLog(response, logLevel);
       dynamic remoteRecord;
       if (response != null) {
-        remoteRecord = response['data']['get$table'];
+        remoteRecord = response['get$table'];
         // update from appsync to local, set status to synced to prevent sync again
         var localDate = localRecord['updatedAt'] / 1000;
         if (localDate < remoteRecord['_ts']) {
@@ -122,7 +127,6 @@ class AppSync extends Sync {
             });
 
             _excludeLocalFields(remoteRecord);
-            var fields = remoteRecord.keys.toList().join('\n');
             var updateQuery = """
               mutation update${table}(\$input: Update${table}Input!) {
                 update${table}(input: \$input) {
@@ -138,7 +142,7 @@ class AppSync extends Sync {
                 graphClient, updateQuery, variables);
             // update to local & set synced status after syncing
             if (response != null) {
-              var updatedRecord = response['data']['update${table}'];
+              var updatedRecord = response['update${table}'];
               await database.saveMap(table, updatedRecord['id'], updatedRecord,
                   status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
             }
@@ -235,7 +239,7 @@ class AppSync extends Sync {
           await _createOrUpdateDocument(graphClient, newQuery, variables);
       // update to local & set synced status after syncing
       if (response != null) {
-        var newRecord = response['data']['create${table}'];
+        var newRecord = response['create${table}'];
         await database.saveMap(table, newRecord['id'], newRecord,
             status: 'synced', updatedAt: newRecord['_ts'] * 1000);
       }
@@ -244,36 +248,25 @@ class AppSync extends Sync {
     // Get records that have been updated and update to appsync
     query = q.Query(table).where("_status = updated").order("updatedAt asc");
     records = await database.query<Map>(query);
-    List recordIds = records.map((item) => item['id']).toList();
-
-    dynamic remoteRecords;
-    if (recordIds.isNotEmpty) {
-      // TODO: fix later
-      // get appsync records base the local id list
-      var schemaData = schema[table];
-      // generate field types
-      Map types = json.decode(schemaData['types']);
-      var fields = types.entries.map((e) => e.key).toList().join('\n');
-      fields += '\n _ts\n id';
-      var query = """
-      query ListByIds{
-        list${table}sByIds(ids: \$ids){
-          $fields
-        }
-      }
-      """;
-      Map<String, dynamic> variables = Map();
-      variables["\$id"] = recordIds;
-      var response = await _queryDocuments(graphClient, query, variables);
-      remoteRecords = response['list${table}sByIds'];
-    } else {
-      remoteRecords = List();
-    }
 
     for (final localRecord in records) {
-      // compare date between local & remote
-      for (var remoteRecord in remoteRecords) {
-        if (remoteRecord['id'] == localRecord['id']) {
+      // get appsync record
+      var fields = _getFields(table).join('\n');
+      fields += '\nid \n_ts';
+      var query = """
+         query get$table {
+            get$table(id:"${localRecord['id']}") {
+            $fields
+            }
+          }
+      """;
+
+      var response = await _queryDocuments(graphClient, query);
+      printLog(response, logLevel);
+      if (response != null) {
+        var remoteRecord = response['get$table'];
+        if (remoteRecord != null) {
+          // compare date between local & remote
           var localDate = localRecord['updatedAt'] / 1000;
           // if local is newest, merge and save to appsync
           if (localDate > remoteRecord['_ts']) {
@@ -284,7 +277,6 @@ class AppSync extends Sync {
             });
 
             _excludeLocalFields(remoteRecord);
-            var fields = remoteRecord.keys.toList().join('\n');
             var updateQuery = """
               mutation update${table}(\$input: Update${table}Input!) {
                 update${table}(input: \$input) {
@@ -300,7 +292,7 @@ class AppSync extends Sync {
                 graphClient, updateQuery, variables);
             // update to local & set synced status after syncing
             if (response != null) {
-              var updatedRecord = response['data']['update${table}'];
+              var updatedRecord = response['update${table}'];
               await database.saveMap(table, updatedRecord['id'], updatedRecord,
                   status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
             }

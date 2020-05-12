@@ -21,7 +21,8 @@ abstract class Sync {
   Future<void> syncAll();
   Future<void> syncRead(String table, dynamic permission);
   Future<void> syncWrite(String table, dynamic permission);
-  Future<void> syncModel(String table, Map<String, dynamic> map, bool isCreated,
+  Future<void> syncWriteOne(
+      String table, Map<String, dynamic> map, bool isCreated,
       [bool refresh]);
 }
 
