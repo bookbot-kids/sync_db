@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:pool/pool.dart' as pool;
 import '../sync_db.dart';
@@ -21,6 +22,7 @@ class AppSync extends Sync {
   Database database;
   List<Model> _models;
   Map schema;
+  List permissions;
   int logLevel = Log.none;
   GraphQLClient graphClient;
 
@@ -39,7 +41,7 @@ class AppSync extends Sync {
       return;
     }
 
-    _pool.withResource(() async {
+    await _pool.withResource(() async {
       try {
         // Get graph client base on token
         await _getGraphClient();
@@ -47,15 +49,20 @@ class AppSync extends Sync {
         // query all schema
         await _getSchema();
 
-        if (schema == null) {
-          throw SyncException('Can not get schema');
-        }
+        // query permissions map
+        await _getRolePermissions();
 
         // Loop through tables to read sync
         for (var model in _models) {
           var table = model.tableName();
           if (schema.containsKey(table)) {
-            await syncRead(table, graphClient);
+            if (hasPermission(user.role, table, 'read')) {
+              await syncRead(table, graphClient);
+            } else {
+              printLog(
+                  'role ${user.role} does not have read permission in table $table',
+                  logLevel);
+            }
           } else {
             printLog('table $table does not exist in schema', logLevel);
           }
@@ -65,7 +72,13 @@ class AppSync extends Sync {
         for (var model in _models) {
           var table = model.tableName();
           if (schema.containsKey(table)) {
-            await syncWrite(table, graphClient);
+            if (hasPermission(user.role, table, 'write')) {
+              await syncWrite(table, graphClient);
+            } else {
+              printLog(
+                  'role ${user.role} does not have write permission in table $table',
+                  logLevel);
+            }
           } else {
             printLog('table $table does not exist in schema', logLevel);
           }
@@ -86,16 +99,15 @@ class AppSync extends Sync {
       return;
     }
 
-    _modelPool.withResource(() async {
+    if (!hasPermission(user.role, table, 'write')) {
+      return;
+    }
+
+    await _modelPool.withResource(() async {
       try {
         await _getGraphClient();
-        if (schema == null) {
-          await _getSchema();
-        }
-
-        if (schema == null) {
-          throw SyncException('Can not get schema');
-        }
+        await _getSchema();
+        await _getRolePermissions();
 
         if (isCreated) {
           var fields = _getFields(table);
@@ -355,7 +367,7 @@ class AppSync extends Sync {
       [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
-    printLog('_queryDocuments $result', logLevel);
+    printLog('_queryDocuments ${result.data}', logLevel);
     return result.data;
   }
 
@@ -379,9 +391,13 @@ class AppSync extends Sync {
    * Get defined schema table
    */
   Future<void> _getSchema() async {
+    if (schema != null) {
+      return;
+    }
+
     var query = """
       query ListSchema {
-        listSchemata(limit: 1000) {
+        listSchemas(limit: 1000) {
           items {
             id
             table
@@ -394,10 +410,69 @@ class AppSync extends Sync {
     printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
-        documents.containsKey('listSchemata')) {
-      List list = documents['listSchemata']['items'];
+        documents.containsKey('listSchemas')) {
+      List list = documents['listSchemas']['items'];
       schema = Map.fromIterable(list, key: (e) => e['table'], value: (e) => e);
     }
+
+    if (schema == null) {
+      throw SyncException('Can not get schema');
+    }
+  }
+
+  /**
+   * Get defined role permissions
+   */
+  Future<void> _getRolePermissions() async {
+    if (permissions != null) {
+      return;
+    }
+
+    var query = """
+      query ListRolePermissions {
+        listRolePermissionss(limit: 1000) {
+          items {
+            id
+            table
+            role
+            permission
+          }
+        }
+      }
+    """;
+    var documents = await _queryDocuments(graphClient, query);
+    printLog(documents, logLevel);
+    if (documents != null &&
+        documents is Map &&
+        documents.containsKey('listRolePermissionss')) {
+      permissions = documents['listRolePermissionss']['items'];
+    }
+
+    if (permissions == null) {
+      throw SyncException('Can not get permission');
+    }
+  }
+
+  bool hasPermission(String role, String table, String checkedPermission) {
+    if (permissions == null) {
+      return false;
+    }
+
+    // admin has all permissions
+    if (StringUtils.equalsIgnoreCase(role, 'admin')) {
+      return true;
+    }
+
+    for (var item in permissions) {
+      if (StringUtils.equalsIgnoreCase(item['role'], role) &&
+          StringUtils.equalsIgnoreCase(item['table'], table) &&
+          item['permission'] != null &&
+          item['permission'].contains(checkedPermission)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
