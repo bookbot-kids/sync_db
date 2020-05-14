@@ -117,7 +117,7 @@ class AppSync extends Sync {
           if (response != null) {
             var newRecord = response['create${table}'];
             await database.saveMap(table, newRecord['id'], newRecord,
-                status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+                status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
           }
         } else {
           // sync read
@@ -129,9 +129,10 @@ class AppSync extends Sync {
             remoteRecord = response['get$table'];
             // update from appsync to local, set status to synced to prevent sync again
             var localDate = localRecord['updatedAt'] / 1000;
-            if (localDate < remoteRecord['_ts']) {
+            if (localDate < remoteRecord['lastSynced']) {
               await database.saveMap(table, remoteRecord['id'], remoteRecord,
-                  updatedAt: remoteRecord['_ts'] * 1000, status: 'synced');
+                  updatedAt: remoteRecord['lastSynced'] * 1000,
+                  status: 'synced');
             }
           }
 
@@ -140,7 +141,7 @@ class AppSync extends Sync {
             if (remoteRecord['id'] == localRecord['id']) {
               var localDate = localRecord['updatedAt'] / 1000;
               // if local is newest, merge and save to appsync
-              if (localDate > remoteRecord['_ts']) {
+              if (localDate > remoteRecord['lastSynced']) {
                 localRecord.forEach((key, value) {
                   if (key != 'updatedAt') {
                     remoteRecord[key] = value;
@@ -154,7 +155,8 @@ class AppSync extends Sync {
                   var updatedRecord = response['update${table}'];
                   await database.saveMap(
                       table, updatedRecord['id'], updatedRecord,
-                      status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
+                      status: 'synced',
+                      updatedAt: updatedRecord['lastSynced'] * 1000);
                 }
               }
             }
@@ -169,14 +171,14 @@ class AppSync extends Sync {
   @override
   Future<void> syncRead(String table, dynamic graphClient) async {
     // Get the last record change timestamp on server side
-    final query = q.Query(table).where('').order("_ts desc").limit(1);
+    final query = q.Query(table).where('').order("lastSynced desc").limit(1);
     var records = await database.query(query);
     final record = records.isNotEmpty ? records[0] : null;
     String select;
     var fields = _getFields(table);
 
     int limit = 10000;
-    if (record == null || (record != null && record["_ts"] == null)) {
+    if (record == null || (record != null && record["lastSynced"] == null)) {
       select = """
         query list${table}s {
           list${table}s (limit: $limit) {
@@ -190,8 +192,8 @@ class AppSync extends Sync {
       select = """
       query list$table {
           list${table}s(filter: {
-            _ts: {
-              gt: ${record["_ts"]}
+            lastSynced: {
+              gt: ${record["lastSynced"]}
             }
           }, limit: $limit){
             items{
@@ -214,13 +216,13 @@ class AppSync extends Sync {
           if (localRecord == null) {
             // save new to local, set status to synced to prevent sync again
             await database.saveMap(table, doc['id'], doc,
-                updatedAt: doc['_ts'] * 1000, status: 'synced');
+                updatedAt: doc['lastSynced'] * 1000, status: 'synced');
           } else {
             // update from appsync to local, set status to synced to prevent sync again
             var localDate = localRecord['updatedAt'] / 1000;
-            if (localDate < doc['_ts']) {
+            if (localDate < doc['lastSynced']) {
               await database.saveMap(table, doc['id'], doc,
-                  updatedAt: doc['_ts'] * 1000, status: 'synced');
+                  updatedAt: doc['lastSynced'] * 1000, status: 'synced');
             }
           }
         }
@@ -243,7 +245,7 @@ class AppSync extends Sync {
       if (response != null) {
         var newRecord = response['create${table}'];
         await database.saveMap(table, newRecord['id'], newRecord,
-            status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+            status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
       }
     }
 
@@ -263,7 +265,7 @@ class AppSync extends Sync {
           // compare date between local & remote
           var localDate = localRecord['updatedAt'] / 1000;
           // if local is newest, merge and save to appsync
-          if (localDate > remoteRecord['_ts']) {
+          if (localDate > remoteRecord['lastSynced']) {
             localRecord.forEach((key, value) {
               if (key != 'updatedAt') {
                 remoteRecord[key] = value;
@@ -275,7 +277,8 @@ class AppSync extends Sync {
             if (response != null) {
               var updatedRecord = response['update${table}'];
               await database.saveMap(table, updatedRecord['id'], updatedRecord,
-                  status: 'synced', updatedAt: updatedRecord['_ts'] * 1000);
+                  status: 'synced',
+                  updatedAt: updatedRecord['lastSynced'] * 1000);
             }
           }
         }
@@ -480,14 +483,14 @@ class AppSync extends Sync {
    */
   String _getFields(String table) {
     if (schema == null || !schema.containsKey(table)) {
-      return '_ts\n id';
+      return 'lastSynced\n id';
     }
 
     var schemaData = schema[table];
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');
-    fields += '\n _ts\n id';
+    fields += '\n lastSynced\n id';
     return fields;
   }
 }
