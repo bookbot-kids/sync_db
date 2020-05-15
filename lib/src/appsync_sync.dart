@@ -99,15 +99,15 @@ class AppSync extends Sync {
       return;
     }
 
-    if (!hasPermission(user.role, table, 'write')) {
-      return;
-    }
-
     await _modelPool.withResource(() async {
       try {
         await _getGraphClient();
         await _getSchema();
         await _getRolePermissions();
+
+        if (!hasPermission(user.role, table, 'write')) {
+          return;
+        }
 
         if (isCreated) {
           var fields = _getFields(table);
@@ -126,13 +126,27 @@ class AppSync extends Sync {
           printLog(response, logLevel);
           dynamic remoteRecord;
           if (response != null) {
-            remoteRecord = response['get$table'];
-            // update from appsync to local, set status to synced to prevent sync again
-            var localDate = localRecord['updatedAt'] / 1000;
-            if (localDate < remoteRecord['lastSynced']) {
-              await database.saveMap(table, remoteRecord['id'], remoteRecord,
-                  updatedAt: remoteRecord['lastSynced'] * 1000,
-                  status: 'synced');
+            if (response['get$table'] != null) {
+              remoteRecord = response['get$table'];
+              // update from appsync to local, set status to synced to prevent sync again
+              var localDate = localRecord['updatedAt'] / 1000;
+              if (localDate < remoteRecord['lastSynced']) {
+                await database.saveMap(table, remoteRecord['id'], remoteRecord,
+                    updatedAt: remoteRecord['lastSynced'] * 1000,
+                    status: 'synced');
+              }
+            } else {
+              // if there is no record in appsync, then create a new one
+              var fields = _getFields(table);
+              var response = await _createDocument(table, fields, localRecord);
+
+              // update to local & set synced status after syncing
+              if (response != null && response['create${table}'] != null) {
+                var newRecord = response['create${table}'];
+                await database.saveMap(table, newRecord['id'], newRecord,
+                    status: 'synced',
+                    updatedAt: newRecord['lastSynced'] * 1000);
+              }
             }
           }
 
@@ -260,26 +274,40 @@ class AppSync extends Sync {
 
       printLog(response, logLevel);
       if (response != null) {
-        var remoteRecord = response['get$table'];
-        if (remoteRecord != null) {
-          // compare date between local & remote
-          var localDate = localRecord['updatedAt'] / 1000;
-          // if local is newest, merge and save to appsync
-          if (localDate > remoteRecord['lastSynced']) {
-            localRecord.forEach((key, value) {
-              if (key != 'updatedAt') {
-                remoteRecord[key] = value;
-              }
-            });
+        if (response['get$table'] != null) {
+          var remoteRecord = response['get$table'];
+          if (remoteRecord != null) {
+            // compare date between local & remote
+            var localDate = localRecord['updatedAt'] / 1000;
+            // if local is newest, merge and save to appsync
+            if (localDate > remoteRecord['lastSynced']) {
+              localRecord.forEach((key, value) {
+                if (key != 'updatedAt') {
+                  remoteRecord[key] = value;
+                }
+              });
 
-            var response = await _updateDocument(table, fields, remoteRecord);
-            // update to local & set synced status after syncing
-            if (response != null) {
-              var updatedRecord = response['update${table}'];
-              await database.saveMap(table, updatedRecord['id'], updatedRecord,
-                  status: 'synced',
-                  updatedAt: updatedRecord['lastSynced'] * 1000);
+              var response = await _updateDocument(table, fields, remoteRecord);
+              // update to local & set synced status after syncing
+              if (response != null) {
+                var updatedRecord = response['update${table}'];
+                await database.saveMap(
+                    table, updatedRecord['id'], updatedRecord,
+                    status: 'synced',
+                    updatedAt: updatedRecord['lastSynced'] * 1000);
+              }
             }
+          }
+        } else {
+          // if there is no record in appsync, then create a new one
+          var fields = _getFields(table);
+          var response = await _createDocument(table, fields, localRecord);
+
+          // update to local & set synced status after syncing
+          if (response != null && response['create${table}'] != null) {
+            var newRecord = response['create${table}'];
+            await database.saveMap(table, newRecord['id'], newRecord,
+                status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
           }
         }
       }
