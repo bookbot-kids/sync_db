@@ -36,6 +36,7 @@ abstract class Database {
   dynamic find(String modelName, String id, Model model);
   dynamic query<T>(Query query);
   Future<void> delete(Model model);
+  Future<void> deleteLocal(String modelName, String id);
 }
 
 abstract class Model extends ChangeNotifier {

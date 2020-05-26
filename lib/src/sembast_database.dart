@@ -82,6 +82,7 @@ class SembastDatabase extends Database {
     _sync.syncWriteOne(name, map, create).then((value) => null);
   }
 
+  /// Save record map to sembast
   Future<void> saveMap(String tableName, String id, Map map,
       {int updatedAt, String status}) async {
     final db = _db[tableName];
@@ -111,9 +112,18 @@ class SembastDatabase extends Database {
     await store.record(id).put(db, map);
   }
 
+  /// Delete by setting deletedAt and sync
   Future<void> delete(Model model) async {
     model.deletedAt = DateTime.now();
     await save(model);
+  }
+
+  /// Delete sembast local record if exist
+  Future<void> deleteLocal(String modelName, String id) async {
+    final store = Sembast.StoreRef.main();
+    if (await store.record(id).exists(_db[modelName])) {
+      await store.record(id).delete(_db[modelName]);
+    }
   }
 
   /// Get all model instances in a table
