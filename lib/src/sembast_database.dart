@@ -175,7 +175,7 @@ class SembastDatabase extends Database {
           finder.filter = filter;
         } else if (query.condition.toLowerCase().contains(' or ') ||
             query.condition.toLowerCase().contains(' and ')) {
-          // multiple filter a = x or b > 2
+          // multiple filter a = x or b > 2 or a is null
           List<Sembast.Filter> filters = List<Sembast.Filter>();
           for (var i = 0; i < conditions.length; i += 4) {
             var filter = _buildFilter(
@@ -255,6 +255,14 @@ class SembastDatabase extends Database {
         return Sembast.Filter.greaterThanOrEquals(left.trim(), right.trim());
       case '=':
         return Sembast.Filter.equals(left.trim(), right.trim());
+      case '!=':
+        return Sembast.Filter.notEquals(left.trim(), right.trim());
+      case 'is':
+        return Sembast.Filter.isNull(left.trim());
+      case 'not':
+        return Sembast.Filter.notNull(left.trim());
+      case 'matches':
+        return Sembast.Filter.matches(left.trim(), right.trim());
       default:
         return null;
     }
