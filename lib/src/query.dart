@@ -11,6 +11,7 @@ class Query {
   int index;
   String tableName;
   String filterOperator = 'and';
+  bool isMatches; // is search text mode
 
   Query(this.tableName);
 
@@ -19,7 +20,7 @@ class Query {
   ///
   /// *String query*: `Query(table).where('column <= 3')`
   ///
-  /// *Accepted operators*: `<`, `<=`, `=`, `>`, `>=`
+  /// *Accepted operators*: `<`, `<=`, `=`, `>`, `>=`, `[matches]`, `is`, `not`
   ///
   /// *Map query*: `Query(table).where({"column1" : 3, "column2": "a"})`
   /// The `filterOperator` must be `and` or `or`
@@ -29,7 +30,8 @@ class Query {
       [dynamic condition,
       Database database,
       Function instantiateModel,
-      String filterOperator]) {
+      String filterOperator,
+      bool isMatches]) {
     if (condition is String || condition is Map || condition == null) {
       if (filterOperator != null &&
           filterOperator.toLowerCase() != 'and' &&
@@ -42,6 +44,8 @@ class Query {
       if (filterOperator != null) {
         this.filterOperator = filterOperator;
       }
+
+      this.isMatches = isMatches;
 
       return this;
     }
