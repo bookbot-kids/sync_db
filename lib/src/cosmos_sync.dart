@@ -85,7 +85,7 @@ class CosmosSync extends Sync {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
 
-      await _lock.synchronized(() async {
+      await _pool.withResource(() async {
         try {
           var permission = resourceTokens.firstWhere(
             (element) => element.key == table,
