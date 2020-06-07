@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:pool/pool.dart' as pool;
+import 'package:sync_db/src/exceptions.dart';
 import 'package:universal_io/io.dart';
 
 import 'package:synchronized/synchronized.dart';
@@ -177,8 +178,28 @@ class CosmosSync extends Sync {
       var newRecord = await _createDocument(token, table, partition, record);
       // update to local & set synced status after syncing
       if (newRecord != null) {
-        await database.saveMap(table, newRecord['id'], newRecord,
-            status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+        if (newRecord is String) {
+          // resolve conflict by override from cosmos into local
+          String select = 'SELECT * FROM $table c WHERE c.id = @id ';
+          var parameters = List<Map<String, String>>();
+          _addParameter(parameters, '@id', record['id']);
+          var cosmosResult = await _queryDocuments(
+              token, table, partition, select, parameters);
+          if (logLevel > Log.none) {
+            print(cosmosResult);
+          }
+
+          dynamic cosmosRecord;
+          if (cosmosResult != null && cosmosResult.length > 0) {
+            cosmosRecord = cosmosResult[0];
+            // update from cosmos to local, set status to synced to prevent sync again
+            await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
+                updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
+          }
+        } else {
+          await database.saveMap(table, newRecord['id'], newRecord,
+              status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+        }
       }
     }
 
@@ -278,8 +299,28 @@ class CosmosSync extends Sync {
             await _createDocument(token, table, partition, localRecord);
         // update to local & set synced status after syncing
         if (newRecord != null) {
-          await database.saveMap(table, newRecord['id'], newRecord,
-              status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+          if (newRecord is String) {
+            // resolve conflict by override from cosmos into local
+            String select = 'SELECT * FROM $table c WHERE c.id = @id ';
+            var parameters = List<Map<String, String>>();
+            _addParameter(parameters, '@id', localRecord['id']);
+            var cosmosResult = await _queryDocuments(
+                token, table, partition, select, parameters);
+            if (logLevel > Log.none) {
+              print(cosmosResult);
+            }
+
+            dynamic cosmosRecord;
+            if (cosmosResult != null && cosmosResult.length > 0) {
+              cosmosRecord = cosmosResult[0];
+              // update from cosmos to local, set status to synced to prevent sync again
+              await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
+                  updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
+            }
+          } else {
+            await database.saveMap(table, newRecord['id'], newRecord,
+                status: 'synced', updatedAt: newRecord['_ts'] * 1000);
+          }
         }
       } else {
         // sync read
@@ -413,11 +454,22 @@ class CosmosSync extends Sync {
         "x-ms-documentdb-partitionkey": "[\"$partition\"]"
       };
       var response = await http.post("colls/$table/docs", data: json);
-      if (logLevel > Log.none) {
-        print(response);
-      }
+      // if (logLevel > Log.none) {
+      //   print(response);
+      // }
       return response;
     } catch (e) {
+      if (e is UnexpectedResponseException) {
+        try {
+          if (e.response.statusCode == 409) {
+            // conflict
+            return 'conflict';
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       print(e);
     }
   }
@@ -441,9 +493,9 @@ class CosmosSync extends Sync {
         "x-ms-documentdb-partitionkey": "[\"$partition\"]"
       };
       var response = await http.put("colls/$table/docs/$id", data: json);
-      if (logLevel > Log.none) {
-        print(response);
-      }
+      // if (logLevel > Log.none) {
+      //   print(response);
+      // }
 
       return response;
     } catch (e) {
