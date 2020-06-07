@@ -80,6 +80,43 @@ class CosmosSync extends Sync {
     }
   }
 
+  Future<void> syncOne(String table, [bool refresh = false]) async {
+    try {
+      final resourceTokens = await user.resourceTokens(refresh);
+
+      await _lock.synchronized(() async {
+        try {
+          var permission = resourceTokens.firstWhere(
+            (element) => element.key == table,
+            orElse: () => null,
+          );
+
+          if (permission != null) {
+            // sync read
+            if (database.hasTable(table)) {
+              await syncRead(table, permission.value);
+            }
+
+            // sync write
+            if (permission.value["permissionMode"] == "All" &&
+                database.hasTable(table)) {
+              await syncWrite(table, permission.value);
+            }
+          } else {
+            printLog(
+                'does not have sync permission for table $table', logLevel);
+          }
+
+          printLog('Sync $table completed', logLevel);
+        } catch (err) {
+          printLog('Sync $table error: $err', logLevel);
+        }
+      });
+    } catch (err) {
+      printLog('Sync $table error: $err', logLevel);
+    }
+  }
+
   /// Read sync this table
   Future<void> syncRead(String table, dynamic permission) async {
     String token = permission["_token"];

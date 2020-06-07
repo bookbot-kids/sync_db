@@ -25,6 +25,9 @@ abstract class Sync {
   Future<void> syncWriteOne(
       String table, Map<String, dynamic> map, bool isCreated,
       [bool refresh]);
+
+  /// Sync read, write for one table only
+  Future<void> syncOne(String table, [bool refresh]);
 }
 
 abstract class Database {

@@ -91,6 +91,54 @@ class AppSync extends Sync {
     });
   }
 
+  Future<void> syncOne(String table, [bool refresh = false]) async {
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
+
+    await _pool.withResource(() async {
+      try {
+        // Get graph client base on token
+        await _getGraphClient();
+
+        // query all schema
+        await _getSchema();
+
+        // query permissions map
+        await _getRolePermissions();
+
+        // Sync read
+        if (schema.containsKey(table)) {
+          if (hasPermission(user.role, table, 'read')) {
+            await syncRead(table, graphClient);
+          } else {
+            printLog(
+                'role ${user.role} does not have read permission in table $table',
+                logLevel);
+          }
+        } else {
+          printLog('table $table does not exist in schema', logLevel);
+        }
+
+        // Sync write
+        if (schema.containsKey(table)) {
+          if (hasPermission(user.role, table, 'write')) {
+            await syncWrite(table, graphClient);
+          } else {
+            printLog(
+                'role ${user.role} does not have write permission in table $table',
+                logLevel);
+          }
+        } else {
+          printLog('table $table does not exist in schema', logLevel);
+        }
+        printLog('Sync table $table completed', logLevel);
+      } catch (err) {
+        printLog('Sync table $table error: $err', logLevel);
+      }
+    });
+  }
+
   @override
   Future<void> syncWriteOne(
       String table, Map<String, dynamic> localRecord, bool isCreated,
