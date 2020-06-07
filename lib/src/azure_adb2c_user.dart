@@ -1,4 +1,6 @@
+import 'package:basic_utils/basic_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sync_db/src/exceptions.dart';
 
 import "abstract.dart";
 import 'dart:math';
@@ -51,21 +53,42 @@ class AzureADB2CUser extends BaseUser {
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
-    final response = await http.get('/GetResourceTokens', parameters: {
-      "client_token": clientToken(),
-      "refresh_token": refreshToken,
-      "code": config['azure_code']
-    });
+    try {
+      final response = await http.get('/GetResourceTokens', parameters: {
+        "client_token": clientToken(),
+        "refresh_token": refreshToken,
+        "code": config['azure_code']
+      });
 
-    _resourceTokens.clear();
-    for (final permission in response["permissions"]) {
-      _resourceTokens.add(MapEntry(permission["id"], permission));
-    }
-    _tokenExpiry = expired;
+      _resourceTokens.clear();
+      for (final permission in response["permissions"]) {
+        _resourceTokens.add(MapEntry(permission["id"], permission));
+      }
 
-    // set role along with the resource tokens
-    if (response['group'] != null) {
-      role = response['group'];
+      _tokenExpiry = expired;
+
+      // set role along with the resource tokens
+      if (response['group'] != null) {
+        role = response['group'];
+      }
+
+      // Update new refresh token from server
+      if (response['refreshToken'] is String &&
+          StringUtils.isNotNullOrEmpty(response['refreshToken'])) {
+        refreshToken = response['refreshToken'];
+      }
+    } catch (e) {
+      if (e is UnexpectedResponseException) {
+        try {
+          if (e.response.statusCode == 401) {
+            // token is expired, need to sign out user
+            _resourceTokens.clear();
+            await prefs.remove('refresh_token');
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
     }
 
     return List<MapEntry>.from(_resourceTokens);
