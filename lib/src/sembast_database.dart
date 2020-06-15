@@ -280,10 +280,10 @@ class SembastDatabase extends Database {
         return Sembast.Filter.notNull(left.trim());
       case 'matches':
         return Sembast.Filter.matches(left.trim(), right.trim());
-      case 'in':
+      case 'contains':
         return Sembast.Filter.equals(left.trim(), right.trim(),
             anyInList: true);
-      case 'matchesIn':
+      case 'matchesAny':
         return Sembast.Filter.matches(left.trim(), right.trim(),
             anyInList: true);
       default:
