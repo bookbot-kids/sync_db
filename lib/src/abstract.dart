@@ -28,6 +28,7 @@ abstract class Sync {
 
   /// Sync read, write for one table only
   Future<void> syncOne(String table, [bool refresh]);
+  Future<void> deleteOne(String table, String id, [bool refreh]);
 }
 
 abstract class Database {

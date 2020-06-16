@@ -81,6 +81,10 @@ class CosmosSync extends Sync {
     }
   }
 
+  Future<void> deleteOne(String table, String id, [bool refreh]) async {
+    throw UnimplementedError("Not ready in cosmos yet");
+  }
+
   Future<void> syncOne(String table, [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);

@@ -91,6 +91,42 @@ class AppSync extends Sync {
     });
   }
 
+  Future<void> deleteOne(String table, String id, [bool refreh]) async {
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
+
+    await _pool.withResource(() async {
+      try {
+        // Get graph client base on token
+        await _getGraphClient();
+
+        // query all schema
+        await _getSchema();
+
+        // query permissions map
+        await _getRolePermissions();
+
+        if (schema.containsKey(table)) {
+          if (hasPermission(user.role, table, 'write')) {
+            var fields = _getFields(table);
+            await _deleteDocument(table, fields, id);
+          } else {
+            printLog(
+                'role ${user.role} does not have write permission in table $table',
+                logLevel);
+          }
+        } else {
+          printLog('table $table does not exist in schema', logLevel);
+        }
+
+        printLog('Delete record on $table completed', logLevel);
+      } catch (err) {
+        printLog('Delete record on $table error: $err', logLevel);
+      }
+    });
+  }
+
   Future<void> syncOne(String table, [bool refresh = false]) async {
     if (!(await user.hasSignedIn())) {
       return;
@@ -422,6 +458,26 @@ class AppSync extends Sync {
 
     var variables = Map<String, dynamic>();
     variables['input'] = Map<String, dynamic>.from(record);
+    return _mutationDocument(graphClient, query, variables);
+  }
+
+  /**
+   * Delete a document
+   * Return a delete document
+   */
+  Future<dynamic> _deleteDocument(
+      String table, String fields, String id) async {
+    var query = """
+              mutation delete$table{
+                delete$table(input:{
+                  id: "$id"
+                }){
+                  $fields
+                }
+              }
+            """;
+
+    var variables = Map<String, dynamic>();
     return _mutationDocument(graphClient, query, variables);
   }
 

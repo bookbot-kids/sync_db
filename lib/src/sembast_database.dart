@@ -49,6 +49,12 @@ class SembastDatabase extends Database {
     shared = SembastDatabase._privateConstructor();
   }
 
+  Future<void> clearTable(String tableName) async {
+    var db = _db[tableName];
+    final store = Sembast.StoreRef.main();
+    await store.delete(db, finder: Sembast.Finder());
+  }
+
   Future<void> save(Model model) async {
     // Get DB
     final name = model.tableName();
