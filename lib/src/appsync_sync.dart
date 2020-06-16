@@ -43,14 +43,7 @@ class AppSync extends Sync {
 
     await _pool.withResource(() async {
       try {
-        // Get graph client base on token
-        await _getGraphClient();
-
-        // query all schema
-        await _getSchema();
-
-        // query permissions map
-        await _getRolePermissions();
+        await _setup();
 
         // Loop through tables to read sync
         for (var model in _models) {
@@ -98,14 +91,7 @@ class AppSync extends Sync {
 
     await _pool.withResource(() async {
       try {
-        // Get graph client base on token
-        await _getGraphClient();
-
-        // query all schema
-        await _getSchema();
-
-        // query permissions map
-        await _getRolePermissions();
+        await _setup();
 
         if (schema.containsKey(table)) {
           if (hasPermission(user.role, table, 'write')) {
@@ -134,14 +120,7 @@ class AppSync extends Sync {
 
     await _pool.withResource(() async {
       try {
-        // Get graph client base on token
-        await _getGraphClient();
-
-        // query all schema
-        await _getSchema();
-
-        // query permissions map
-        await _getRolePermissions();
+        await _setup();
 
         // Sync read
         if (schema.containsKey(table)) {
@@ -185,9 +164,7 @@ class AppSync extends Sync {
 
     await _modelPool.withResource(() async {
       try {
-        await _getGraphClient();
-        await _getSchema();
-        await _getRolePermissions();
+        await _setup();
 
         if (!hasPermission(user.role, table, 'write')) {
           return;
@@ -275,7 +252,8 @@ class AppSync extends Sync {
     String select;
     var fields = _getFields(table);
 
-    int limit = 10000;
+    // TODO paging later
+    int limit = 100000;
     if (record == null || (record != null && record["lastSynced"] == null)) {
       select = """
         query list${table}s {
@@ -396,6 +374,17 @@ class AppSync extends Sync {
         }
       }
     }
+  }
+
+  Future<void> _setup() async {
+    // Get graph client base on token
+    await _getGraphClient();
+
+    // query all schema
+    await _getSchema();
+
+    // query permissions map
+    await _getRolePermissions();
   }
 
   /**
