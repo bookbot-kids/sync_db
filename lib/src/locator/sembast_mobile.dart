@@ -16,7 +16,6 @@ class SembastMobileLocator extends SembastLocator {
     final dir = await getApplicationDocumentsDirectory();
     // make sure it exists
     await dir.create(recursive: true);
-    final store = Sembast.StoreRef.main();
 
     // Open all databases
     for (final model in models) {
@@ -24,10 +23,6 @@ class SembastMobileLocator extends SembastLocator {
       final dbPath = join(dir.path, name + ".db");
       print('model $name has path $dbPath');
       map[name] = await databaseFactoryIo.openDatabase(dbPath);
-
-      // Warms up the database so it can work later (seems to be a bug in Sembast)
-      await store.record("Cold start").put(map[name], "Warm up");
-      await store.record("Cold start").delete(map[name]);
     }
   }
 
