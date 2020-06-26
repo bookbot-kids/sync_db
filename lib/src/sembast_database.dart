@@ -179,7 +179,8 @@ class SembastDatabase extends Database {
             var filterOperator = conditions[1];
             var searchText = query.condition.substring(
                 left.length + filterOperator.length + 2); // include 2 spaces
-            var filter = _buildFilter(left, filterOperator, searchText);
+            var filter = _buildFilter(
+                left, filterOperator, searchText, query.caseSensitive);
             finder.filter = filter;
           }
         } else {
@@ -188,16 +189,16 @@ class SembastDatabase extends Database {
           // check one filter a > b
           List<String> conditions = query.condition.split(' ');
           if (conditions.length == 3) {
-            var filter =
-                _buildFilter(conditions[0], conditions[1], conditions[2]);
+            var filter = _buildFilter(conditions[0], conditions[1],
+                conditions[2], query.caseSensitive);
             finder.filter = filter;
           } else if (query.condition.toLowerCase().contains(' or ') ||
               query.condition.toLowerCase().contains(' and ')) {
             // multiple filter a = x or b > 2 or a is null
             List<Sembast.Filter> filters = List<Sembast.Filter>();
             for (var i = 0; i < conditions.length; i += 4) {
-              var filter = _buildFilter(
-                  conditions[i], conditions[i + 1], conditions[i + 2]);
+              var filter = _buildFilter(conditions[i], conditions[i + 1],
+                  conditions[i + 2], query.caseSensitive);
               filters.add(filter);
             }
 
@@ -215,7 +216,8 @@ class SembastDatabase extends Database {
           List<Sembast.Filter> filters = List<Sembast.Filter>();
           conditions.forEach((key, value) {
             if (query.isMatches == true) {
-              filters.add(Sembast.Filter.matches(key, value));
+              filters.add(Sembast.Filter.matchesRegExp(
+                  key, RegExp(value, caseSensitive: query.caseSensitive)));
             } else {
               filters.add(Sembast.Filter.equals(key, value));
             }
@@ -265,8 +267,8 @@ class SembastDatabase extends Database {
     return results;
   }
 
-  Sembast.Filter _buildFilter(
-      String left, String filterOperator, String right) {
+  Sembast.Filter _buildFilter(String left, String filterOperator, String right,
+      [bool caseSensitive = false]) {
     switch (filterOperator.trim()) {
       case '<':
         return Sembast.Filter.lessThan(left.trim(), right.trim());
@@ -285,12 +287,14 @@ class SembastDatabase extends Database {
       case 'not':
         return Sembast.Filter.notNull(left.trim());
       case 'matches':
-        return Sembast.Filter.matches(left.trim(), right.trim());
+        return Sembast.Filter.matchesRegExp(
+            left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive));
       case 'contains':
         return Sembast.Filter.equals(left.trim(), right.trim(),
             anyInList: true);
       case 'matchesAny':
-        return Sembast.Filter.matches(left.trim(), right.trim(),
+        return Sembast.Filter.matchesRegExp(
+            left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive),
             anyInList: true);
       default:
         return null;

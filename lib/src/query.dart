@@ -12,6 +12,7 @@ class Query {
   String tableName;
   String filterOperator = 'and';
   bool isMatches; // is search text mode
+  bool caseSensitive = false;
 
   Query(this.tableName);
 
@@ -70,6 +71,18 @@ class Query {
   Query offset([int index, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
     this.index = index;
+    return this;
+  }
+
+  /// Set the query is matched
+  Query matches(
+      [bool isMatches,
+      bool caseSensitive,
+      Database database,
+      Function instantiateModel]) {
+    _set(instantiateModel, database);
+    this.isMatches = isMatches;
+    this.caseSensitive = caseSensitive;
     return this;
   }
 
