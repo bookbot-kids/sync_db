@@ -230,7 +230,12 @@ class SembastDatabase extends Database {
           }
         } else {
           var entry = conditions.entries.toList()[0];
-          finder.filter = Sembast.Filter.equals(entry.key, entry.value);
+          if (query.isMatches == true) {
+            finder.filter = Sembast.Filter.matchesRegExp(entry.key,
+                RegExp(entry.value, caseSensitive: query.caseSensitive));
+          } else {
+            finder.filter = Sembast.Filter.equals(entry.key, entry.value);
+          }
         }
       }
     }
