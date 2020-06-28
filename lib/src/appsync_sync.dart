@@ -46,37 +46,13 @@ class AppSync extends Sync {
         await _setup();
 
         // Loop through tables to read sync
+        var tasks = List<Future>();
         for (var model in _models) {
           var table = model.tableName();
-          if (schema.containsKey(table)) {
-            if (hasPermission(user.role, table, 'read')) {
-              await syncRead(table, graphClient);
-            } else {
-              printLog(
-                  'role ${user.role} does not have read permission in table $table',
-                  logLevel);
-            }
-          } else {
-            printLog('table $table does not exist in schema', logLevel);
-          }
+          tasks.add(_syncOne(table, false, false));
         }
 
-        // Loop through tables to write sync
-        for (var model in _models) {
-          var table = model.tableName();
-          if (schema.containsKey(table)) {
-            if (hasPermission(user.role, table, 'write')) {
-              await syncWrite(table, graphClient);
-            } else {
-              printLog(
-                  'role ${user.role} does not have write permission in table $table',
-                  logLevel);
-            }
-          } else {
-            printLog('table $table does not exist in schema', logLevel);
-          }
-        }
-
+        await Future.wait(tasks);
         printLog('Sync completed', logLevel);
       } catch (err) {
         printLog('Sync error: $err', logLevel);
@@ -114,44 +90,51 @@ class AppSync extends Sync {
   }
 
   Future<void> syncOne(String table, [bool refresh = false]) async {
+    await _modelPool.withResource(() async {
+      await _syncOne(table, refresh, true);
+    });
+  }
+
+  Future<void> _syncOne(String table,
+      [bool refresh = false, bool setup = true]) async {
     if (!(await user.hasSignedIn())) {
       return;
     }
 
-    await _pool.withResource(() async {
-      try {
+    try {
+      if (setup) {
         await _setup();
-
-        // Sync read
-        if (schema.containsKey(table)) {
-          if (hasPermission(user.role, table, 'read')) {
-            await syncRead(table, graphClient);
-          } else {
-            printLog(
-                'role ${user.role} does not have read permission in table $table',
-                logLevel);
-          }
-        } else {
-          printLog('table $table does not exist in schema', logLevel);
-        }
-
-        // Sync write
-        if (schema.containsKey(table)) {
-          if (hasPermission(user.role, table, 'write')) {
-            await syncWrite(table, graphClient);
-          } else {
-            printLog(
-                'role ${user.role} does not have write permission in table $table',
-                logLevel);
-          }
-        } else {
-          printLog('table $table does not exist in schema', logLevel);
-        }
-        printLog('Sync table $table completed', logLevel);
-      } catch (err) {
-        printLog('Sync table $table error: $err', logLevel);
       }
-    });
+
+      // Sync read
+      if (schema.containsKey(table)) {
+        if (hasPermission(user.role, table, 'read')) {
+          await syncRead(table, graphClient);
+        } else {
+          printLog(
+              'role ${user.role} does not have read permission in table $table',
+              logLevel);
+        }
+      } else {
+        printLog('table $table does not exist in schema', logLevel);
+      }
+
+      // Sync write
+      if (schema.containsKey(table)) {
+        if (hasPermission(user.role, table, 'write')) {
+          await syncWrite(table, graphClient);
+        } else {
+          printLog(
+              'role ${user.role} does not have write permission in table $table',
+              logLevel);
+        }
+      } else {
+        printLog('table $table does not exist in schema', logLevel);
+      }
+      printLog('Sync table $table completed', logLevel);
+    } catch (err) {
+      printLog('Sync table $table error: $err', logLevel);
+    }
   }
 
   @override
@@ -245,6 +228,7 @@ class AppSync extends Sync {
 
   @override
   Future<void> syncRead(String table, dynamic graphClient) async {
+    printLog('[start syncing read on $table]', logLevel);
     // Get the last record change timestamp on server side
     final query = q.Query(table).where('').order("lastSynced desc").limit(1);
     var records = await database.query(query);
@@ -291,6 +275,10 @@ class AppSync extends Sync {
           var localRecord = records.isNotEmpty ? records[0] : null;
           if (localRecord == null) {
             // save new to local, set status to synced to prevent sync again
+            if (doc.containsKey('_createdAt')) {
+              doc['createdAt'] = doc['_createdAt'] * 1000;
+            }
+
             await database.saveMap(table, doc['id'], doc,
                 updatedAt: doc['lastSynced'] * 1000, status: 'synced');
           } else {
@@ -304,10 +292,13 @@ class AppSync extends Sync {
         }
       }
     }
+
+    printLog('[end syncing read on $table]', logLevel);
   }
 
   @override
   Future<void> syncWrite(String table, dynamic graphClient) async {
+    printLog('[start syncing write on $table]', logLevel);
     // Get created records and save to Appsync
     var query =
         q.Query(table).where("_status = created").order("createdAt asc");
@@ -374,6 +365,8 @@ class AppSync extends Sync {
         }
       }
     }
+
+    printLog('[end syncing write on $table]', logLevel);
   }
 
   Future<void> _setup() async {
@@ -611,7 +604,7 @@ class AppSync extends Sync {
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');
-    fields += '\n lastSynced\n id';
+    fields += '\n lastSynced\n id\n _createdAt';
     return fields;
   }
 }
