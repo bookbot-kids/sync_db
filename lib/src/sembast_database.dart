@@ -30,6 +30,10 @@ class SembastDatabase extends Database {
     await locator.import(data, model);
   }
 
+  static void disableSembastCooperator() {
+    Sembast.disableSembastCooperator();
+  }
+
   /// Check whether database table has initialized
   bool hasTable(String tableName) {
     return _db[tableName] != null;
