@@ -11,7 +11,7 @@ dependencies:
   path_provider: ^1.6.11
   uuid: ^2.0.4
   intl: ^0.16.1
-  sembast: ^2.4.5
+  sembast: ^2.4.6
   dio: ^3.0.9
   connectivity: ^0.4.8+2
   jaguar_jwt: ^2.1.6

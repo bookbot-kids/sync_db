@@ -25,7 +25,6 @@ class AppSync extends Sync {
   List permissions;
   int logLevel = Log.none;
   GraphQLClient graphClient;
-  bool _sortedInmemory = false;
 
   static void config(Map config, List<Model> models) {
     shared = AppSync();
@@ -34,7 +33,6 @@ class AppSync extends Sync {
     );
     shared._models = models;
     shared.logLevel = config['logLevel'] ?? Log.none;
-    shared._sortedInmemory = config['sortInMemory'] ?? false;
   }
 
   @override
@@ -232,36 +230,9 @@ class AppSync extends Sync {
   Future<void> syncRead(String table, dynamic graphClient) async {
     printLog('[start syncing read on $table]', logLevel);
     // Get the last record change timestamp on server side
-    dynamic record;
-    if (_sortedInmemory) {
-      final query = q.Query(table);
-      var records = await database.query(query);
-
-      if (records.isNotEmpty) {
-        records.sort((a, b) {
-          if ((a == null && b == null)) {
-            return 0;
-          }
-          if (b == null) {
-            return -1;
-          }
-
-          if (a == null) {
-            return 1;
-          }
-
-          var lastSyncedA = a['lastSynced'] ?? 0;
-          var lastSyncedB = b['lastSynced'] ?? 0;
-          return lastSyncedB.compareTo(lastSyncedA);
-        });
-
-        record = records.first;
-      }
-    } else {
-      final query = q.Query(table).order("lastSynced desc").limit(1);
-      var records = await database.query(query);
-      record = records.isNotEmpty ? records.first : null;
-    }
+    final query = q.Query(table).order("lastSynced desc").limit(1);
+    var records = await database.query(query);
+    final record = records.isNotEmpty ? records.first : null;
 
     String select;
     var fields = _getFields(table);

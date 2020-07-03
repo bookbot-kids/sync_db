@@ -30,8 +30,18 @@ class SembastDatabase extends Database {
     await locator.import(data, model);
   }
 
-  static void disableSembastCooperator() {
-    Sembast.disableSembastCooperator();
+  /// Custom sembasr cooperator in case has slow sort query on web https://github.com/tekartik/sembast.dart/issues/189
+  /// Since version 2.4.6 this issue has been fixed, so assume that we don't need to call this function.
+  /// Notice: In case we need it, make sure it should be called before any query operators.
+  static void enableSembastCooperator(bool enable,
+      {int delayMicroseconds, int pauseMicroseconds}) {
+    if (enable == true) {
+      Sembast.enableSembastCooperator(
+          delayMicroseconds: delayMicroseconds,
+          pauseMicroseconds: pauseMicroseconds);
+    } else {
+      Sembast.disableSembastCooperator();
+    }
   }
 
   /// Check whether database table has initialized
