@@ -36,7 +36,7 @@ class AppSync extends Sync {
   }
 
   @override
-  Future<void> syncAll() async {
+  Future<void> syncAll({bool downloadAll = false}) async {
     if (!(await user.hasSignedIn())) {
       return;
     }
@@ -49,7 +49,7 @@ class AppSync extends Sync {
         var tasks = List<Future>();
         for (var model in _models) {
           var table = model.tableName();
-          tasks.add(_syncOne(table, false, false));
+          tasks.add(_syncOne(table, false, false, downloadAll));
         }
 
         await Future.wait(tasks);
@@ -89,14 +89,17 @@ class AppSync extends Sync {
     });
   }
 
-  Future<void> syncOne(String table, [bool refresh = false]) async {
+  Future<void> syncOne(String table,
+      [bool refresh = false, bool downloadAll = false]) async {
     await _modelPool.withResource(() async {
-      await _syncOne(table, refresh, true);
+      await _syncOne(table, refresh, true, downloadAll);
     });
   }
 
   Future<void> _syncOne(String table,
-      [bool refresh = false, bool setup = true]) async {
+      [bool refresh = false,
+      bool setup = true,
+      bool downloadAll = false]) async {
     if (!(await user.hasSignedIn())) {
       return;
     }
@@ -109,7 +112,7 @@ class AppSync extends Sync {
       // Sync read
       if (schema.containsKey(table)) {
         if (hasPermission(user.role, table, 'read')) {
-          await syncRead(table, graphClient);
+          await syncRead(table, graphClient, downloadAll: downloadAll);
         } else {
           printLog(
               'role ${user.role} does not have read permission in table $table',
@@ -227,12 +230,17 @@ class AppSync extends Sync {
   }
 
   @override
-  Future<void> syncRead(String table, dynamic graphClient) async {
+  Future<void> syncRead(String table, dynamic graphClient,
+      {bool downloadAll = false}) async {
     printLog('[start syncing read on $table]', logLevel);
-    // Get the last record change timestamp on server side
-    final query = q.Query(table).order("lastSynced desc").limit(1);
-    var records = await database.query(query);
-    final record = records.isNotEmpty ? records.first : null;
+    dynamic record;
+    // don't download all for read-only table
+    if (!downloadAll || !hasPermission(user.role, table, 'write')) {
+      // Get the last record change timestamp on server side
+      final query = q.Query(table).order("lastSynced desc").limit(1);
+      var records = await database.query(query);
+      record = records.isNotEmpty ? records.first : null;
+    }
 
     String select;
     var fields = _getFields(table);
