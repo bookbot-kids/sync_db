@@ -25,6 +25,7 @@ class AppSync extends Sync {
   List permissions;
   int logLevel = Log.none;
   GraphQLClient graphClient;
+  String logText = '';
 
   static void config(Map config, List<Model> models) {
     shared = AppSync();
@@ -43,6 +44,7 @@ class AppSync extends Sync {
 
     await _pool.withResource(() async {
       try {
+        Stopwatch s = Stopwatch()..start();
         await _setup();
 
         // Loop through tables to read sync
@@ -53,7 +55,11 @@ class AppSync extends Sync {
         }
 
         await Future.wait(tasks);
-        printLog('Sync completed', logLevel);
+        var logMessage =
+            'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
+        printLog(logMessage, logLevel);
+        logText += '\n $logMessage';
+        s.stop();
       } catch (err) {
         printLog('Sync error: $err', logLevel);
       }
@@ -100,6 +106,7 @@ class AppSync extends Sync {
       [bool refresh = false,
       bool setup = true,
       bool downloadAll = false]) async {
+    Stopwatch s = Stopwatch()..start();
     if (!(await user.hasSignedIn())) {
       return;
     }
@@ -134,7 +141,12 @@ class AppSync extends Sync {
       } else {
         printLog('table $table does not exist in schema', logLevel);
       }
-      printLog('Sync table $table completed', logLevel);
+
+      var logMessage =
+          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
+      printLog(logMessage, logLevel);
+      logText += '\n $logMessage';
+      s.stop();
     } catch (err) {
       printLog('Sync table $table error: $err', logLevel);
     }
@@ -170,7 +182,7 @@ class AppSync extends Sync {
           // sync read
           var fields = _getFields(table);
           var response = await _getDocument(table, fields, localRecord['id']);
-          printLog(response, logLevel);
+          // printLog(response, logLevel);
           dynamic remoteRecord;
           if (response != null) {
             if (response['get$table'] != null) {
@@ -274,7 +286,7 @@ class AppSync extends Sync {
     }
 
     var response = await _queryDocuments(graphClient, select);
-    printLog('get table $table response $response', logLevel);
+    // printLog('get table $table response $response', logLevel);
     if (response != null) {
       var documents = response['list${table}s']['items'];
       if (documents != null) {
@@ -334,7 +346,7 @@ class AppSync extends Sync {
       var fields = _getFields(table);
       var response = await _getDocument(table, fields, localRecord['id']);
 
-      printLog(response, logLevel);
+      // printLog(response, logLevel);
       if (response != null) {
         if (response['get$table'] != null) {
           var remoteRecord = response['get$table'];
@@ -481,7 +493,7 @@ class AppSync extends Sync {
     var options =
         MutationOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.mutate(options);
-    printLog('_mutationDocument ${result.data}', logLevel);
+    // printLog('_mutationDocument ${result.data}', logLevel);
     return result.data;
   }
 
@@ -493,7 +505,7 @@ class AppSync extends Sync {
       [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
-    printLog('_queryDocuments ${result.data}', logLevel);
+    // printLog('_queryDocuments ${result.data}', logLevel);
     return result.data;
   }
 
@@ -533,7 +545,7 @@ class AppSync extends Sync {
       }
     """;
     var documents = await _queryDocuments(graphClient, query);
-    printLog(documents, logLevel);
+    // printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listSchemas')) {
@@ -567,7 +579,7 @@ class AppSync extends Sync {
       }
     """;
     var documents = await _queryDocuments(graphClient, query);
-    printLog(documents, logLevel);
+    // printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listRolePermissionss')) {
