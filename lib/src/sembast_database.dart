@@ -21,7 +21,9 @@ class SembastDatabase extends Database {
     shared._models = models;
     shared._sync = remoteSync;
 
+    // The locator that uses conditionally importing for web & mobile platform
     SembastLocator locator = Locator();
+    // initialize database
     await locator.initDatabase(shared._db, models);
   }
 
@@ -104,9 +106,8 @@ class SembastDatabase extends Database {
 
   /// Save record map to sembast
   Future<void> saveMap(String tableName, String id, Map map,
-      {int updatedAt, String status}) async {
-    final db = _db[tableName];
-    final store = Sembast.StoreRef.main();
+      {int updatedAt, String status, dynamic transaction}) async {
+    final store = Sembast.StoreRef<String, dynamic>.main();
     final create = id == null;
     if (create) {
       id = Uuid().v4().toString();
@@ -129,7 +130,24 @@ class SembastDatabase extends Database {
       map["_status"] = status;
     }
 
-    await store.record(id).put(db, map);
+    if (transaction != null) {
+      try {
+        await store.record(id).put(transaction, map);
+      } catch (e) {
+        print('put error $e');
+        throw e;
+      }
+    } else {
+      final db = _db[tableName];
+      await store.record(id).put(db, map);
+    }
+  }
+
+  Future<void> runInTransaction(String tableName, Function action) async {
+    final db = _db[tableName];
+    await db.transaction((txn) async {
+      await action(txn);
+    });
   }
 
   /// Delete by setting deletedAt and sync
@@ -177,7 +195,7 @@ class SembastDatabase extends Database {
   }
 
   /// Query the table with the Query class
-  Future<List<T>> query<T>(Query query) async {
+  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
     final store = Sembast.StoreRef.main();
     List<T> results = [];
     var finder = Sembast.Finder();
@@ -268,7 +286,7 @@ class SembastDatabase extends Database {
     }
 
     final db = _db[query.tableName];
-    var records = await store.find(db, finder: finder);
+    var records = await store.find(transaction ?? db, finder: finder);
     for (var record in records) {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();

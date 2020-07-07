@@ -290,26 +290,39 @@ class AppSync extends Sync {
     if (response != null) {
       var documents = response['list${table}s']['items'];
       if (documents != null) {
-        for (var doc in documents) {
-          final query = q.Query(table).where({"id": doc['id']}).limit(1);
-          var records = await database.query(query);
-          var localRecord = records.isNotEmpty ? records[0] : null;
-          if (localRecord == null) {
-            // save new to local, set status to synced to prevent sync again
-            if (doc.containsKey('_createdAt')) {
-              doc['createdAt'] = doc['_createdAt'] * 1000;
-            }
+        try {
+          // run in transaction
+          printLog(
+              'Run table $table(${documents.length}) in transaction', logLevel);
+          await database.runInTransaction(table, (txn) async {
+            for (var doc in documents) {
+              final query = q.Query(table).where({"id": doc['id']}).limit(1);
+              var records = await database.query(query, transaction: txn);
+              var localRecord = records.isNotEmpty ? records[0] : null;
+              if (localRecord == null) {
+                // save new to local, set status to synced to prevent sync again
+                if (doc.containsKey('_createdAt')) {
+                  doc['createdAt'] = doc['_createdAt'] * 1000;
+                }
 
-            await database.saveMap(table, doc['id'], doc,
-                updatedAt: doc['lastSynced'] * 1000, status: 'synced');
-          } else {
-            // update from appsync to local, set status to synced to prevent sync again
-            var localDate = localRecord['updatedAt'] / 1000;
-            if (localDate < doc['lastSynced']) {
-              await database.saveMap(table, doc['id'], doc,
-                  updatedAt: doc['lastSynced'] * 1000, status: 'synced');
+                await database.saveMap(table, doc['id'], doc,
+                    updatedAt: doc['lastSynced'] * 1000,
+                    status: 'synced',
+                    transaction: txn);
+              } else {
+                // update from appsync to local, set status to synced to prevent sync again
+                var localDate = localRecord['updatedAt'] / 1000;
+                if (localDate < doc['lastSynced']) {
+                  await database.saveMap(table, doc['id'], doc,
+                      updatedAt: doc['lastSynced'] * 1000,
+                      status: 'synced',
+                      transaction: txn);
+                }
+              }
             }
-          }
+          });
+        } catch (e) {
+          throw e;
         }
       }
     }

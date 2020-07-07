@@ -33,14 +33,15 @@ abstract class Sync {
 
 abstract class Database {
   void saveMap(String tableName, String id, Map map,
-      {int updatedAt, String status});
+      {int updatedAt, String status, dynamic transaction});
   Future<void> save(Model model);
   bool hasTable(String tableName);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);
-  dynamic query<T>(Query query);
+  dynamic query<T>(Query query, {dynamic transaction});
   Future<void> delete(Model model);
   Future<void> deleteLocal(String modelName, String id);
+  Future<void> runInTransaction(String tableName, Function action);
 }
 
 abstract class Model extends ChangeNotifier {
