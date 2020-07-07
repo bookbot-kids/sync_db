@@ -7,8 +7,10 @@ import 'package:sync_db/src/abstract.dart';
 import 'package:sembast/sembast.dart' as Sembast;
 import 'package:sync_db/src/locator/sembast_base.dart';
 
+/// This method is used to overwrite the abstract in `locator.dart` to return locator for mobile
 SembastLocator getLocator() => SembastMobileLocator();
 
+/// The Locator is using for mobile & desktop
 class SembastMobileLocator extends SembastLocator {
   @override
   Future<void> initDatabase(
@@ -29,15 +31,17 @@ class SembastMobileLocator extends SembastLocator {
   @override
   Future<void> import(String content, Model model) async {
     final dir = await getApplicationDocumentsDirectory();
-    // make sure it exists
+    // make sure folder exists
     await dir.create(recursive: true);
     final name = model.tableName();
     final dbPath = join(dir.path, name + ".db");
     var file = File(dbPath);
+    // delete the old database file if it exist
     if (await file.exists()) {
       await file.delete();
     }
 
+    // then write the new one
     await file.writeAsString(content);
   }
 }
