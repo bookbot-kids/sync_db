@@ -15,7 +15,7 @@ abstract class BaseUser {
   String get refreshToken;
   set role(String role);
   String get role;
-  bool get tokenValid;
+  Future<bool> get tokenValid;
 }
 
 abstract class Sync {

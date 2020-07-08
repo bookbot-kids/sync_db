@@ -526,7 +526,7 @@ class AppSync extends Sync {
    * Get graph client base on token from cognito
    */
   Future<void> _getGraphClient() async {
-    if (!user.tokenValid) {
+    if (!(await user.tokenValid)) {
       await user.resourceTokens();
     }
 

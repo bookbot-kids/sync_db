@@ -1,3 +1,4 @@
+import 'package:sync_db/src/network_time.dart';
 import 'package:uuid/uuid.dart';
 
 import "abstract.dart";
@@ -84,11 +85,11 @@ class SembastDatabase extends Database {
     }
 
     if (model.createdAt == null) {
-      model.createdAt = DateTime.now().toUtc();
+      model.createdAt = await NetworkTime.shared.now;
     }
 
     // Export model as map and convert DateTime to int
-    model.updatedAt = DateTime.now().toUtc();
+    model.updatedAt = await NetworkTime.shared.now;
     final map = model.export();
     for (final entry in map.entries) {
       if (entry.value is DateTime) {
@@ -115,11 +116,11 @@ class SembastDatabase extends Database {
     }
 
     if (!map.containsKey('createdAt')) {
-      map['createdAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+      map['createdAt'] = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     }
 
     if (updatedAt == null) {
-      map['updatedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
+      map['updatedAt'] = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     } else {
       map['updatedAt'] = updatedAt;
     }
@@ -152,7 +153,7 @@ class SembastDatabase extends Database {
 
   /// Delete by setting deletedAt and sync
   Future<void> delete(Model model) async {
-    model.deletedAt = DateTime.now();
+    model.deletedAt = await NetworkTime.shared.now;
     await save(model);
   }
 

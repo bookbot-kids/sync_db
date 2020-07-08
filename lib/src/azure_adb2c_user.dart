@@ -1,6 +1,7 @@
 import 'package:basic_utils/basic_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/exceptions.dart';
+import 'package:sync_db/src/network_time.dart';
 
 import "abstract.dart";
 import 'dart:math';
@@ -13,7 +14,7 @@ class AzureADB2CUser extends BaseUser {
   HTTP http;
   Map<String, dynamic> config;
   List<MapEntry> _resourceTokens = List();
-  DateTime _tokenExpiry = DateTime.now();
+  DateTime _tokenExpiry;
   SharedPreferences prefs;
 
   /// Config will need:
@@ -21,6 +22,9 @@ class AzureADB2CUser extends BaseUser {
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
   AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
     this.config = config;
+    NetworkTime.shared.now.then((value) {
+      _tokenExpiry = value;
+    });
     http = HTTP(config["azure_auth_url"], config);
     SharedPreferences.getInstance().then((value) {
       prefs = value;
@@ -45,17 +49,22 @@ class AzureADB2CUser extends BaseUser {
       return List<MapEntry>.from(_resourceTokens);
     }
 
-    if (_tokenExpiry.isAfter(DateTime.now()) && refresh == false) {
+    if (_tokenExpiry == null) {
+      _tokenExpiry = await NetworkTime.shared.now;
+    }
+
+    var now = await NetworkTime.shared.now;
+    if (_tokenExpiry.isAfter(now) && refresh == false) {
       return List<MapEntry>.from(_resourceTokens);
     }
 
-    final expired = DateTime.now().add(Duration(hours: 4, minutes: 45));
+    final expired = now.add(Duration(hours: 4, minutes: 45));
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
     try {
       final response = await http.get('/GetResourceTokens', parameters: {
-        "client_token": clientToken(),
+        "client_token": await clientToken(),
         "refresh_token": refreshToken,
         "code": config['azure_code']
       });
@@ -94,8 +103,8 @@ class AzureADB2CUser extends BaseUser {
     return List<MapEntry>.from(_resourceTokens);
   }
 
-  bool get tokenValid {
-    return _tokenExpiry.isAfter(DateTime.now());
+  Future<bool> get tokenValid async {
+    return _tokenExpiry.isAfter(await NetworkTime.shared.now);
   }
 
   set refreshToken(String token) {
@@ -129,13 +138,13 @@ class AzureADB2CUser extends BaseUser {
   /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
-  String clientToken() {
+  Future<String> clientToken() async {
     var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
     final claimSet = JwtClaim(
         subject: config["azure_subject"],
         issuer: config["azure_issuer"],
         audience: <String>[config["azure_audience"]],
-        notBefore: DateTime.now(),
+        notBefore: await NetworkTime.shared.now,
         jwtId: Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 5));
 

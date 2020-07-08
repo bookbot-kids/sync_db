@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:pool/pool.dart' as pool;
 import 'package:sync_db/src/exceptions.dart';
+import 'package:sync_db/src/network_time.dart';
 import 'package:universal_io/io.dart';
 
 import 'package:synchronized/synchronized.dart';
@@ -441,7 +442,7 @@ class CosmosSync extends Sync {
   /// Cosmos api to create document
   Future<dynamic> _createDocument(
       String resouceToken, String table, String partition, Map json) async {
-    var now = HttpDate.format(DateTime.now().toUtc());
+    var now = HttpDate.format(await NetworkTime.shared.now);
 
     // make sure there is partition in model
     json['partition'] = partition;
@@ -481,7 +482,7 @@ class CosmosSync extends Sync {
   /// Cosmos api to update document
   Future<dynamic> _updateDocument(String resouceToken, String table, String id,
       String partition, Map json) async {
-    var now = HttpDate.format(DateTime.now().toUtc());
+    var now = HttpDate.format(await NetworkTime.shared.now);
     // make sure there is partition in model
     json['partition'] = partition;
 

@@ -10,3 +10,4 @@ export 'src/robust_http_log.dart';
 export 'src/query.dart';
 export 'src/config.dart';
 export 'src/appsync_sync.dart';
+export 'src/network_time.dart';
