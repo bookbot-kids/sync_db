@@ -4,8 +4,6 @@ import 'package:sync_db/src/exceptions.dart';
 import 'package:sync_db/src/network_time.dart';
 import 'package:universal_io/io.dart';
 
-import 'package:synchronized/synchronized.dart';
-
 import "abstract.dart";
 import "query.dart";
 import "robust_http.dart";
@@ -20,9 +18,11 @@ class CosmosSync extends Sync {
   static const String _apiVersion = "2018-12-31";
   String databaseId;
   int logLevel;
-  final _lock = new Lock();
   int pageSize;
+  /** Thread pool for sync all **/
   final _pool = pool.Pool(1);
+  /** Thread pool for sync one **/
+  final _modelPool = pool.Pool(1);
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -43,20 +43,10 @@ class CosmosSync extends Sync {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
 
-      await _lock.synchronized(() async {
+      await _pool.withResource(() async {
+        Stopwatch s = Stopwatch()..start();
         // Loop through tables to read sync
-        for (final token in resourceTokens) {
-          String tableName = token.key;
-          final index = tableName.indexOf('-shared');
-          if (index != -1) {
-            tableName = tableName.substring(0, index);
-          }
-          if (database.hasTable(tableName)) {
-            await syncRead(tableName, token.value);
-          }
-        }
-
-        // Loop through tables to write sync
+        var tasks = List<Future>();
         for (final token in resourceTokens) {
           String tableName = token.key;
           final index = tableName.indexOf('-shared');
@@ -64,21 +54,18 @@ class CosmosSync extends Sync {
             tableName = tableName.substring(0, index);
           }
 
-          var permission = token.value;
-          if (permission["permissionMode"] == "All" &&
-              database.hasTable(tableName)) {
-            await syncWrite(tableName, token.value);
-          }
+          tasks.add(_syncOne(tableName, refresh));
         }
+
+        await Future.wait(tasks);
+
+        var logMessage =
+            'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
+        printLog(logMessage, logLevel);
+        s.stop();
       });
-
-      if (logLevel > Log.none) {
-        print('Sync completed');
-      }
     } catch (err) {
-      if (logLevel > Log.none) {
-        print('Sync error: $err');
-      }
+      printLog('Sync error: $err', logLevel);
     }
   }
 
@@ -88,36 +75,41 @@ class CosmosSync extends Sync {
 
   Future<void> syncOne(String table, [bool refresh = false]) async {
     try {
-      final resourceTokens = await user.resourceTokens(refresh);
-
-      await _pool.withResource(() async {
-        try {
-          var permission = resourceTokens.firstWhere(
-            (element) => element.key == table,
-            orElse: () => null,
-          );
-
-          if (permission != null) {
-            // sync read
-            if (database.hasTable(table)) {
-              await syncRead(table, permission.value);
-            }
-
-            // sync write
-            if (permission.value["permissionMode"] == "All" &&
-                database.hasTable(table)) {
-              await syncWrite(table, permission.value);
-            }
-          } else {
-            printLog(
-                'does not have sync permission for table $table', logLevel);
-          }
-
-          printLog('Sync $table completed', logLevel);
-        } catch (err) {
-          printLog('Sync $table error: $err', logLevel);
-        }
+      await _modelPool.withResource(() async {
+        await _syncOne(table, refresh);
       });
+    } catch (err) {
+      printLog('Sync $table error: $err', logLevel);
+    }
+  }
+
+  Future<void> _syncOne(String table, [bool refresh = false]) async {
+    Stopwatch s = Stopwatch()..start();
+    final resourceTokens = await user.resourceTokens(refresh);
+    try {
+      var permission = resourceTokens.firstWhere(
+        (element) => element.key == table,
+        orElse: () => null,
+      );
+
+      if (permission != null) {
+        // sync read
+        if (database.hasTable(table)) {
+          await syncRead(table, permission.value);
+        }
+
+        // sync write
+        if (permission.value["permissionMode"] == "All" &&
+            database.hasTable(table)) {
+          await syncWrite(table, permission.value);
+        }
+      } else {
+        printLog('does not have sync permission for table $table', logLevel);
+      }
+
+      var logMessage =
+          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
+      printLog(logMessage, logLevel);
     } catch (err) {
       printLog('Sync $table error: $err', logLevel);
     }
@@ -125,6 +117,7 @@ class CosmosSync extends Sync {
 
   /// Read sync this table
   Future<void> syncRead(String table, dynamic permission) async {
+    printLog('[start syncing read on $table]', logLevel);
     String token = permission["_token"];
     String partition = permission["resourcePartitionKey"][0];
     // Get the last record change timestamp on server side
@@ -146,23 +139,33 @@ class CosmosSync extends Sync {
       print(cosmosResult);
     }
 
-    for (var cosmosRecord in cosmosResult) {
-      final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
-      var records = await database.query(query);
-      var localRecord = records.isNotEmpty ? records[0] : null;
-      if (localRecord == null) {
-        // save new to local, set status to synced to prevent sync again
-        await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
-            updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
-      } else {
-        // update from cosmos to local, set status to synced to prevent sync again
-        var localDate = localRecord['updatedAt'] / 1000;
-        if (localDate < cosmosRecord['_ts']) {
+    printLog(
+        'Run table $table(${cosmosResult.length}) in transaction', logLevel);
+    await database.runInTransaction(table, (txn) async {
+      for (var cosmosRecord in cosmosResult) {
+        final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
+        var records = await database.query(query, transaction: txn);
+        var localRecord = records.isNotEmpty ? records[0] : null;
+        if (localRecord == null) {
+          // save new to local, set status to synced to prevent sync again
           await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
-              updatedAt: cosmosRecord['_ts'] * 1000, status: 'synced');
+              updatedAt: cosmosRecord['_ts'] * 1000,
+              status: 'synced',
+              transaction: txn);
+        } else {
+          // update from cosmos to local, set status to synced to prevent sync again
+          var localDate = localRecord['updatedAt'] / 1000;
+          if (localDate < cosmosRecord['_ts']) {
+            await database.saveMap(table, cosmosRecord['id'], cosmosRecord,
+                updatedAt: cosmosRecord['_ts'] * 1000,
+                status: 'synced',
+                transaction: txn);
+          }
         }
       }
-    }
+    });
+
+    printLog('[end syncing read on $table]', logLevel);
   }
 
   /// Write sync this table if it has permission
@@ -172,6 +175,7 @@ class CosmosSync extends Sync {
       return;
     }
 
+    printLog('[start syncing write on $table]', logLevel);
     String token = permission["_token"];
     String partition = permission["resourcePartitionKey"][0];
 
@@ -259,10 +263,7 @@ class CosmosSync extends Sync {
       }
     }
 
-    // TODO:
-    // Get record from Cosmos (if updated) and compare record to see which one is newer (newer _ts or updated_at)
-    // Save record to Cosmos
-    // (for Adrian) do another check to see if there are any local updated records after this to upload
+    printLog('[end syncing write on $table]', logLevel);
   }
 
   Future<void> syncWriteOne(
