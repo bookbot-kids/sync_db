@@ -2,6 +2,7 @@ import 'package:dio/dio.dart' as dio;
 import 'package:pool/pool.dart' as pool;
 import 'package:sync_db/src/exceptions.dart';
 import 'package:sync_db/src/network_time.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
 
 import "abstract.dart";
@@ -24,6 +25,8 @@ class CosmosSync extends Sync {
   /** Thread pool for sync one **/
   final _modelPool = pool.Pool(1);
 
+  final _lock = new Lock();
+
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
   static void config(Map config) {
@@ -43,7 +46,7 @@ class CosmosSync extends Sync {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
 
-      await _pool.withResource(() async {
+      await _lock.synchronized(() async {
         Stopwatch s = Stopwatch()..start();
         // Loop through tables to read sync
         var tasks = List<Future>();
@@ -54,7 +57,7 @@ class CosmosSync extends Sync {
             tableName = tableName.substring(0, index);
           }
 
-          tasks.add(_syncOne(tableName, refresh));
+          tasks.add(_syncOne(tableName, token, refresh));
         }
 
         await Future.wait(tasks);
@@ -75,23 +78,24 @@ class CosmosSync extends Sync {
 
   Future<void> syncOne(String table, [bool refresh = false]) async {
     try {
+      final resourceTokens = await user.resourceTokens(refresh);
+      var permission = resourceTokens.firstWhere(
+        (element) => element.key == table,
+        orElse: () => null,
+      );
       await _modelPool.withResource(() async {
-        await _syncOne(table, refresh);
+        await _syncOne(table, permission, refresh);
       });
     } catch (err) {
       printLog('Sync $table error: $err', logLevel);
     }
   }
 
-  Future<void> _syncOne(String table, [bool refresh = false]) async {
+  Future<void> _syncOne(String table, dynamic permission,
+      [bool refresh = false]) async {
     Stopwatch s = Stopwatch()..start();
-    final resourceTokens = await user.resourceTokens(refresh);
-    try {
-      var permission = resourceTokens.firstWhere(
-        (element) => element.key == table,
-        orElse: () => null,
-      );
 
+    try {
       if (permission != null) {
         // sync read
         if (database.hasTable(table)) {
