@@ -140,12 +140,16 @@ class AzureADB2CUser extends BaseUser {
   /// The secret is the key used for encoding
   Future<String> clientToken() async {
     var now = (await NetworkTime.shared.now).toLocal();
+    var expiry = now.add(Duration(minutes: 10));
     var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
     final claimSet = JwtClaim(
         subject: config["azure_subject"],
         issuer: config["azure_issuer"],
         audience: <String>[config["azure_audience"]],
         notBefore: now,
+        defaultIatExp: false,
+        expiry: expiry,
+        issuedAt: now,
         jwtId: Random().nextInt(10000).toString(),
         maxAge: const Duration(minutes: 10));
 
