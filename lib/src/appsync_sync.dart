@@ -175,6 +175,7 @@ class AppSync extends Sync {
           // update to local & set synced status after syncing
           if (response != null) {
             var newRecord = response['create${table}'];
+            _fixCreatedAt(newRecord);
             await database.saveMap(table, newRecord['id'], newRecord,
                 status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
           }
@@ -190,6 +191,7 @@ class AppSync extends Sync {
               // update from appsync to local, set status to synced to prevent sync again
               var localDate = localRecord['updatedAt'] / 1000;
               if (localDate < remoteRecord['lastSynced']) {
+                _fixCreatedAt(remoteRecord);
                 await database.saveMap(table, remoteRecord['id'], remoteRecord,
                     updatedAt: remoteRecord['lastSynced'] * 1000,
                     status: 'synced');
@@ -202,6 +204,7 @@ class AppSync extends Sync {
               // update to local & set synced status after syncing
               if (response != null && response['create${table}'] != null) {
                 var newRecord = response['create${table}'];
+                _fixCreatedAt(newRecord);
                 await database.saveMap(table, newRecord['id'], newRecord,
                     status: 'synced',
                     updatedAt: newRecord['lastSynced'] * 1000);
@@ -226,6 +229,7 @@ class AppSync extends Sync {
                 // update to local & set synced status after syncing
                 if (response != null) {
                   var updatedRecord = response['update${table}'];
+                  _fixCreatedAt(updatedRecord);
                   await database.saveMap(
                       table, updatedRecord['id'], updatedRecord,
                       status: 'synced',
@@ -301,10 +305,7 @@ class AppSync extends Sync {
               var localRecord = records.isNotEmpty ? records[0] : null;
               if (localRecord == null) {
                 // save new to local, set status to synced to prevent sync again
-                if (doc.containsKey('_createdAt')) {
-                  doc['createdAt'] = doc['_createdAt'] * 1000;
-                }
-
+                _fixCreatedAt(doc);
                 await database.saveMap(table, doc['id'], doc,
                     updatedAt: doc['lastSynced'] * 1000,
                     status: 'synced',
@@ -313,6 +314,7 @@ class AppSync extends Sync {
                 // update from appsync to local, set status to synced to prevent sync again
                 var localDate = localRecord['updatedAt'] / 1000;
                 if (localDate < doc['lastSynced']) {
+                  _fixCreatedAt(doc);
                   await database.saveMap(table, doc['id'], doc,
                       updatedAt: doc['lastSynced'] * 1000,
                       status: 'synced',
@@ -345,6 +347,7 @@ class AppSync extends Sync {
       // update to local & set synced status after syncing
       if (response != null) {
         var newRecord = response['create${table}'];
+        _fixCreatedAt(newRecord);
         await database.saveMap(table, newRecord['id'], newRecord,
             status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
       }
@@ -378,6 +381,7 @@ class AppSync extends Sync {
               // update to local & set synced status after syncing
               if (response != null) {
                 var updatedRecord = response['update${table}'];
+                _fixCreatedAt(updatedRecord);
                 await database.saveMap(
                     table, updatedRecord['id'], updatedRecord,
                     status: 'synced',
@@ -393,6 +397,7 @@ class AppSync extends Sync {
           // update to local & set synced status after syncing
           if (response != null && response['create${table}'] != null) {
             var newRecord = response['create${table}'];
+            _fixCreatedAt(newRecord);
             await database.saveMap(table, newRecord['id'], newRecord,
                 status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
           }
@@ -640,5 +645,11 @@ class AppSync extends Sync {
     var fields = types.entries.map((e) => e.key).toList().join('\n');
     fields += '\n lastSynced\n id\n _createdAt';
     return fields;
+  }
+
+  void _fixCreatedAt(dynamic doc) {
+    if (doc['createdAt'] == null && doc.containsKey('_createdAt')) {
+      doc['createdAt'] = doc['_createdAt'] * 1000;
+    }
   }
 }
