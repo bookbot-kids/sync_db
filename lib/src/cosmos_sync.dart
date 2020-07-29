@@ -1,15 +1,14 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:pool/pool.dart' as pool;
-import 'package:sync_db/src/exceptions.dart';
+import 'package:robust_http/exceptions.dart';
+import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/src/network_time.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
+import 'package:sync_db/src/sync_log_adapter.dart';
 
 import "abstract.dart";
 import "query.dart";
-import "robust_http.dart";
-
-import 'robust_http_log.dart';
 
 class CosmosSync extends Sync {
   static CosmosSync shared;
@@ -18,7 +17,6 @@ class CosmosSync extends Sync {
   BaseUser user;
   static const String _apiVersion = "2018-12-31";
   String databaseId;
-  int logLevel;
   int pageSize;
   /** Thread pool for sync all **/
   final _pool = pool.Pool(1);
@@ -34,7 +32,6 @@ class CosmosSync extends Sync {
     shared.http = HTTP(
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
         config);
-    shared.logLevel = config['logLevel'] ?? Log.none;
     shared.databaseId = config["dbId"];
     shared.pageSize = config["pageSize"] ?? 100;
   }
@@ -64,11 +61,11 @@ class CosmosSync extends Sync {
 
         var logMessage =
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
-        printLog(logMessage, logLevel);
+        SyncLogAdapter.shared.logger?.i(logMessage);
         s.stop();
       });
     } catch (err) {
-      printLog('Sync error: $err', logLevel);
+      SyncLogAdapter.shared.logger?.e('Sync error: $err');
     }
   }
 
@@ -87,7 +84,7 @@ class CosmosSync extends Sync {
         await _syncOne(table, permission, refresh);
       });
     } catch (err) {
-      printLog('Sync $table error: $err', logLevel);
+      SyncLogAdapter.shared.logger?.e('Sync $table error: $err');
     }
   }
 
@@ -108,20 +105,21 @@ class CosmosSync extends Sync {
           await syncWrite(table, permission.value);
         }
       } else {
-        printLog('does not have sync permission for table $table', logLevel);
+        SyncLogAdapter.shared.logger
+            ?.i('does not have sync permission for table $table');
       }
 
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
-      printLog(logMessage, logLevel);
+      SyncLogAdapter.shared.logger?.i(logMessage);
     } catch (err) {
-      printLog('Sync $table error: $err', logLevel);
+      SyncLogAdapter.shared.logger?.e('Sync $table error: $err');
     }
   }
 
   /// Read sync this table
   Future<void> syncRead(String table, dynamic permission) async {
-    printLog('[start syncing read on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[start syncing read on $table]');
     String token = permission["_token"];
     String partition = permission["resourcePartitionKey"][0];
     // Get the last record change timestamp on server side
@@ -139,12 +137,9 @@ class CosmosSync extends Sync {
     var parameters = List<Map<String, String>>();
     var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
-    if (logLevel > Log.none) {
-      print(cosmosResult);
-    }
 
-    printLog(
-        'Run table $table(${cosmosResult.length}) in transaction', logLevel);
+    SyncLogAdapter.shared.logger
+        ?.i('Run table $table(${cosmosResult.length}) in transaction');
     await database.runInTransaction(table, (txn) async {
       for (var cosmosRecord in cosmosResult) {
         final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
@@ -169,7 +164,7 @@ class CosmosSync extends Sync {
       }
     });
 
-    printLog('[end syncing read on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[end syncing read on $table]');
   }
 
   /// Write sync this table if it has permission
@@ -179,7 +174,7 @@ class CosmosSync extends Sync {
       return;
     }
 
-    printLog('[start syncing write on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
     String token = permission["_token"];
     String partition = permission["resourcePartitionKey"][0];
 
@@ -198,10 +193,6 @@ class CosmosSync extends Sync {
           _addParameter(parameters, '@id', record['id']);
           var cosmosResult = await _queryDocuments(
               token, table, partition, select, parameters);
-          if (logLevel > Log.none) {
-            print(cosmosResult);
-          }
-
           dynamic cosmosRecord;
           if (cosmosResult != null && cosmosResult.length > 0) {
             cosmosRecord = cosmosResult[0];
@@ -267,7 +258,7 @@ class CosmosSync extends Sync {
       }
     }
 
-    printLog('[end syncing write on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
   }
 
   Future<void> syncWriteOne(
@@ -278,9 +269,7 @@ class CosmosSync extends Sync {
       _pool.withResource(
           () => _syncWriteOne(table, localRecord, isCreated, resourceTokens));
     } catch (err) {
-      if (logLevel > Log.none) {
-        print('Sync error: $err');
-      }
+      SyncLogAdapter.shared.logger?.e('Sync error: $err');
     }
   }
 
@@ -290,9 +279,6 @@ class CosmosSync extends Sync {
       var resourceToken = resourceTokens
           .firstWhere((element) => element.key == table, orElse: () => null);
       if (resourceToken == null) {
-        if (logLevel > Log.none) {
-          print('resource token is null for $table');
-        }
         return;
       }
 
@@ -316,9 +302,6 @@ class CosmosSync extends Sync {
             _addParameter(parameters, '@id', localRecord['id']);
             var cosmosResult = await _queryDocuments(
                 token, table, partition, select, parameters);
-            if (logLevel > Log.none) {
-              print(cosmosResult);
-            }
 
             dynamic cosmosRecord;
             if (cosmosResult != null && cosmosResult.length > 0) {
@@ -339,9 +322,6 @@ class CosmosSync extends Sync {
         _addParameter(parameters, '@id', localRecord['id']);
         var cosmosResult =
             await _queryDocuments(token, table, partition, select, parameters);
-        if (logLevel > Log.none) {
-          print(cosmosResult);
-        }
 
         dynamic cosmosRecord;
         if (cosmosResult != null && cosmosResult.length > 0) {
@@ -379,9 +359,7 @@ class CosmosSync extends Sync {
         }
       }
     } catch (err) {
-      if (logLevel > Log.none) {
-        print('Sync model $table error: $err');
-      }
+      SyncLogAdapter.shared.logger?.e('Sync model $table error: $err');
     }
   }
 
@@ -413,8 +391,8 @@ class CosmosSync extends Sync {
         "x-ms-max-item-count": pageSize
       };
       var data = "{\"query\": \"$query\",\"parameters\": $parameters}";
-      dio.Response response =
-          await http.post("colls/$table/docs", data: data, fullResponse: true);
+      dio.Response response = await http.post("colls/$table/docs",
+          data: data, includeHttpResponse: true);
       var responseData = response.data;
       List docs = responseData['Documents'];
       String nextToken = response.headers.value('x-ms-continuation');
@@ -431,7 +409,7 @@ class CosmosSync extends Sync {
         };
 
         response = await http.post("colls/$table/docs",
-            data: data, fullResponse: true);
+            data: data, includeHttpResponse: true);
         docs.addAll(response.data['Documents']);
         nextToken = response.headers.value('x-ms-continuation');
       }

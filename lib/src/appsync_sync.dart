@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:pool/pool.dart' as pool;
+import 'package:robust_http/exceptions.dart';
+import 'package:sync_db/src/sync_log_adapter.dart';
 import '../sync_db.dart';
 import "abstract.dart";
 import 'query.dart' as q;
@@ -23,9 +25,7 @@ class AppSync extends Sync {
   List<Model> _models;
   Map schema;
   List permissions;
-  int logLevel = Log.none;
   GraphQLClient graphClient;
-  String logText = '';
 
   static void config(Map config, List<Model> models) {
     shared = AppSync();
@@ -33,7 +33,6 @@ class AppSync extends Sync {
       uri: config['appsyncUrl'],
     );
     shared._models = models;
-    shared.logLevel = config['logLevel'] ?? Log.none;
   }
 
   @override
@@ -57,11 +56,10 @@ class AppSync extends Sync {
         await Future.wait(tasks);
         var logMessage =
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
-        printLog(logMessage, logLevel);
-        logText += '\n $logMessage';
         s.stop();
+        SyncLogAdapter.shared.logger?.i(logMessage);
       } catch (err) {
-        printLog('Sync error: $err', logLevel);
+        SyncLogAdapter.shared.logger?.e('Sync error: $err');
       }
     });
   }
@@ -80,17 +78,17 @@ class AppSync extends Sync {
             var fields = _getFields(table);
             await _deleteDocument(table, fields, id);
           } else {
-            printLog(
-                'role ${user.role} does not have write permission in table $table',
-                logLevel);
+            SyncLogAdapter.shared.logger?.i(
+                'role ${user.role} does not have write permission in table $table');
           }
         } else {
-          printLog('table $table does not exist in schema', logLevel);
+          SyncLogAdapter.shared.logger
+              ?.i('table $table does not exist in schema');
         }
 
-        printLog('Delete record on $table completed', logLevel);
+        SyncLogAdapter.shared.logger?.i('Delete record on $table completed');
       } catch (err) {
-        printLog('Delete record on $table error: $err', logLevel);
+        SyncLogAdapter.shared.logger?.e('Delete record on $table error: $err');
       }
     });
   }
@@ -121,12 +119,12 @@ class AppSync extends Sync {
         if (hasPermission(user.role, table, 'read')) {
           await syncRead(table, graphClient, downloadAll: downloadAll);
         } else {
-          printLog(
-              'role ${user.role} does not have read permission in table $table',
-              logLevel);
+          SyncLogAdapter.shared.logger?.i(
+              'role ${user.role} does not have read permission in table $table');
         }
       } else {
-        printLog('table $table does not exist in schema', logLevel);
+        SyncLogAdapter.shared.logger
+            ?.i('table $table does not exist in schema');
       }
 
       // Sync write
@@ -134,21 +132,21 @@ class AppSync extends Sync {
         if (hasPermission(user.role, table, 'write')) {
           await syncWrite(table, graphClient);
         } else {
-          printLog(
-              'role ${user.role} does not have write permission in table $table',
-              logLevel);
+          SyncLogAdapter.shared.logger?.i(
+              'role ${user.role} does not have write permission in table $table');
         }
       } else {
-        printLog('table $table does not exist in schema', logLevel);
+        SyncLogAdapter.shared.logger
+            ?.i('table $table does not exist in schema');
       }
 
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
-      printLog(logMessage, logLevel);
-      logText += '\n $logMessage';
+
+      SyncLogAdapter.shared.logger?.i(logMessage);
       s.stop();
     } catch (err) {
-      printLog('Sync table $table error: $err', logLevel);
+      SyncLogAdapter.shared.logger?.e('Sync table $table error: $err');
     }
   }
 
@@ -240,7 +238,7 @@ class AppSync extends Sync {
           }
         }
       } catch (err) {
-        printLog('Sync error: $err', logLevel);
+        SyncLogAdapter.shared.logger?.e('Sync error: $err');
       }
     });
   }
@@ -248,7 +246,7 @@ class AppSync extends Sync {
   @override
   Future<void> syncRead(String table, dynamic graphClient,
       {bool downloadAll = false}) async {
-    printLog('[start syncing read on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[start syncing read on $table]');
     dynamic record;
     // don't download all for read-only table
     if (!downloadAll || !hasPermission(user.role, table, 'write')) {
@@ -296,8 +294,8 @@ class AppSync extends Sync {
       if (documents != null) {
         try {
           // run in transaction
-          printLog(
-              'Run table $table(${documents.length}) in transaction', logLevel);
+          SyncLogAdapter.shared.logger
+              ?.i('Run table $table(${documents.length}) in transaction');
           await database.runInTransaction(table, (txn) async {
             for (var doc in documents) {
               final query = q.Query(table).where({"id": doc['id']}).limit(1);
@@ -329,12 +327,12 @@ class AppSync extends Sync {
       }
     }
 
-    printLog('[end syncing read on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[end syncing read on $table]');
   }
 
   @override
   Future<void> syncWrite(String table, dynamic graphClient) async {
-    printLog('[start syncing write on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
     // Get created records and save to Appsync
     var query =
         q.Query(table).where("_status = created").order("createdAt asc");
@@ -405,7 +403,7 @@ class AppSync extends Sync {
       }
     }
 
-    printLog('[end syncing write on $table]', logLevel);
+    SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
   }
 
   Future<void> _setup() async {
@@ -572,7 +570,7 @@ class AppSync extends Sync {
     }
 
     if (schema == null) {
-      throw SyncException('Can not get schema');
+      throw SyncDataException('Can not get schema');
     }
   }
 
@@ -605,7 +603,7 @@ class AppSync extends Sync {
     }
 
     if (permissions == null) {
-      throw SyncException('Can not get permission');
+      throw SyncDataException('Can not get permission');
     }
   }
 

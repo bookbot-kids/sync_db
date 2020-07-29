@@ -1,13 +1,13 @@
 import 'package:basic_utils/basic_utils.dart';
+import 'package:robust_http/exceptions.dart';
+import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sync_db/src/exceptions.dart';
 import 'package:sync_db/src/network_time.dart';
 
 import "abstract.dart";
 import 'dart:math';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'dart:convert';
-import 'robust_http.dart';
 
 class AzureADB2CUser extends BaseUser {
   static Database database;

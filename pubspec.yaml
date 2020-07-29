@@ -10,20 +10,22 @@ dependencies:
   path: ^1.7.0
   path_provider: ^1.6.11
   uuid: ^2.0.4
-  intl: ^0.16.1
-  sembast: ^2.4.7+3
-  dio: ^3.0.9
-  connectivity: 0.4.8+2
+  sembast: ^2.4.7+4
   jaguar_jwt: ^2.1.6
   shared_preferences: ^0.5.7+3
   synchronized: ^2.2.0+1
   universal_io: ^1.0.1
-  sembast_web: ^1.1.0+1
+  sembast_web: ^1.2.0
   pool: ^1.4.0
   graphql_flutter: 3.1.0-beta.4
   basic_utils: ^2.5.4
-  ntp: 1.0.7
+  ntp: ^1.0.7
   universal_platform: ^0.1.3
+
+  robust_http:
+    git:
+      url: git://github.com/bookbot-kids/robust-http.git
+      ref: 0.0.3
 
 
 dev_dependencies:
