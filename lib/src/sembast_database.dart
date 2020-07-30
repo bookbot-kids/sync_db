@@ -39,10 +39,12 @@ class SembastDatabase extends Database {
   static void enableSembastCooperator(bool enable,
       {int delayMicroseconds, int pauseMicroseconds}) {
     if (enable == true) {
+      // ignore: invalid_use_of_visible_for_testing_member
       Sembast.enableSembastCooperator(
           delayMicroseconds: delayMicroseconds,
           pauseMicroseconds: pauseMicroseconds);
     } else {
+      // ignore: invalid_use_of_visible_for_testing_member
       Sembast.disableSembastCooperator();
     }
   }
@@ -72,7 +74,7 @@ class SembastDatabase extends Database {
     await store.delete(db, finder: Sembast.Finder());
   }
 
-  Future<void> save(Model model) async {
+  Future<void> save(Model model, {bool syncToCloud = true}) async {
     // Get DB
     final name = model.tableName();
     final db = _db[name];
@@ -102,7 +104,9 @@ class SembastDatabase extends Database {
     await store.record(model.id).put(db, map);
 
     // sync to server
-    _sync.syncWriteOne(name, map, create).then((value) => null);
+    if (syncToCloud) {
+      _sync.syncWriteRecord(name, map, create).then((value) => null);
+    }
   }
 
   /// Save record map to sembast

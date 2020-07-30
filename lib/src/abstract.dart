@@ -19,22 +19,31 @@ abstract class BaseUser {
 }
 
 abstract class Sync {
+  /// Sync all tables
   Future<void> syncAll();
+
+  /// Sync read a table
   Future<void> syncRead(String table, dynamic permission);
+
+  /// Sync write a table
   Future<void> syncWrite(String table, dynamic permission);
-  Future<void> syncWriteOne(
+
+  /// Sync write a record
+  Future<void> syncWriteRecord(
       String table, Map<String, dynamic> map, bool isCreated,
       [bool refresh]);
 
   /// Sync read, write for one table only
-  Future<void> syncOne(String table, [bool refresh]);
-  Future<void> deleteOne(String table, String id, [bool refreh]);
+  Future<void> syncTable(String table, [bool refresh]);
+
+  /// Delete a record
+  Future<void> deleteRecord(String table, String id, [bool refreh]);
 }
 
 abstract class Database {
   void saveMap(String tableName, String id, Map map,
       {int updatedAt, String status, dynamic transaction});
-  Future<void> save(Model model);
+  Future<void> save(Model model, {bool syncToCloud});
   bool hasTable(String tableName);
   dynamic all(String modelName, Function instantiateModel);
   dynamic find(String modelName, String id, Model model);

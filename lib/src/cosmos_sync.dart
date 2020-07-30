@@ -64,16 +64,16 @@ class CosmosSync extends Sync {
         SyncLogAdapter.shared.logger?.i(logMessage);
         s.stop();
       });
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync error: $err');
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
     }
   }
 
-  Future<void> deleteOne(String table, String id, [bool refreh]) async {
+  Future<void> deleteRecord(String table, String id, [bool refreh]) async {
     throw UnimplementedError("Not ready in cosmos yet");
   }
 
-  Future<void> syncOne(String table, [bool refresh = false]) async {
+  Future<void> syncTable(String table, [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
       var permission = resourceTokens.firstWhere(
@@ -83,8 +83,9 @@ class CosmosSync extends Sync {
       await _modelPool.withResource(() async {
         await _syncOne(table, permission, refresh);
       });
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync $table error: $err');
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger
+          ?.e('Sync $table error: $err', err, stackTrace);
     }
   }
 
@@ -112,8 +113,8 @@ class CosmosSync extends Sync {
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
       SyncLogAdapter.shared.logger?.i(logMessage);
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync $table error: $err');
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger?.e('Sync $table error: $err', stackTrace);
     }
   }
 
@@ -261,19 +262,19 @@ class CosmosSync extends Sync {
     SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
   }
 
-  Future<void> syncWriteOne(
+  Future<void> syncWriteRecord(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
-      _pool.withResource(
-          () => _syncWriteOne(table, localRecord, isCreated, resourceTokens));
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync error: $err');
+      _pool.withResource(() =>
+          _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger?.e('Sync error: $err', stackTrace);
     }
   }
 
-  Future<void> _syncWriteOne(String table, Map<String, dynamic> localRecord,
+  Future<void> _syncWriteRecord(String table, Map<String, dynamic> localRecord,
       bool isCreated, List<MapEntry> resourceTokens) async {
     try {
       var resourceToken = resourceTokens
@@ -358,8 +359,9 @@ class CosmosSync extends Sync {
           }
         }
       }
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync model $table error: $err');
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger
+          ?.e('Sync model $table error: $err', err, stackTrace);
     }
   }
 

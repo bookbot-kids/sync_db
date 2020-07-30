@@ -50,7 +50,7 @@ class AppSync extends Sync {
         var tasks = List<Future>();
         for (var model in _models) {
           var table = model.tableName();
-          tasks.add(_syncOne(table, false, false, downloadAll));
+          tasks.add(_syncTable(table, false, false, downloadAll));
         }
 
         await Future.wait(tasks);
@@ -58,13 +58,13 @@ class AppSync extends Sync {
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
         s.stop();
         SyncLogAdapter.shared.logger?.i(logMessage);
-      } catch (err) {
-        SyncLogAdapter.shared.logger?.e('Sync error: $err');
+      } catch (err, stackTrace) {
+        SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
       }
     });
   }
 
-  Future<void> deleteOne(String table, String id, [bool refreh]) async {
+  Future<void> deleteRecord(String table, String id, [bool refreh]) async {
     if (!(await user.hasSignedIn())) {
       return;
     }
@@ -87,20 +87,21 @@ class AppSync extends Sync {
         }
 
         SyncLogAdapter.shared.logger?.i('Delete record on $table completed');
-      } catch (err) {
-        SyncLogAdapter.shared.logger?.e('Delete record on $table error: $err');
+      } catch (err, stackTrace) {
+        SyncLogAdapter.shared.logger
+            ?.e('Delete record on $table error: $err', err, stackTrace);
       }
     });
   }
 
-  Future<void> syncOne(String table,
+  Future<void> syncTable(String table,
       [bool refresh = false, bool downloadAll = false]) async {
     await _modelPool.withResource(() async {
-      await _syncOne(table, refresh, true, downloadAll);
+      await _syncTable(table, refresh, true, downloadAll);
     });
   }
 
-  Future<void> _syncOne(String table,
+  Future<void> _syncTable(String table,
       [bool refresh = false,
       bool setup = true,
       bool downloadAll = false]) async {
@@ -145,13 +146,14 @@ class AppSync extends Sync {
 
       SyncLogAdapter.shared.logger?.i(logMessage);
       s.stop();
-    } catch (err) {
-      SyncLogAdapter.shared.logger?.e('Sync table $table error: $err');
+    } catch (err, stackTrace) {
+      SyncLogAdapter.shared.logger
+          ?.e('Sync table $table error: $err', err, stackTrace);
     }
   }
 
   @override
-  Future<void> syncWriteOne(
+  Future<void> syncWriteRecord(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh]) async {
     if (!(await user.hasSignedIn())) {
@@ -237,8 +239,8 @@ class AppSync extends Sync {
             }
           }
         }
-      } catch (err) {
-        SyncLogAdapter.shared.logger?.e('Sync error: $err');
+      } catch (err, stackTrace) {
+        SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
       }
     });
   }
