@@ -7,51 +7,46 @@ import 'package:flutter/services.dart';
 import 'package:universal_io/io.dart';
 
 class Test extends Model {
-  static Database database;
-  String test = "Barf";
+  String testString = "Test String";
 
-  Map<String, dynamic> export() {
+  Map<String, dynamic> get map => $Test(this).map;
+  set map(Map<String, dynamic> map) => $Test(this).map = map;
+}
+
+extension $Test on Test {
+  Map<String, dynamic> get map {
     return {
       "id": id,
       "createdAt": createdAt,
       "updatedAt": updatedAt,
-      "test": test
+      "deletedAt": deletedAt,
+      "testString": testString
     };
   }
 
-  void import(Map<String, dynamic> map) {
+  set map(Map<String, dynamic> map) {
     id = map["id"];
     createdAt = map["createdAt"];
     updatedAt = map["updatedAt"];
-    test = map["test"];
-  }
-
-  Future<void> save() async {
-    await Test.database.save(this);
+    deletedAt = map["deletedAt"];
+    testString = map["testString"];
   }
 
   static Future<List<Test>> all() async {
-    var all = await Test.database.all("Test", () {
+    var all = await Test().database.all("Test", () {
       return Test();
     });
 
     return List<Test>.from(all);
   }
 
-  static Future<Test> find(String id) async {
-    return await Test.database.find("Test", id, Test());
-  }
+  static Future<Test> find(String id) async =>
+      await Test().database.find("Test", id, Test());
 
   static Query where(dynamic condition) {
-    return Query("Test").where(condition, Test.database, () {
+    return Query("Test").where(condition, Test().database, () {
       return Test();
     });
-  }
-
-  @override
-  Future<void> delete() {
-    // TODO: implement delete
-    throw UnimplementedError();
   }
 }
 
@@ -75,12 +70,13 @@ void main() {
         return ".";
       });
 
-      await SembastDatabase.config(null, [Test()]);
-      Test.database = SembastDatabase.shared;
-      await Test().save();
+      Test test = Test();
+      await SembastDatabase.config(null, []);
+      test.database = SembastDatabase.shared;
+      await test.save();
 
-      print(await Test.all());
-      print(await Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
+      print(await $Test.all());
+      print(await $Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
     });
   });
 }

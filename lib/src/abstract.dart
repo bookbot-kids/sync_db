@@ -9,12 +9,19 @@ abstract class BaseUser {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
   Future<List<MapEntry>> resourceTokens([bool refresh = false]);
+
   void signout();
+
   Future<bool> hasSignedIn();
+
   set refreshToken(String token);
+
   String get refreshToken;
+
   set role(String role);
+
   String get role;
+
   Future<bool> get tokenValid;
 }
 
@@ -43,63 +50,45 @@ abstract class Sync {
 abstract class Database {
   void saveMap(String tableName, String id, Map map,
       {int updatedAt, String status, dynamic transaction});
+
   Future<void> save(Model model, {bool syncToCloud});
+
   bool hasTable(String tableName);
+
   dynamic all(String modelName, Function instantiateModel);
+
   dynamic find(String modelName, String id, Model model);
+
   dynamic query<T>(Query query, {dynamic transaction});
+
   Future<void> delete(Model model);
+
   Future<void> deleteLocal(String modelName, String id);
+
   Future<void> runInTransaction(String tableName, Function action);
 }
 
 abstract class Model extends ChangeNotifier {
-  static Database database;
-
-  String id;
   DateTime createdAt;
-  DateTime updatedAt;
   DateTime deletedAt;
+  String id;
+  DateTime updatedAt;
 
-  //Functions to override
+  Database _database;
 
-  Map<String, dynamic> export() {
-    var map = Map<String, dynamic>();
-    map["id"] = id;
-    map["createdAt"] = createdAt;
-    map["updatedAt"] = updatedAt;
-    if (deletedAt != null) {
-      map["deletedAt"] = deletedAt?.millisecondsSinceEpoch;
-    }
+  Database get database => _database;
 
-    return map;
-  }
+  set database(Database database) => _database = database;
 
-  void import(Map<String, dynamic> map) {
-    id = map["id"];
-    createdAt = map["createdAt"];
-    updatedAt = map["updatedAt"];
+  Map<String, dynamic> get map;
 
-    if (map["deletedAt"] is DateTime) {
-      deletedAt = map["deletedAt"];
-    } else if (map["deletedAt"] is int) {
-      deletedAt = DateTime.fromMillisecondsSinceEpoch(map["deletedAt"]);
-    }
-  }
+  set map(Map<String, dynamic> map);
 
-  String toString() {
-    return export().toString();
-  }
+  String toString() => map.toString();
 
-  String tableName() {
-    // This doesn't work for Flutter web.
-    if (kIsWeb) {
-      throw Exception(
-          'Must be override this method and return a string on web');
-    }
-    return runtimeType.toString();
-  }
+  String get name => "Model";
 
-  Future<void> save();
-  Future<void> delete();
+  Future<void> save() async => await this.database.save(this);
+
+  Future<void> delete() => throw UnimplementedError();
 }

@@ -6,14 +6,14 @@ import 'package:pool/pool.dart' as pool;
 import 'package:robust_http/exceptions.dart';
 import 'package:sync_db/src/sync_log_adapter.dart';
 import '../sync_db.dart';
-import "abstract.dart";
+import 'abstract.dart';
 import 'query.dart' as q;
 
 /**
  * Aws AppSync client
  */
-class AppSync extends Sync {
-  static AppSync shared;
+class GraphQLSync extends Sync {
+  static GraphQLSync shared;
   /** Thread pool for sync all **/
   final _pool = pool.Pool(1);
 
@@ -28,7 +28,7 @@ class AppSync extends Sync {
   GraphQLClient graphClient;
 
   static void config(Map config, List<Model> models) {
-    shared = AppSync();
+    shared = GraphQLSync();
     shared._httpLink = HttpLink(
       uri: config['appsyncUrl'],
     );
@@ -49,7 +49,7 @@ class AppSync extends Sync {
         // Loop through tables to read sync
         var tasks = List<Future>();
         for (var model in _models) {
-          var table = model.tableName();
+          var table = model.name;
           tasks.add(_syncTable(table, false, false, downloadAll));
         }
 
