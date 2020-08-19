@@ -92,7 +92,7 @@ class SembastDatabase extends Database {
 
     // Export model as map and convert DateTime to int
     model.updatedAt = await NetworkTime.shared.now;
-    final map = model.export();
+    final map = model.map;
     for (final entry in map.entries) {
       if (entry.value is DateTime) {
         map[entry.key] = (entry.value as DateTime).millisecondsSinceEpoch;
@@ -190,7 +190,7 @@ class SembastDatabase extends Database {
     final store = Sembast.StoreRef.main();
     final record = await store.record(id).get(_db[modelName]);
     if (record != null) {
-      model.import(_fixType(record));
+      model.map = _fixType(record);
       if (model.deletedAt == null) {
         return model;
       }
