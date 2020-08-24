@@ -27,6 +27,7 @@ class AppSync extends Sync {
   int logLevel = Log.none;
   GraphQLClient graphClient;
   String logText = '';
+  int _modelPoolSize;
 
   static void config(Map config, List<Model> models) {
     shared = AppSync();
@@ -35,12 +36,13 @@ class AppSync extends Sync {
     );
     shared._models = models;
     shared.logLevel = config['logLevel'] ?? Log.none;
+    shared._modelPoolSize = config['modelPoolSize'] ?? 1;
   }
 
-  /// Get thread pool (size = 1) for each table
+  /// Get thread pool for each table
   pool.Pool _getPool(String table) {
     if (!_modelPools.containsKey(table)) {
-      _modelPools[table] = pool.Pool(1);
+      _modelPools[table] = pool.Pool(_modelPoolSize ?? 1);
     }
 
     return _modelPools[table];
