@@ -17,8 +17,8 @@ class AppSync extends Sync {
   /** Thread pool for sync all **/
   final _pool = pool.Pool(1);
 
-  /** Thread pool for sync one **/
-  final _modelPool = pool.Pool(1);
+  /** Thread pool for sync one table **/
+  Map<String, pool.Pool> _modelPools = Map<String, pool.Pool>();
   HttpLink _httpLink;
   BaseUser user;
   Database database;
@@ -33,6 +33,15 @@ class AppSync extends Sync {
       uri: config['appsyncUrl'],
     );
     shared._models = models;
+  }
+
+  /// Get thread pool (size = 1) for each table
+  pool.Pool _getPool(String table) {
+    if (!_modelPools.containsKey(table)) {
+      _modelPools[table] = pool.Pool(1);
+    }
+
+    return _modelPools[table];
   }
 
   @override
@@ -96,7 +105,7 @@ class AppSync extends Sync {
 
   Future<void> syncTable(String table,
       [bool refresh = false, bool downloadAll = false]) async {
-    await _modelPool.withResource(() async {
+    await _getPool(table).withResource(() async {
       await _syncTable(table, refresh, true, downloadAll);
     });
   }
@@ -160,7 +169,7 @@ class AppSync extends Sync {
       return;
     }
 
-    await _modelPool.withResource(() async {
+    await _getPool(table).withResource(() async {
       try {
         await _setup();
 
