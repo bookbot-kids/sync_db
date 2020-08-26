@@ -1,10 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'query.dart';
 
-//AzureADB2CUser user = AzureADB2CUser.shared;
-//CosmosSync sync = CosmosSync.shared;
-//Database db = SemBastDatabase.shared;
-
 abstract class BaseUser {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
