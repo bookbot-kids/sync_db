@@ -8,3 +8,4 @@ export 'src/query.dart';
 export 'src/graphql_sync.dart';
 export 'src/network_time.dart';
 export 'src/sync_log_adapter.dart';
+export 'src/sync_db.dart';

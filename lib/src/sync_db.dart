@@ -1,5 +1,4 @@
 import 'abstract.dart';
-import 'sembast_database.dart';
 import 'package:logger/logger.dart';
 
 class SyncDB {
