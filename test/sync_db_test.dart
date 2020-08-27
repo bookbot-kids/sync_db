@@ -27,6 +27,7 @@ class Category extends Model {
 
   Map<String, dynamic> get map => $Category(this).map;
   set map(Map<String, dynamic> map) => $Category(this).map = map;
+  String get storeName => "Category";
 }
 
 extension $Category on Category {
@@ -82,6 +83,7 @@ class Test extends Model {
 
   Map<String, dynamic> get map => $Test(this).map;
   set map(Map<String, dynamic> map) => $Test(this).map = map;
+  String get storeName => "Test";
 }
 
 extension $Test on Test {
@@ -135,7 +137,7 @@ void main() {
       final file = new File('test/test_conf.json');
       final config = jsonDecode(await file.readAsString());
 
-      final user = AzureADB2CUser(config);
+      final user = AzureADB2CUserSession(config);
       final tokens = await user.resourceTokens();
       print(tokens);
       expect(tokens, isNotNull);

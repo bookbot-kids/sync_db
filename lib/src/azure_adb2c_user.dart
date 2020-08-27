@@ -9,18 +9,18 @@ import 'dart:math';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'dart:convert';
 
-class AzureADB2CUser extends BaseUser {
+class AzureADB2CUserSession extends UserSession {
   static Database database;
   HTTP http;
   Map<String, dynamic> config;
-  List<MapEntry> _resourceTokens = List();
+  List<MapEntry> _resourceTokens = [];
   DateTime _tokenExpiry;
   SharedPreferences prefs;
 
   /// Config will need:
   /// baseUrl for Azure functions
   /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
-  AzureADB2CUser(Map<String, dynamic> config, {String refreshToken}) {
+  AzureADB2CUserSession(Map<String, dynamic> config, {String refreshToken}) {
     this.config = config;
     NetworkTime.shared.now.then((value) {
       _tokenExpiry = value;
@@ -141,7 +141,7 @@ class AzureADB2CUser extends BaseUser {
   Future<String> clientToken() async {
     var now = (await NetworkTime.shared.now).toLocal();
     var expiry = now.add(Duration(minutes: 10));
-    var encodedKey = base64.encode(utf8.encode(config["azure_secret"]));
+    var encodedKey = base64.encode(utf8.encode(config["azureSecret"]));
     final claimSet = JwtClaim(
         subject: config["azure_subject"],
         issuer: config["azure_issuer"],

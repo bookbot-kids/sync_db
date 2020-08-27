@@ -20,7 +20,7 @@ class GraphQLSync extends Sync {
   /** Thread pool for sync one **/
   final _modelPool = pool.Pool(1);
   HttpLink _httpLink;
-  BaseUser user;
+  UserSession user;
   Database database;
   List<Model> _models;
   Map schema;
@@ -49,7 +49,7 @@ class GraphQLSync extends Sync {
         // Loop through tables to read sync
         var tasks = List<Future>();
         for (var model in _models) {
-          var table = model.name;
+          var table = model.storeName;
           tasks.add(_syncTable(table, false, false, downloadAll));
         }
 

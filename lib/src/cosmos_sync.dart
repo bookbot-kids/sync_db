@@ -14,7 +14,7 @@ class CosmosSync extends Sync {
   static CosmosSync shared;
   HTTP http;
   Database database;
-  BaseUser user;
+  UserSession user;
   static const String _apiVersion = "2018-12-31";
   String databaseId;
   int pageSize;

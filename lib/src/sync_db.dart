@@ -2,8 +2,11 @@ import 'abstract.dart';
 import 'package:logger/logger.dart';
 
 class SyncDB {
-  static Database local;
-  static Sync sync;
-  static BaseUser user;
-  static Logger logger;
+  SyncDB._privateConstructor();
+  static SyncDB shared = SyncDB._privateConstructor();
+
+  Database local;
+  Sync sync;
+  UserSession user;
+  Logger logger;
 }

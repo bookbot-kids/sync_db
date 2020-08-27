@@ -56,7 +56,7 @@ class SembastDatabase extends Database {
 
   Future<void> cleanDatabase() async {
     for (var model in _models) {
-      var db = _db[model.name];
+      var db = _db[model.storeName];
       final store = Sembast.StoreRef.main();
       await store.delete(db, finder: Sembast.Finder());
       await store.drop(db);
@@ -76,7 +76,7 @@ class SembastDatabase extends Database {
 
   Future<void> save(Model model, {bool syncToCloud = true}) async {
     // Get DB
-    final name = model.name;
+    final name = model.storeName;
     final db = _db[name];
     final store = Sembast.StoreRef.main();
 
