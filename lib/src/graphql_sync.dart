@@ -265,7 +265,7 @@ class GraphQLSync extends Sync {
     // TODO paging later
     var limit = 100000;
     if (record == null || (record != null && record['lastSynced'] == null)) {
-      select = """
+      select = '''
         query list${table}s {
           list${table}s (limit: $limit) {
             items {
@@ -273,9 +273,9 @@ class GraphQLSync extends Sync {
             }
           }
         }
-      """;
+      ''';
     } else {
-      select = """
+      select = '''
       query list$table {
           list${table}s(filter: {
             lastSynced: {
@@ -287,7 +287,7 @@ class GraphQLSync extends Sync {
             }
           }
       }
-      """;
+      ''';
     }
 
     var response = await _queryDocuments(graphClient, select);

@@ -25,34 +25,37 @@ class Category extends Model {
   String name;
   String image;
 
+  @override
   Map<String, dynamic> get map => $Category(this).map;
+  @override
   set map(Map<String, dynamic> map) => $Category(this).map = map;
-  String get tableName => "Category";
+  @override
+  String get tableName => 'Category';
 }
 
 extension $Category on Category {
   Map<String, dynamic> get map {
     return {
-      "id": id,
-      "createdAt": createdAt,
-      "updatedAt": updatedAt,
-      "deletedAt": deletedAt,
-      "name": name,
-      "image": image
+      'id': id,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'deletedAt': deletedAt,
+      'name': name,
+      'image': image
     };
   }
 
   set map(Map<String, dynamic> map) {
-    id = map["id"];
-    createdAt = map["createdAt"];
-    updatedAt = map["updatedAt"];
-    deletedAt = map["deletedAt"];
-    name = map["name"];
-    image = map["image"];
+    id = map['id'];
+    createdAt = map['createdAt'];
+    updatedAt = map['updatedAt'];
+    deletedAt = map['deletedAt'];
+    name = map['name'];
+    image = map['image'];
   }
 
   static Future<Category> find(String id) async =>
-      await Category().database.find("Category", id, Category());
+      await Category().database.find('Category', id, Category());
 }
 
 // class Series extends Model {
@@ -63,12 +66,12 @@ enum Layout { fixed, responsive }
 
 extension $Layout on Layout {
   static final layoutString = {
-    Layout.fixed: "fixed",
-    Layout.responsive: "responsive"
+    Layout.fixed: 'fixed',
+    Layout.responsive: 'responsive'
   };
   static final layoutEnum = {
-    "fixed": Layout.fixed,
-    "responsive": Layout.responsive
+    'fixed': Layout.fixed,
+    'responsive': Layout.responsive
   };
 
   String get name => $Layout.layoutString[this];
@@ -76,45 +79,48 @@ extension $Layout on Layout {
 }
 
 class Test extends Model {
-  String testString = "Test String";
+  String testString = 'Test String';
   Layout layout = Layout.fixed;
   String _categoryId;
   Category category2;
 
+  @override
   Map<String, dynamic> get map => $Test(this).map;
+  @override
   set map(Map<String, dynamic> map) => $Test(this).map = map;
-  String get tableName => "Test";
+  @override
+  String get tableName => 'Test';
 }
 
 extension $Test on Test {
   Map<String, dynamic> get map {
     return {
-      "id": id,
-      "createdAt": createdAt,
-      "updatedAt": updatedAt,
-      "deletedAt": deletedAt,
-      "testString": testString,
-      "layout": layout.name,
-      "categoryId": _categoryId,
-      "category2Id": category2.id
+      'id': id,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'deletedAt': deletedAt,
+      'testString': testString,
+      'layout': layout.name,
+      'categoryId': _categoryId,
+      'category2Id': category2.id
     };
   }
 
   set map(Map<String, dynamic> map) {
-    id = map["id"];
-    createdAt = map["createdAt"];
-    updatedAt = map["updatedAt"];
-    deletedAt = map["deletedAt"];
-    testString = map["testString"];
-    layout = $Layout.fromString(map["layout"]);
-    _categoryId = map["categoryId"];
-    $Category.find(map["category2Id"]).then((value) => category2 = value);
+    id = map['id'];
+    createdAt = map['createdAt'];
+    updatedAt = map['updatedAt'];
+    deletedAt = map['deletedAt'];
+    testString = map['testString'];
+    layout = $Layout.fromString(map['layout']);
+    _categoryId = map['categoryId'];
+    $Category.find(map['category2Id']).then((value) => category2 = value);
   }
 
   Future<Category> get category async => $Category.find(_categoryId);
 
   static Future<List<Test>> all() async {
-    var all = await Test().database.all("Test", () {
+    var all = await Test().database.all('Test', () {
       return Test();
     });
 
@@ -122,10 +128,10 @@ extension $Test on Test {
   }
 
   static Future<Test> find(String id) async =>
-      await Test().database.find("Test", id, Test());
+      await Test().database.find('Test', id, Test());
 
   static Query where(dynamic condition) {
-    return Query("Test").where(condition, Test().database, () {
+    return Query('Test').where(condition, Test().database, () {
       return Test();
     });
   }
@@ -134,7 +140,7 @@ extension $Test on Test {
 void main() {
   group('HTTP: ', () {
     test('Test getting resource tokens from refresh token', () async {
-      final file = new File('test/test_conf.json');
+      final file = File('test/test_conf.json');
       final config = jsonDecode(await file.readAsString());
 
       final user = AzureADB2CUserSession(config);
@@ -145,19 +151,18 @@ void main() {
 
     test('Test model creation', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
-      const MethodChannel channel =
-          MethodChannel('plugins.flutter.io/path_provider');
+      const channel = MethodChannel('plugins.flutter.io/path_provider');
       channel.setMockMethodCallHandler((MethodCall methodCall) async {
-        return ".";
+        return '.';
       });
 
-      Test test = Test();
+      var test = Test();
       await SembastDatabase.config(null, []);
       test.database = SembastDatabase.shared;
       await test.save();
 
       print(await $Test.all());
-      print(await $Test.find("85523e33-644f-4ed4-9c85-d8d0ec20fcc0"));
+      print(await $Test.find('85523e33-644f-4ed4-9c85-d8d0ec20fcc0'));
     });
   });
 }

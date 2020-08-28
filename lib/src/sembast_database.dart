@@ -1,9 +1,14 @@
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sembast/sembast_io.dart';
+import 'package:sembast_web/sembast_web.dart';
 import 'package:sync_db/src/network_time.dart';
+import 'package:sync_db/src/sync_log_adapter.dart';
+import 'package:universal_io/prefer_universal/io.dart';
+import 'package:universal_platform/universal_platform.dart';
 import 'package:uuid/uuid.dart';
 
 import 'abstract.dart';
-import 'locator/locator.dart';
-import 'locator/sembast_base.dart';
 import 'query.dart';
 import 'package:sembast/sembast.dart' as sembast;
 import 'package:sembast/src/utils.dart' as sembast_utils;
@@ -14,7 +19,6 @@ class SembastDatabase extends Database {
   final Map<String, sembast.Database> _db = {};
   List<Model> _models = [];
   Sync _sync;
-  //Map<String, List<String>> _dateTimeKeyNames = {};
 
   /// Connects sync to the Sembest Database
   /// Opens up each table connected to each model, which is stored in a separate file.
@@ -22,15 +26,25 @@ class SembastDatabase extends Database {
     shared._models = models;
     shared._sync = remoteSync;
 
-    // The locator that uses conditionally importing for web & mobile platform
-    SembastLocator locator = Locator();
-    // initialize database
-    await locator.initDatabase(shared._db, models);
+    await shared._initDatabase();
   }
 
+  /// Import data from sembast file (in text string), not support for web
   static Future<void> importTable(String data, Model model) async {
-    SembastLocator locator = Locator();
-    await locator.import(data, model);
+    if (!UniversalPlatform.isWeb) {
+      final dir = await getApplicationDocumentsDirectory();
+      await dir.create(recursive: true);
+      final name = model.tableName;
+      final dbPath = join(dir.path, name + '.db');
+      var file = File(dbPath);
+      // delete the old database file if it exist
+      if (await file.exists()) {
+        await file.delete();
+      }
+
+      // then write the new one
+      await file.writeAsString(data);
+    }
   }
 
   /// Custom sembasr cooperator in case has slow sort query on web https://github.com/tekartik/sembast.dart/issues/189
@@ -46,6 +60,31 @@ class SembastDatabase extends Database {
     } else {
       // ignore: invalid_use_of_visible_for_testing_member
       sembast.disableSembastCooperator();
+    }
+  }
+
+  /// initialize and open database for web & other platforms
+  Future<void> _initDatabase() async {
+    if (UniversalPlatform.isWeb) {
+      // Open all databases for web
+      for (final model in _models) {
+        final name = model.tableName;
+        final dbPath = name + '.db';
+        _db[name] = await databaseFactoryWeb.openDatabase(dbPath);
+      }
+    } else {
+      // get document dir
+      final dir = await getApplicationDocumentsDirectory();
+      // make sure it exists
+      await dir.create(recursive: true);
+
+      // Open all databases
+      for (final model in _models) {
+        final name = model.tableName;
+        final dbPath = join(dir.path, name + '.db');
+        SyncLogAdapter.shared.logger?.d('model $name has path $dbPath');
+        _db[name] = await databaseFactoryIo.openDatabase(dbPath);
+      }
     }
   }
 
