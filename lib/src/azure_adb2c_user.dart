@@ -3,55 +3,67 @@ import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/network_time.dart';
+import 'package:sync_db/src/sync_db.dart';
 
 import 'abstract.dart';
-import 'dart:math';
-import 'package:jaguar_jwt/jaguar_jwt.dart';
-import 'dart:convert';
 
 class AzureADB2CUserSession extends UserSession {
   static Database database;
-  HTTP http;
-  Map<String, dynamic> config;
+  HTTP _http;
+  Map<String, dynamic> _config;
   final List<MapEntry> _resourceTokens = [];
   DateTime _tokenExpiry;
   SharedPreferences prefs;
 
   /// Config will need:
-  /// baseUrl for Azure functions
-  /// azure_secret, azure_audience, azure_issuer, azure_audience for client token
-  AzureADB2CUserSession(Map<String, dynamic> config, {String refreshToken}) {
-    this.config = config;
+  /// `azureBaseUrl` for Azure authentication functions
+  /// `azureCode` the secure code to request azure function
+  AzureADB2CUserSession(Map<String, dynamic> config) {
+    _config = config;
     NetworkTime.shared.now.then((value) {
       _tokenExpiry = value;
     });
-    http = HTTP(config['azure_auth_url'], config);
-    SharedPreferences.getInstance().then((value) {
+
+    _http = HTTP(config['azureBaseUrl'], config);
+    SharedPreferences.getInstance().then((value) async {
       prefs = value;
-      if (refreshToken != null) {
-        this.refreshToken = refreshToken;
+      await resourceTokens();
+    });
+  }
+
+  /// Fetch refresh token & resource tokens from id token
+  /// Return a list of resource tokens or guest resource tokens if id token is invalid
+  Future<List<MapEntry>> fetchTokens(String idToken) async {
+    try {
+      if (idToken != null && idToken.isNotEmpty) {
+        var response = await _http.get('/GetRefreshAndAccessToken',
+            parameters: {'code': _config['azureCode'], 'id_token': idToken});
+        if (response['success'] == true && response['token'] != null) {
+          var token = response['token'];
+          refreshToken = token['refresh_token'];
+        }
       }
 
-      if (this.refreshToken != null) {
-        resourceTokens().then((list) {});
-      }
-    });
+      await refresh();
+      return await resourceTokens();
+    } catch (error, stackTrace) {
+      SyncDB.shared.logger?.e('fetch token error', error, stackTrace);
+    }
+
+    return null;
   }
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
+  /// If there is no refresh token, guest resource token is returned
   @override
-  Future<List<MapEntry>> resourceTokens([bool refresh = false]) async {
+  Future<List<MapEntry>> resourceTokens() async {
     prefs ??= await SharedPreferences.getInstance();
-
-    if (!(await hasSignedIn())) {
-      return List<MapEntry>.from(_resourceTokens);
-    }
 
     _tokenExpiry ??= await NetworkTime.shared.now;
 
     var now = await NetworkTime.shared.now;
-    if (_tokenExpiry.isAfter(now) && refresh == false) {
+    if (_tokenExpiry.isAfter(now)) {
       return List<MapEntry>.from(_resourceTokens);
     }
 
@@ -60,10 +72,9 @@ class AzureADB2CUserSession extends UserSession {
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a code
     try {
-      final response = await http.get('/GetResourceTokens', parameters: {
-        'client_token': await clientToken(),
-        'refresh_token': refreshToken,
-        'code': config['azure_code']
+      final response = await _http.get('/GetResourceTokens', parameters: {
+        'refresh_token': refreshToken ?? '',
+        'code': _config['azureCode']
       });
 
       _resourceTokens.clear();
@@ -83,17 +94,21 @@ class AzureADB2CUserSession extends UserSession {
           StringUtils.isNotNullOrEmpty(response['refreshToken'])) {
         refreshToken = response['refreshToken'];
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is UnexpectedResponseException) {
         try {
           if (e.response.statusCode == 401) {
             // token is expired, need to sign out user
             _resourceTokens.clear();
             await prefs.remove('refresh_token');
+          } else {
+            SyncDB.shared.logger?.e('get resource tokens error', e, stackTrace);
           }
         } catch (e) {
           // ignore
         }
+      } else {
+        SyncDB.shared.logger?.e('get resource tokens error', e, stackTrace);
       }
     }
 
@@ -101,8 +116,8 @@ class AzureADB2CUserSession extends UserSession {
   }
 
   @override
-  Future<bool> get tokenValid async {
-    return _tokenExpiry.isAfter(await NetworkTime.shared.now);
+  Future<void> refresh() async {
+    _tokenExpiry = await NetworkTime.shared.now;
   }
 
   @override
@@ -131,29 +146,5 @@ class AzureADB2CUserSession extends UserSession {
   @override
   void signout() {
     prefs.remove('refresh_token');
-  }
-
-  /// Client Token is used to secure the anonymous web services.
-  /// The token is made up of:
-  /// Subject: Stores the user ID of the user to which the token is issued.
-  /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
-  /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
-  /// The secret is the key used for encoding
-  Future<String> clientToken() async {
-    var now = (await NetworkTime.shared.now).toLocal();
-    var expiry = now.add(Duration(minutes: 10));
-    var encodedKey = base64.encode(utf8.encode(config['azureSecret']));
-    final claimSet = JwtClaim(
-        subject: config['azure_subject'],
-        issuer: config['azure_issuer'],
-        audience: <String>[config['azure_audience']],
-        notBefore: now,
-        defaultIatExp: false,
-        expiry: expiry,
-        issuedAt: now,
-        jwtId: Random().nextInt(10000).toString(),
-        maxAge: const Duration(minutes: 10));
-
-    return issueJwtHS256(claimSet, encodedKey);
   }
 }

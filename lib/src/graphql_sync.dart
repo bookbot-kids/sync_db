@@ -4,7 +4,6 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:pool/pool.dart' as pool;
 import 'package:robust_http/exceptions.dart';
-import 'package:sync_db/src/sync_log_adapter.dart';
 import '../sync_db.dart';
 import 'abstract.dart';
 import 'query.dart' as q;
@@ -56,9 +55,9 @@ class GraphQLSync extends Sync {
         var logMessage =
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
         s.stop();
-        SyncLogAdapter.shared.logger?.i(logMessage);
+        SyncDB.shared.logger?.i(logMessage);
       } catch (err, stackTrace) {
-        SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
+        SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
       }
     });
   }
@@ -78,17 +77,16 @@ class GraphQLSync extends Sync {
             var fields = _getFields(table);
             await _deleteDocument(table, fields, id);
           } else {
-            SyncLogAdapter.shared.logger?.i(
+            SyncDB.shared.logger?.i(
                 'role ${user.role} does not have write permission in table $table');
           }
         } else {
-          SyncLogAdapter.shared.logger
-              ?.i('table $table does not exist in schema');
+          SyncDB.shared.logger?.i('table $table does not exist in schema');
         }
 
-        SyncLogAdapter.shared.logger?.i('Delete record on $table completed');
+        SyncDB.shared.logger?.i('Delete record on $table completed');
       } catch (err, stackTrace) {
-        SyncLogAdapter.shared.logger
+        SyncDB.shared.logger
             ?.e('Delete record on $table error: $err', err, stackTrace);
       }
     });
@@ -121,12 +119,11 @@ class GraphQLSync extends Sync {
         if (hasPermission(user.role, table, 'read')) {
           await syncRead(table, graphClient, downloadAll: downloadAll);
         } else {
-          SyncLogAdapter.shared.logger?.i(
+          SyncDB.shared.logger?.i(
               'role ${user.role} does not have read permission in table $table');
         }
       } else {
-        SyncLogAdapter.shared.logger
-            ?.i('table $table does not exist in schema');
+        SyncDB.shared.logger?.i('table $table does not exist in schema');
       }
 
       // Sync write
@@ -134,22 +131,20 @@ class GraphQLSync extends Sync {
         if (hasPermission(user.role, table, 'write')) {
           await syncWrite(table, graphClient);
         } else {
-          SyncLogAdapter.shared.logger?.i(
+          SyncDB.shared.logger?.i(
               'role ${user.role} does not have write permission in table $table');
         }
       } else {
-        SyncLogAdapter.shared.logger
-            ?.i('table $table does not exist in schema');
+        SyncDB.shared.logger?.i('table $table does not exist in schema');
       }
 
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
 
-      SyncLogAdapter.shared.logger?.i(logMessage);
+      SyncDB.shared.logger?.i(logMessage);
       s.stop();
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger
-          ?.e('Sync table $table error: $err', err, stackTrace);
+      SyncDB.shared.logger?.e('Sync table $table error: $err', err, stackTrace);
     }
   }
 
@@ -241,7 +236,7 @@ class GraphQLSync extends Sync {
           }
         }
       } catch (err, stackTrace) {
-        SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
+        SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
       }
     });
   }
@@ -249,7 +244,7 @@ class GraphQLSync extends Sync {
   @override
   Future<void> syncRead(String table, dynamic graphClient,
       {bool downloadAll = false}) async {
-    SyncLogAdapter.shared.logger?.i('[start syncing read on $table]');
+    SyncDB.shared.logger?.i('[start syncing read on $table]');
     dynamic record;
     // don't download all for read-only table
     if (!downloadAll || !hasPermission(user.role, table, 'write')) {
@@ -297,7 +292,7 @@ class GraphQLSync extends Sync {
       if (documents != null) {
         try {
           // run in transaction
-          SyncLogAdapter.shared.logger
+          SyncDB.shared.logger
               ?.i('Run table $table(${documents.length}) in transaction');
           await database.runInTransaction(table, (txn) async {
             for (var doc in documents) {
@@ -330,12 +325,12 @@ class GraphQLSync extends Sync {
       }
     }
 
-    SyncLogAdapter.shared.logger?.i('[end syncing read on $table]');
+    SyncDB.shared.logger?.i('[end syncing read on $table]');
   }
 
   @override
   Future<void> syncWrite(String table, dynamic graphClient) async {
-    SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
+    SyncDB.shared.logger?.i('[start syncing write on $table]');
     // Get created records and save to Appsync
     var query =
         q.Query(table).where('_status = created').order('createdAt asc');
@@ -406,7 +401,7 @@ class GraphQLSync extends Sync {
       }
     }
 
-    SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
+    SyncDB.shared.logger?.i('[end syncing write on $table]');
   }
 
   Future<void> _setup() async {
@@ -511,10 +506,7 @@ class GraphQLSync extends Sync {
 
   /// Get graph client base on token from cognito
   Future<void> _getGraphClient() async {
-    if (!(await user.tokenValid)) {
-      await user.resourceTokens();
-    }
-
+    await user.resourceTokens();
     final authLink = AuthLink(getToken: () => user.refreshToken);
     final link = authLink.concat(shared._httpLink);
     graphClient = GraphQLClient(

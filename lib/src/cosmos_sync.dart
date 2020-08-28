@@ -3,9 +3,9 @@ import 'package:pool/pool.dart' as pool;
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/src/network_time.dart';
+import 'package:sync_db/src/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
-import 'package:sync_db/src/sync_log_adapter.dart';
 
 import 'abstract.dart';
 import 'query.dart';
@@ -44,7 +44,11 @@ class CosmosSync extends Sync {
   @override
   Future<void> syncAll([bool refresh = false]) async {
     try {
-      final resourceTokens = await user.resourceTokens(refresh);
+      if (refresh) {
+        await user.refresh();
+      }
+
+      final resourceTokens = await user.resourceTokens();
 
       await _lock.synchronized(() async {
         var s = Stopwatch()..start();
@@ -64,11 +68,11 @@ class CosmosSync extends Sync {
 
         var logMessage =
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
-        SyncLogAdapter.shared.logger?.i(logMessage);
+        SyncDB.shared.logger?.i(logMessage);
         s.stop();
       });
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger?.e('Sync error: $err', err, stackTrace);
+      SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
     }
   }
 
@@ -80,7 +84,11 @@ class CosmosSync extends Sync {
   @override
   Future<void> syncTable(String table, [bool refresh = false]) async {
     try {
-      final resourceTokens = await user.resourceTokens(refresh);
+      if (refresh) {
+        await user.refresh();
+      }
+
+      final resourceTokens = await user.resourceTokens();
       var permission = resourceTokens.firstWhere(
         (element) => element.key == table,
         orElse: () => null,
@@ -89,8 +97,7 @@ class CosmosSync extends Sync {
         await _syncOne(table, permission, refresh);
       });
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger
-          ?.e('Sync $table error: $err', err, stackTrace);
+      SyncDB.shared.logger?.e('Sync $table error: $err', err, stackTrace);
     }
   }
 
@@ -111,22 +118,22 @@ class CosmosSync extends Sync {
           await syncWrite(table, permission.value);
         }
       } else {
-        SyncLogAdapter.shared.logger
+        SyncDB.shared.logger
             ?.i('does not have sync permission for table $table');
       }
 
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
-      SyncLogAdapter.shared.logger?.i(logMessage);
+      SyncDB.shared.logger?.i(logMessage);
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger?.e('Sync $table error: $err', stackTrace);
+      SyncDB.shared.logger?.e('Sync $table error: $err', stackTrace);
     }
   }
 
   /// Read sync this table
   @override
   Future<void> syncRead(String table, dynamic permission) async {
-    SyncLogAdapter.shared.logger?.i('[start syncing read on $table]');
+    SyncDB.shared.logger?.i('[start syncing read on $table]');
     String token = permission['_token'];
     String partition = permission['resourcePartitionKey'][0];
     // Get the last record change timestamp on server side
@@ -145,7 +152,7 @@ class CosmosSync extends Sync {
     var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
 
-    SyncLogAdapter.shared.logger
+    SyncDB.shared.logger
         ?.i('Run table $table(${cosmosResult.length}) in transaction');
     await database.runInTransaction(table, (txn) async {
       for (var cosmosRecord in cosmosResult) {
@@ -171,7 +178,7 @@ class CosmosSync extends Sync {
       }
     });
 
-    SyncLogAdapter.shared.logger?.i('[end syncing read on $table]');
+    SyncDB.shared.logger?.i('[end syncing read on $table]');
   }
 
   /// Write sync this table if it has permission
@@ -182,7 +189,7 @@ class CosmosSync extends Sync {
       return;
     }
 
-    SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
+    SyncDB.shared.logger?.i('[start syncing write on $table]');
     String token = permission['_token'];
     String partition = permission['resourcePartitionKey'][0];
 
@@ -266,7 +273,7 @@ class CosmosSync extends Sync {
       }
     }
 
-    SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
+    SyncDB.shared.logger?.i('[end syncing write on $table]');
   }
 
   @override
@@ -274,11 +281,15 @@ class CosmosSync extends Sync {
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh = false]) async {
     try {
-      final resourceTokens = await user.resourceTokens(refresh);
+      if (refresh) {
+        await user.refresh();
+      }
+
+      final resourceTokens = await user.resourceTokens();
       await _pool.withResource(() =>
           _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger?.e('Sync error: $err', stackTrace);
+      SyncDB.shared.logger?.e('Sync error: $err', stackTrace);
     }
   }
 
@@ -368,8 +379,7 @@ class CosmosSync extends Sync {
         }
       }
     } catch (err, stackTrace) {
-      SyncLogAdapter.shared.logger
-          ?.e('Sync model $table error: $err', err, stackTrace);
+      SyncDB.shared.logger?.e('Sync model $table error: $err', err, stackTrace);
     }
   }
 

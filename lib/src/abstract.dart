@@ -4,7 +4,7 @@ import 'query.dart';
 abstract class UserSession {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
-  Future<List<MapEntry>> resourceTokens([bool refresh = false]);
+  Future<List<MapEntry>> resourceTokens();
 
   void signout();
 
@@ -18,7 +18,7 @@ abstract class UserSession {
 
   String get role;
 
-  Future<bool> get tokenValid;
+  Future<void> refresh();
 }
 
 abstract class Sync {

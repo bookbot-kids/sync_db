@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:sembast_web/sembast_web.dart';
 import 'package:sync_db/src/network_time.dart';
-import 'package:sync_db/src/sync_log_adapter.dart';
+import 'package:sync_db/src/sync_db.dart';
 import 'package:universal_io/prefer_universal/io.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'package:uuid/uuid.dart';
@@ -82,7 +82,7 @@ class SembastDatabase extends Database {
       for (final model in _models) {
         final name = model.tableName;
         final dbPath = join(dir.path, name + '.db');
-        SyncLogAdapter.shared.logger?.d('model $name has path $dbPath');
+        SyncDB.shared.logger?.d('model $name has path $dbPath');
         _db[name] = await databaseFactoryIo.openDatabase(dbPath);
       }
     }
