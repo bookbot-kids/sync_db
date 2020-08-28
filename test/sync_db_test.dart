@@ -27,7 +27,7 @@ class Category extends Model {
 
   Map<String, dynamic> get map => $Category(this).map;
   set map(Map<String, dynamic> map) => $Category(this).map = map;
-  String get storeName => "Category";
+  String get tableName => "Category";
 }
 
 extension $Category on Category {
@@ -83,7 +83,7 @@ class Test extends Model {
 
   Map<String, dynamic> get map => $Test(this).map;
   set map(Map<String, dynamic> map) => $Test(this).map = map;
-  String get storeName => "Test";
+  String get tableName => "Test";
 }
 
 extension $Test on Test {

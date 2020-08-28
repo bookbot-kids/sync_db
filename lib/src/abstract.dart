@@ -80,7 +80,7 @@ abstract class Model extends ChangeNotifier {
 
   set map(Map<String, dynamic> map);
 
-  String get storeName => "Model";
+  String get tableName => "Model";
 
   String toString() => map.toString();
 

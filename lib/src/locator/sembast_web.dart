@@ -13,7 +13,7 @@ class SembastWebLocator extends SembastLocator {
       Map<String, Sembast.Database> map, List<Model> models) async {
     // Open all databases
     for (final model in models) {
-      final name = model.storeName;
+      final name = model.tableName;
       final dbPath = name + ".db";
       map[name] = await databaseFactoryWeb.openDatabase(dbPath);
     }

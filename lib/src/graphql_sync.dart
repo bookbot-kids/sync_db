@@ -49,7 +49,7 @@ class GraphQLSync extends Sync {
         // Loop through tables to read sync
         var tasks = List<Future>();
         for (var model in _models) {
-          var table = model.storeName;
+          var table = model.tableName;
           tasks.add(_syncTable(table, false, false, downloadAll));
         }
 
