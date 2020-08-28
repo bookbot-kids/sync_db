@@ -1,18 +1,18 @@
 import 'package:sync_db/src/network_time.dart';
 import 'package:uuid/uuid.dart';
 
-import "abstract.dart";
+import 'abstract.dart';
 import 'locator/locator.dart';
 import 'locator/sembast_base.dart';
-import "query.dart";
-import 'package:sembast/sembast.dart' as Sembast;
-import 'package:sembast/src/utils.dart' as SembastUtils;
+import 'query.dart';
+import 'package:sembast/sembast.dart' as sembast;
+import 'package:sembast/src/utils.dart' as sembast_utils;
 
 class SembastDatabase extends Database {
   SembastDatabase._privateConstructor();
   static SembastDatabase shared = SembastDatabase._privateConstructor();
-  Map<String, Sembast.Database> _db = {};
-  List<Model> _models = List();
+  final Map<String, sembast.Database> _db = {};
+  List<Model> _models = [];
   Sync _sync;
   //Map<String, List<String>> _dateTimeKeyNames = {};
 
@@ -40,16 +40,17 @@ class SembastDatabase extends Database {
       {int delayMicroseconds, int pauseMicroseconds}) {
     if (enable == true) {
       // ignore: invalid_use_of_visible_for_testing_member
-      Sembast.enableSembastCooperator(
+      sembast.enableSembastCooperator(
           delayMicroseconds: delayMicroseconds,
           pauseMicroseconds: pauseMicroseconds);
     } else {
       // ignore: invalid_use_of_visible_for_testing_member
-      Sembast.disableSembastCooperator();
+      sembast.disableSembastCooperator();
     }
   }
 
   /// Check whether database table has initialized
+  @override
   bool hasTable(String tableName) {
     return _db[tableName] != null;
   }
@@ -57,8 +58,8 @@ class SembastDatabase extends Database {
   Future<void> cleanDatabase() async {
     for (var model in _models) {
       var db = _db[model.tableName];
-      final store = Sembast.StoreRef.main();
-      await store.delete(db, finder: Sembast.Finder());
+      final store = sembast.StoreRef.main();
+      await store.delete(db, finder: sembast.Finder());
       await store.drop(db);
       await db.close();
     }
@@ -70,25 +71,22 @@ class SembastDatabase extends Database {
 
   Future<void> clearTable(String tableName) async {
     var db = _db[tableName];
-    final store = Sembast.StoreRef.main();
-    await store.delete(db, finder: Sembast.Finder());
+    final store = sembast.StoreRef.main();
+    await store.delete(db, finder: sembast.Finder());
   }
 
+  @override
   Future<void> save(Model model, {bool syncToCloud = true}) async {
     // Get DB
     final name = model.tableName;
     final db = _db[name];
-    final store = Sembast.StoreRef.main();
+    final store = sembast.StoreRef.main();
 
     // Set id and createdAt if new record. ID is a random UUID
     final create = (model.id == null) || (model.createdAt == null);
-    if (model.id == null) {
-      model.id = Uuid().v4().toString();
-    }
+    model.id ??= Uuid().v4().toString();
 
-    if (model.createdAt == null) {
-      model.createdAt = await NetworkTime.shared.now;
-    }
+    model.createdAt ??= await NetworkTime.shared.now;
 
     // Export model as map and convert DateTime to int
     model.updatedAt = await NetworkTime.shared.now;
@@ -98,21 +96,23 @@ class SembastDatabase extends Database {
         map[entry.key] = (entry.value as DateTime).millisecondsSinceEpoch;
       }
     }
-    map["_status"] = create ? "created" : "updated";
+    map['_status'] = create ? 'created' : 'updated';
 
     // Store and then start the sync
     await store.record(model.id).put(db, map);
 
     // sync to server
     if (syncToCloud) {
+      // ignore: unawaited_futures
       _sync.syncWriteRecord(name, map, create).then((value) => null);
     }
   }
 
   /// Save record map to sembast
+  @override
   Future<void> saveMap(String tableName, String id, Map map,
       {int updatedAt, String status, dynamic transaction}) async {
-    final store = Sembast.StoreRef<String, dynamic>.main();
+    final store = sembast.StoreRef<String, dynamic>.main();
     final create = id == null;
     if (create) {
       id = Uuid().v4().toString();
@@ -130,9 +130,9 @@ class SembastDatabase extends Database {
     }
 
     if (status == null) {
-      map["_status"] = create ? "created" : "updated";
+      map['_status'] = create ? 'created' : 'updated';
     } else {
-      map["_status"] = status;
+      map['_status'] = status;
     }
 
     if (transaction != null) {
@@ -140,7 +140,7 @@ class SembastDatabase extends Database {
         await store.record(id).put(transaction, map);
       } catch (e) {
         print('put error $e');
-        throw e;
+        rethrow;
       }
     } else {
       final db = _db[tableName];
@@ -148,6 +148,7 @@ class SembastDatabase extends Database {
     }
   }
 
+  @override
   Future<void> runInTransaction(String tableName, Function action) async {
     final db = _db[tableName];
     await db.transaction((txn) async {
@@ -156,25 +157,28 @@ class SembastDatabase extends Database {
   }
 
   /// Delete by setting deletedAt and sync
+  @override
   Future<void> delete(Model model) async {
     model.deletedAt = await NetworkTime.shared.now;
     await save(model);
   }
 
   /// Delete sembast local record if exist
+  @override
   Future<void> deleteLocal(String modelName, String id) async {
-    final store = Sembast.StoreRef.main();
+    final store = sembast.StoreRef.main();
     if (await store.record(id).exists(_db[modelName])) {
       await store.record(id).delete(_db[modelName]);
     }
   }
 
   /// Get all model instances in a table
+  @override
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
-    final store = Sembast.StoreRef.main();
-    var records = await store.find(_db[modelName], finder: Sembast.Finder());
+    final store = sembast.StoreRef.main();
+    var records = await store.find(_db[modelName], finder: sembast.Finder());
 
-    List<Model> models = [];
+    var models = <Model>[];
     for (final record in records) {
       final model = instantiateModel();
       model.import(_fixType(record.value));
@@ -186,8 +190,9 @@ class SembastDatabase extends Database {
   }
 
   /// Find model instance by id
+  @override
   Future<Model> find(String modelName, String id, Model model) async {
-    final store = Sembast.StoreRef.main();
+    final store = sembast.StoreRef.main();
     final record = await store.record(id).get(_db[modelName]);
     if (record != null) {
       model.map = _fixType(record);
@@ -200,10 +205,11 @@ class SembastDatabase extends Database {
   }
 
   /// Query the table with the Query class
+  @override
   Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
-    final store = Sembast.StoreRef.main();
-    List<T> results = [];
-    var finder = Sembast.Finder();
+    final store = sembast.StoreRef.main();
+    var results = <T>[];
+    var finder = sembast.Finder();
 
     // parse condition query
     if (query.condition != null) {
@@ -232,7 +238,7 @@ class SembastDatabase extends Database {
           } else if (query.condition.toLowerCase().contains(' or ') ||
               query.condition.toLowerCase().contains(' and ')) {
             // multiple filter a = x or b > 2 or a is null
-            List<Sembast.Filter> filters = List<Sembast.Filter>();
+            var filters = <sembast.Filter>[];
             for (var i = 0; i < conditions.length; i += 4) {
               var filter = _buildFilter(conditions[i], conditions[i + 1],
                   conditions[i + 2], query.caseSensitive);
@@ -240,9 +246,9 @@ class SembastDatabase extends Database {
             }
 
             if (query.condition.toLowerCase().contains(' or ')) {
-              finder.filter = Sembast.Filter.or(filters);
+              finder.filter = sembast.Filter.or(filters);
             } else {
-              finder.filter = Sembast.Filter.and(filters);
+              finder.filter = sembast.Filter.and(filters);
             }
           }
         }
@@ -250,28 +256,28 @@ class SembastDatabase extends Database {
         Map conditions = query.condition;
         // AND/OR query conditions
         if (conditions.length > 1) {
-          List<Sembast.Filter> filters = List<Sembast.Filter>();
+          var filters = <sembast.Filter>[];
           conditions.forEach((key, value) {
             if (query.isMatches == true) {
-              filters.add(Sembast.Filter.matchesRegExp(
+              filters.add(sembast.Filter.matchesRegExp(
                   key, RegExp(value, caseSensitive: query.caseSensitive)));
             } else {
-              filters.add(Sembast.Filter.equals(key, value));
+              filters.add(sembast.Filter.equals(key, value));
             }
           });
 
           if (query.filterOperator.toLowerCase() == 'or') {
-            finder.filter = Sembast.Filter.or(filters);
+            finder.filter = sembast.Filter.or(filters);
           } else {
-            finder.filter = Sembast.Filter.and(filters);
+            finder.filter = sembast.Filter.and(filters);
           }
         } else {
           var entry = conditions.entries.toList()[0];
           if (query.isMatches == true) {
-            finder.filter = Sembast.Filter.matchesRegExp(entry.key,
+            finder.filter = sembast.Filter.matchesRegExp(entry.key,
                 RegExp(entry.value, caseSensitive: query.caseSensitive));
           } else {
-            finder.filter = Sembast.Filter.equals(entry.key, entry.value);
+            finder.filter = sembast.Filter.equals(entry.key, entry.value);
           }
         }
       }
@@ -279,10 +285,10 @@ class SembastDatabase extends Database {
 
     // query order
     if (query.ordering != null) {
-      var sort = query.ordering.split(" ");
+      var sort = query.ordering.split(' ');
       if (sort.length == 2) {
-        var isAscending = "asc" == sort[1].toLowerCase().trim();
-        finder.sortOrder = Sembast.SortOrder(sort[0].trim(), isAscending);
+        var isAscending = 'asc' == sort[1].toLowerCase().trim();
+        finder.sortOrder = sembast.SortOrder(sort[0].trim(), isAscending);
       }
     }
 
@@ -301,7 +307,7 @@ class SembastDatabase extends Database {
         }
       } else {
         // clone map for writable
-        var value = SembastUtils.cloneValue(record.value);
+        var value = sembast_utils.cloneValue(record.value);
         results.add(value);
       }
     }
@@ -309,33 +315,33 @@ class SembastDatabase extends Database {
     return results;
   }
 
-  Sembast.Filter _buildFilter(String left, String filterOperator, String right,
+  sembast.Filter _buildFilter(String left, String filterOperator, String right,
       [bool caseSensitive = false]) {
     switch (filterOperator.trim()) {
       case '<':
-        return Sembast.Filter.lessThan(left.trim(), right.trim());
+        return sembast.Filter.lessThan(left.trim(), right.trim());
       case '<=':
-        return Sembast.Filter.lessThanOrEquals(left.trim(), right.trim());
+        return sembast.Filter.lessThanOrEquals(left.trim(), right.trim());
       case '>':
-        return Sembast.Filter.greaterThan(left.trim(), right.trim());
+        return sembast.Filter.greaterThan(left.trim(), right.trim());
       case '>=':
-        return Sembast.Filter.greaterThanOrEquals(left.trim(), right.trim());
+        return sembast.Filter.greaterThanOrEquals(left.trim(), right.trim());
       case '=':
-        return Sembast.Filter.equals(left.trim(), right.trim());
+        return sembast.Filter.equals(left.trim(), right.trim());
       case '!=':
-        return Sembast.Filter.notEquals(left.trim(), right.trim());
+        return sembast.Filter.notEquals(left.trim(), right.trim());
       case 'is':
-        return Sembast.Filter.isNull(left.trim());
+        return sembast.Filter.isNull(left.trim());
       case 'not':
-        return Sembast.Filter.notNull(left.trim());
+        return sembast.Filter.notNull(left.trim());
       case 'matches':
-        return Sembast.Filter.matchesRegExp(
+        return sembast.Filter.matchesRegExp(
             left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive));
       case 'contains':
-        return Sembast.Filter.equals(left.trim(), right.trim(),
+        return sembast.Filter.equals(left.trim(), right.trim(),
             anyInList: true);
       case 'matchesAny':
-        return Sembast.Filter.matchesRegExp(
+        return sembast.Filter.matchesRegExp(
             left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive),
             anyInList: true);
       default:
@@ -344,15 +350,15 @@ class SembastDatabase extends Database {
   }
 
   Map<String, dynamic> _fixType(Map<String, dynamic> map) {
-    Map<String, dynamic> copiedMap = {}..addAll(map);
+    var copiedMap = {}..addAll(map);
 
-    copiedMap["createdAt"] =
-        DateTime.fromMillisecondsSinceEpoch(map["createdAt"] ?? 0);
-    copiedMap["updatedAt"] =
-        DateTime.fromMillisecondsSinceEpoch(map["updatedAt"] ?? 0);
-    if (map["deletedAt"] is int) {
-      copiedMap["deletedAt"] =
-          DateTime.fromMillisecondsSinceEpoch(map["deletedAt"]);
+    copiedMap['createdAt'] =
+        DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0);
+    copiedMap['updatedAt'] =
+        DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0);
+    if (map['deletedAt'] is int) {
+      copiedMap['deletedAt'] =
+          DateTime.fromMillisecondsSinceEpoch(map['deletedAt']);
     }
 
     return copiedMap;

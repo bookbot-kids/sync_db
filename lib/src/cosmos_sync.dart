@@ -7,23 +7,25 @@ import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
 import 'package:sync_db/src/sync_log_adapter.dart';
 
-import "abstract.dart";
-import "query.dart";
+import 'abstract.dart';
+import 'query.dart';
 
 class CosmosSync extends Sync {
   static CosmosSync shared;
   HTTP http;
   Database database;
   UserSession user;
-  static const String _apiVersion = "2018-12-31";
+  static const String _apiVersion = '2018-12-31';
   String databaseId;
   int pageSize;
-  /** Thread pool for sync all **/
+
+  /// Thread pool for sync all
   final _pool = pool.Pool(1);
-  /** Thread pool for sync one **/
+
+  /// Thread pool for sync one
   final _modelPool = pool.Pool(1);
 
-  final _lock = new Lock();
+  final _lock = Lock();
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -32,21 +34,22 @@ class CosmosSync extends Sync {
     shared.http = HTTP(
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
         config);
-    shared.databaseId = config["dbId"];
-    shared.pageSize = config["pageSize"] ?? 100;
+    shared.databaseId = config['dbId'];
+    shared.pageSize = config['pageSize'] ?? 100;
   }
 
   /// SyncAll will run the sync across the complete database.
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
   /// Reading and writing of tables is done sequentially to manage load to the server.
+  @override
   Future<void> syncAll([bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
 
       await _lock.synchronized(() async {
-        Stopwatch s = Stopwatch()..start();
+        var s = Stopwatch()..start();
         // Loop through tables to read sync
-        var tasks = List<Future>();
+        var tasks = <Future>[];
         for (final token in resourceTokens) {
           String tableName = token.key;
           final index = tableName.indexOf('-shared');
@@ -69,10 +72,12 @@ class CosmosSync extends Sync {
     }
   }
 
+  @override
   Future<void> deleteRecord(String table, String id, [bool refreh]) async {
-    throw UnimplementedError("Not ready in cosmos yet");
+    throw UnimplementedError('Not ready in cosmos yet');
   }
 
+  @override
   Future<void> syncTable(String table, [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
@@ -91,7 +96,7 @@ class CosmosSync extends Sync {
 
   Future<void> _syncOne(String table, dynamic permission,
       [bool refresh = false]) async {
-    Stopwatch s = Stopwatch()..start();
+    var s = Stopwatch()..start();
 
     try {
       if (permission != null) {
@@ -101,7 +106,7 @@ class CosmosSync extends Sync {
         }
 
         // sync write
-        if (permission.value["permissionMode"] == "All" &&
+        if (permission.value['permissionMode'] == 'All' &&
             database.hasTable(table)) {
           await syncWrite(table, permission.value);
         }
@@ -119,23 +124,24 @@ class CosmosSync extends Sync {
   }
 
   /// Read sync this table
+  @override
   Future<void> syncRead(String table, dynamic permission) async {
     SyncLogAdapter.shared.logger?.i('[start syncing read on $table]');
-    String token = permission["_token"];
-    String partition = permission["resourcePartitionKey"][0];
+    String token = permission['_token'];
+    String partition = permission['resourcePartitionKey'][0];
     // Get the last record change timestamp on server side
     final query =
-        Query(table).where('partition = $partition').order("_ts desc").limit(1);
+        Query(table).where('partition = $partition').order('_ts desc').limit(1);
     var records = await database.query(query);
     final record = records.isNotEmpty ? records[0] : null;
     String select;
-    if (record == null || (record != null && record["_ts"] == null)) {
-      select = "SELECT * FROM $table c";
+    if (record == null || (record != null && record['_ts'] == null)) {
+      select = 'SELECT * FROM $table c';
     } else {
       select = "SELECT * FROM $table c WHERE c._ts > ${record["_ts"]}";
     }
 
-    var parameters = List<Map<String, String>>();
+    var parameters = <Map<String, String>>[];
     var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
 
@@ -143,7 +149,7 @@ class CosmosSync extends Sync {
         ?.i('Run table $table(${cosmosResult.length}) in transaction');
     await database.runInTransaction(table, (txn) async {
       for (var cosmosRecord in cosmosResult) {
-        final query = Query(table).where({"id": cosmosRecord['id']}).limit(1);
+        final query = Query(table).where({'id': cosmosRecord['id']}).limit(1);
         var records = await database.query(query, transaction: txn);
         var localRecord = records.isNotEmpty ? records[0] : null;
         if (localRecord == null) {
@@ -169,18 +175,19 @@ class CosmosSync extends Sync {
   }
 
   /// Write sync this table if it has permission
+  @override
   Future<void> syncWrite(String table, dynamic permission) async {
     // Check if we have write permission on table
-    if (permission["permissionMode"] != "All") {
+    if (permission['permissionMode'] != 'All') {
       return;
     }
 
     SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
-    String token = permission["_token"];
-    String partition = permission["resourcePartitionKey"][0];
+    String token = permission['_token'];
+    String partition = permission['resourcePartitionKey'][0];
 
     // Get created records and save to Cosmos DB
-    var query = Query(table).where("_status = created").order("createdAt asc");
+    var query = Query(table).where('_status = created').order('createdAt asc');
     var records = await database.query<Map>(query);
 
     for (final record in records) {
@@ -189,8 +196,8 @@ class CosmosSync extends Sync {
       if (newRecord != null) {
         if (newRecord is String) {
           // resolve conflict by override from cosmos into local
-          String select = 'SELECT * FROM $table c WHERE c.id = @id ';
-          var parameters = List<Map<String, String>>();
+          var select = 'SELECT * FROM $table c WHERE c.id = @id ';
+          var parameters = <Map<String, String>>[];
           _addParameter(parameters, '@id', record['id']);
           var cosmosResult = await _queryDocuments(
               token, table, partition, select, parameters);
@@ -209,29 +216,29 @@ class CosmosSync extends Sync {
     }
 
     // Get records that have been updated and update Cosmos
-    query = Query(table).where("_status = updated").order("updatedAt asc");
+    query = Query(table).where('_status = updated').order('updatedAt asc');
     records = await database.query<Map>(query);
     List recordIds = records.map((item) => item['id']).toList();
 
     dynamic cosmosRecords;
     if (recordIds.isNotEmpty) {
       // get cosmos records base the local id list
-      var select = "SELECT * FROM $table c ";
-      var parameters = List<Map<String, String>>();
-      var where = "";
+      var select = 'SELECT * FROM $table c ';
+      var parameters = <Map<String, String>>[];
+      var where = '';
       recordIds.asMap().forEach((index, value) {
-        where += " c.id = @id$index OR ";
-        _addParameter(parameters, "@id$index", value);
+        where += ' c.id = @id$index OR ';
+        _addParameter(parameters, '@id$index', value);
       });
 
       // build query & remove last OR
-      select = select + " WHERE " + where.substring(0, where.length - 3);
+      select = select + ' WHERE ' + where.substring(0, where.length - 3);
       var cosmosResult = await _queryDocuments(
           token, table, partition, select.trim(), parameters);
 
       cosmosRecords = cosmosResult;
     } else {
-      cosmosRecords = List();
+      cosmosRecords = [];
     }
 
     for (final localRecord in records) {
@@ -262,12 +269,13 @@ class CosmosSync extends Sync {
     SyncLogAdapter.shared.logger?.i('[end syncing write on $table]');
   }
 
+  @override
   Future<void> syncWriteRecord(
       String table, Map<String, dynamic> localRecord, bool isCreated,
       [bool refresh = false]) async {
     try {
       final resourceTokens = await user.resourceTokens(refresh);
-      _pool.withResource(() =>
+      await _pool.withResource(() =>
           _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
     } catch (err, stackTrace) {
       SyncLogAdapter.shared.logger?.e('Sync error: $err', stackTrace);
@@ -284,12 +292,12 @@ class CosmosSync extends Sync {
       }
 
       var permission = resourceToken.value;
-      if (permission["permissionMode"] != "All") {
+      if (permission['permissionMode'] != 'All') {
         return;
       }
 
-      String token = permission["_token"];
-      String partition = permission["resourcePartitionKey"][0];
+      String token = permission['_token'];
+      String partition = permission['resourcePartitionKey'][0];
 
       if (isCreated) {
         var newRecord =
@@ -298,8 +306,8 @@ class CosmosSync extends Sync {
         if (newRecord != null) {
           if (newRecord is String) {
             // resolve conflict by override from cosmos into local
-            String select = 'SELECT * FROM $table c WHERE c.id = @id ';
-            var parameters = List<Map<String, String>>();
+            var select = 'SELECT * FROM $table c WHERE c.id = @id ';
+            var parameters = <Map<String, String>>[];
             _addParameter(parameters, '@id', localRecord['id']);
             var cosmosResult = await _queryDocuments(
                 token, table, partition, select, parameters);
@@ -318,8 +326,8 @@ class CosmosSync extends Sync {
         }
       } else {
         // sync read
-        String select = 'SELECT * FROM $table c WHERE c.id = @id ';
-        var parameters = List<Map<String, String>>();
+        var select = 'SELECT * FROM $table c WHERE c.id = @id ';
+        var parameters = <Map<String, String>>[];
         _addParameter(parameters, '@id', localRecord['id']);
         var cosmosResult =
             await _queryDocuments(token, table, partition, select, parameters);
@@ -385,32 +393,32 @@ class CosmosSync extends Sync {
       List<Map<String, String>> parameters) async {
     try {
       http.headers = {
-        "authorization": Uri.encodeComponent(resouceToken),
-        "content-type": "application/query+json",
-        "x-ms-version": _apiVersion,
-        "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
-        "x-ms-documentdb-isquery": true,
-        "x-ms-max-item-count": pageSize
+        'authorization': Uri.encodeComponent(resouceToken),
+        'content-type': 'application/query+json',
+        'x-ms-version': _apiVersion,
+        'x-ms-documentdb-partitionkey': '[\"$partitionKey\"]',
+        'x-ms-documentdb-isquery': true,
+        'x-ms-max-item-count': pageSize
       };
-      var data = "{\"query\": \"$query\",\"parameters\": $parameters}";
-      dio.Response response = await http.post("colls/$table/docs",
+      var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
+      dio.Response response = await http.post('colls/$table/docs',
           data: data, includeHttpResponse: true);
       var responseData = response.data;
       List docs = responseData['Documents'];
-      String nextToken = response.headers.value('x-ms-continuation');
+      var nextToken = response.headers.value('x-ms-continuation');
       while (nextToken != null) {
         // get next page
         http.headers = {
-          "authorization": Uri.encodeComponent(resouceToken),
-          "content-type": "application/query+json",
-          "x-ms-version": _apiVersion,
-          "x-ms-documentdb-partitionkey": "[\"$partitionKey\"]",
-          "x-ms-documentdb-isquery": true,
-          "x-ms-max-item-count": pageSize,
-          "x-ms-continuation": nextToken
+          'authorization': Uri.encodeComponent(resouceToken),
+          'content-type': 'application/query+json',
+          'x-ms-version': _apiVersion,
+          'x-ms-documentdb-partitionkey': '[\"$partitionKey\"]',
+          'x-ms-documentdb-isquery': true,
+          'x-ms-max-item-count': pageSize,
+          'x-ms-continuation': nextToken
         };
 
-        response = await http.post("colls/$table/docs",
+        response = await http.post('colls/$table/docs',
             data: data, includeHttpResponse: true);
         docs.addAll(response.data['Documents']);
         nextToken = response.headers.value('x-ms-continuation');
@@ -437,13 +445,13 @@ class CosmosSync extends Sync {
 
     try {
       http.headers = {
-        "x-ms-date": now,
-        "authorization": Uri.encodeComponent(resouceToken),
-        "content-type": "application/json",
-        "x-ms-version": _apiVersion,
-        "x-ms-documentdb-partitionkey": "[\"$partition\"]"
+        'x-ms-date': now,
+        'authorization': Uri.encodeComponent(resouceToken),
+        'content-type': 'application/json',
+        'x-ms-version': _apiVersion,
+        'x-ms-documentdb-partitionkey': '[\"$partition\"]'
       };
-      var response = await http.post("colls/$table/docs", data: json);
+      var response = await http.post('colls/$table/docs', data: json);
       // if (logLevel > Log.none) {
       //   print(response);
       // }
@@ -476,13 +484,13 @@ class CosmosSync extends Sync {
 
     try {
       http.headers = {
-        "x-ms-date": now,
-        "authorization": Uri.encodeComponent(resouceToken),
-        "content-type": "application/json",
-        "x-ms-version": _apiVersion,
-        "x-ms-documentdb-partitionkey": "[\"$partition\"]"
+        'x-ms-date': now,
+        'authorization': Uri.encodeComponent(resouceToken),
+        'content-type': 'application/json',
+        'x-ms-version': _apiVersion,
+        'x-ms-documentdb-partitionkey': '[\"$partition\"]'
       };
-      var response = await http.put("colls/$table/docs/$id", data: json);
+      var response = await http.put('colls/$table/docs/$id', data: json);
       // if (logLevel > Log.none) {
       //   print(response);
       // }
@@ -501,6 +509,6 @@ class CosmosSync extends Sync {
   /// Add parameter in list of map for cosmos query
   void _addParameter(
       List<Map<String, String>> parameters, String key, String value) {
-    parameters.add({"\"name\"": "\"$key\"", "\"value\"": "\"$value\""});
+    parameters.add({'\"name\"': '\"$key\"', '\"value\"': '\"$value\"'});
   }
 }

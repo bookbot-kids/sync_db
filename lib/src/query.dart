@@ -56,14 +56,14 @@ class Query {
   /// Sets the sort order on the query and other optionals
   Query order([String order, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
-    this.ordering = order;
+    ordering = order;
     return this;
   }
 
   /// Set the limit on the number of results
   Query limit([int limit, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
-    this.resultLimit = limit;
+    resultLimit = limit;
     return this;
   }
 
@@ -103,6 +103,7 @@ class Query {
 }
 
 class QueryException implements Exception {
+  @override
   String toString() =>
       Intl.message('Query was incorrectly constructed.', name: 'queryFailure');
 }

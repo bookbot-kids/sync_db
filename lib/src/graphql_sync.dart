@@ -9,15 +9,14 @@ import '../sync_db.dart';
 import 'abstract.dart';
 import 'query.dart' as q;
 
-/**
- * Aws AppSync client
- */
+/// Aws AppSync client
 class GraphQLSync extends Sync {
   static GraphQLSync shared;
-  /** Thread pool for sync all **/
+
+  ///Thread pool for sync all
   final _pool = pool.Pool(1);
 
-  /** Thread pool for sync one **/
+  /// Thread pool for sync one
   final _modelPool = pool.Pool(1);
   HttpLink _httpLink;
   UserSession user;
@@ -43,11 +42,11 @@ class GraphQLSync extends Sync {
 
     await _pool.withResource(() async {
       try {
-        Stopwatch s = Stopwatch()..start();
+        var s = Stopwatch()..start();
         await _setup();
 
         // Loop through tables to read sync
-        var tasks = List<Future>();
+        var tasks = <Future>[];
         for (var model in _models) {
           var table = model.tableName;
           tasks.add(_syncTable(table, false, false, downloadAll));
@@ -64,6 +63,7 @@ class GraphQLSync extends Sync {
     });
   }
 
+  @override
   Future<void> deleteRecord(String table, String id, [bool refreh]) async {
     if (!(await user.hasSignedIn())) {
       return;
@@ -94,6 +94,7 @@ class GraphQLSync extends Sync {
     });
   }
 
+  @override
   Future<void> syncTable(String table,
       [bool refresh = false, bool downloadAll = false]) async {
     await _modelPool.withResource(() async {
@@ -105,7 +106,7 @@ class GraphQLSync extends Sync {
       [bool refresh = false,
       bool setup = true,
       bool downloadAll = false]) async {
-    Stopwatch s = Stopwatch()..start();
+    var s = Stopwatch()..start();
     if (!(await user.hasSignedIn())) {
       return;
     }
@@ -253,7 +254,7 @@ class GraphQLSync extends Sync {
     // don't download all for read-only table
     if (!downloadAll || !hasPermission(user.role, table, 'write')) {
       // Get the last record change timestamp on server side
-      final query = q.Query(table).order("lastSynced desc").limit(1);
+      final query = q.Query(table).order('lastSynced desc').limit(1);
       var records = await database.query(query);
       record = records.isNotEmpty ? records.first : null;
     }
@@ -262,8 +263,8 @@ class GraphQLSync extends Sync {
     var fields = _getFields(table);
 
     // TODO paging later
-    int limit = 100000;
-    if (record == null || (record != null && record["lastSynced"] == null)) {
+    var limit = 100000;
+    if (record == null || (record != null && record['lastSynced'] == null)) {
       select = """
         query list${table}s {
           list${table}s (limit: $limit) {
@@ -300,7 +301,7 @@ class GraphQLSync extends Sync {
               ?.i('Run table $table(${documents.length}) in transaction');
           await database.runInTransaction(table, (txn) async {
             for (var doc in documents) {
-              final query = q.Query(table).where({"id": doc['id']}).limit(1);
+              final query = q.Query(table).where({'id': doc['id']}).limit(1);
               var records = await database.query(query, transaction: txn);
               var localRecord = records.isNotEmpty ? records[0] : null;
               if (localRecord == null) {
@@ -324,7 +325,7 @@ class GraphQLSync extends Sync {
             }
           });
         } catch (e) {
-          throw e;
+          rethrow;
         }
       }
     }
@@ -337,7 +338,7 @@ class GraphQLSync extends Sync {
     SyncLogAdapter.shared.logger?.i('[start syncing write on $table]');
     // Get created records and save to Appsync
     var query =
-        q.Query(table).where("_status = created").order("createdAt asc");
+        q.Query(table).where('_status = created').order('createdAt asc');
     var records = await database.query<Map>(query);
 
     for (final record in records) {
@@ -354,7 +355,7 @@ class GraphQLSync extends Sync {
     }
 
     // Get records that have been updated and update to appsync
-    query = q.Query(table).where("_status = updated").order("updatedAt asc");
+    query = q.Query(table).where('_status = updated').order('updatedAt asc');
     records = await database.query<Map>(query);
 
     for (final localRecord in records) {
@@ -419,76 +420,63 @@ class GraphQLSync extends Sync {
     await _getRolePermissions();
   }
 
-  /**
-   * Exclude fields from the local record before sending to server
-   */
+  /// Exclude fields from the local record before sending to server
   void _excludeLocalFields(Map map) {
     map.removeWhere((key, value) =>
         key == 'updatedAt' || key == 'createdAt' || key.startsWith('_'));
   }
 
-  /**
-   * Get document by id
-   */
+  /// Get document by id
   Future<dynamic> _getDocument(String table, String fields, String id) async {
-    var query = """
+    var query = '''
           query get$table {
               get$table(id:"${id}") {
               $fields
               }
             }
-          """;
+          ''';
 
     return await _queryDocuments(graphClient, query);
   }
 
-  /**
-   * Create new document
-   * Return a new document
-   */
+  /// Create new document and return a new document
   Future<dynamic> _createDocument(
       String table, String fields, Map record) async {
     _excludeLocalFields(record);
-    var query = """
+    var query = '''
          mutation put${table}(\$input: Create${table}Input!) {
           create${table}(input: \$input) {
             $fields
           }
         }
-      """;
+      ''';
 
-    var variables = Map<String, dynamic>();
+    var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
     return _mutationDocument(graphClient, query, variables);
   }
 
-  /**
-   * Update a document
-   * Return an updated document
-   */
+  /// Update a document and return an updated document
   Future<dynamic> _updateDocument(
       String table, String fields, Map record) async {
     _excludeLocalFields(record);
-    var query = """
+    var query = '''
               mutation update${table}(\$input: Update${table}Input!) {
                 update${table}(input: \$input) {
                   $fields
                 }
               }
-            """;
+            ''';
 
-    var variables = Map<String, dynamic>();
+    var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
     return _mutationDocument(graphClient, query, variables);
   }
 
-  /**
-   * Delete a document
-   * Return a delete document
-   */
+  /// Delete a document and return a deleted document
   Future<dynamic> _deleteDocument(
       String table, String fields, String id) async {
-    var query = """
+    var query = '''
               mutation delete$table{
                 delete$table(input:{
                   id: "$id"
@@ -496,16 +484,13 @@ class GraphQLSync extends Sync {
                   $fields
                 }
               }
-            """;
+            ''';
 
-    var variables = Map<String, dynamic>();
+    var variables = <String, dynamic>{};
     return _mutationDocument(graphClient, query, variables);
   }
 
-  /**
-   * Execute mutation query like update, insert, delete
-   * Return a document
-   */
+  /// Execute mutation query like update, insert, delete and return a document
   Future<dynamic> _mutationDocument(GraphQLClient graphClient, String query,
       Map<String, dynamic> variables) async {
     var options =
@@ -515,10 +500,7 @@ class GraphQLSync extends Sync {
     return result.data;
   }
 
-  /**
-   * Query documents
-   * Return a list of document
-   */
+  /// Query documents
   Future<dynamic> _queryDocuments(GraphQLClient graphClient, String query,
       [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
@@ -527,31 +509,27 @@ class GraphQLSync extends Sync {
     return result.data;
   }
 
-  /**
-   * Get graph client base on token from cognito
-   */
+  /// Get graph client base on token from cognito
   Future<void> _getGraphClient() async {
     if (!(await user.tokenValid)) {
       await user.resourceTokens();
     }
 
-    final AuthLink authLink = AuthLink(getToken: () => user.refreshToken);
-    final Link link = authLink.concat(shared._httpLink);
+    final authLink = AuthLink(getToken: () => user.refreshToken);
+    final link = authLink.concat(shared._httpLink);
     graphClient = GraphQLClient(
       cache: InMemoryCache(),
       link: link,
     );
   }
 
-  /**
-   * Get defined schema table
-   */
+  /// Get defined schema table
   Future<void> _getSchema() async {
     if (schema != null) {
       return;
     }
 
-    var query = """
+    var query = '''
       query ListSchema {
         listSchemas(limit: 1000) {
           items {
@@ -561,14 +539,14 @@ class GraphQLSync extends Sync {
           }
         }
       }
-    """;
+    ''';
     var documents = await _queryDocuments(graphClient, query);
     // printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listSchemas')) {
       List list = documents['listSchemas']['items'];
-      schema = Map.fromIterable(list, key: (e) => e['table'], value: (e) => e);
+      schema = {for (var e in list) e['table']: e};
     }
 
     if (schema == null) {
@@ -576,15 +554,13 @@ class GraphQLSync extends Sync {
     }
   }
 
-  /**
-   * Get defined role permissions
-   */
+  /// Get defined role permissions
   Future<void> _getRolePermissions() async {
     if (permissions != null) {
       return;
     }
 
-    var query = """
+    var query = '''
       query ListRolePermissions {
         listRolePermissionss(limit: 1000) {
           items {
@@ -595,7 +571,7 @@ class GraphQLSync extends Sync {
           }
         }
       }
-    """;
+    ''';
     var documents = await _queryDocuments(graphClient, query);
     // printLog(documents, logLevel);
     if (documents != null &&
@@ -631,9 +607,7 @@ class GraphQLSync extends Sync {
     return false;
   }
 
-  /**
-   * List available fields from schema for graphql query
-   */
+  /// List available fields from schema for graphql query
   String _getFields(String table) {
     if (schema == null || !schema.containsKey(table)) {
       return 'lastSynced\n id';

@@ -4,7 +4,7 @@ import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/network_time.dart';
 
-import "abstract.dart";
+import 'abstract.dart';
 import 'dart:math';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'dart:convert';
@@ -13,7 +13,7 @@ class AzureADB2CUserSession extends UserSession {
   static Database database;
   HTTP http;
   Map<String, dynamic> config;
-  List<MapEntry> _resourceTokens = [];
+  final List<MapEntry> _resourceTokens = [];
   DateTime _tokenExpiry;
   SharedPreferences prefs;
 
@@ -25,7 +25,7 @@ class AzureADB2CUserSession extends UserSession {
     NetworkTime.shared.now.then((value) {
       _tokenExpiry = value;
     });
-    http = HTTP(config["azure_auth_url"], config);
+    http = HTTP(config['azure_auth_url'], config);
     SharedPreferences.getInstance().then((value) {
       prefs = value;
       if (refreshToken != null) {
@@ -40,18 +40,15 @@ class AzureADB2CUserSession extends UserSession {
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
+  @override
   Future<List<MapEntry>> resourceTokens([bool refresh = false]) async {
-    if (prefs == null) {
-      prefs = await SharedPreferences.getInstance();
-    }
+    prefs ??= await SharedPreferences.getInstance();
 
     if (!(await hasSignedIn())) {
       return List<MapEntry>.from(_resourceTokens);
     }
 
-    if (_tokenExpiry == null) {
-      _tokenExpiry = await NetworkTime.shared.now;
-    }
+    _tokenExpiry ??= await NetworkTime.shared.now;
 
     var now = await NetworkTime.shared.now;
     if (_tokenExpiry.isAfter(now) && refresh == false) {
@@ -64,14 +61,14 @@ class AzureADB2CUserSession extends UserSession {
     // Azure functions also need a code
     try {
       final response = await http.get('/GetResourceTokens', parameters: {
-        "client_token": await clientToken(),
-        "refresh_token": refreshToken,
-        "code": config['azure_code']
+        'client_token': await clientToken(),
+        'refresh_token': refreshToken,
+        'code': config['azure_code']
       });
 
       _resourceTokens.clear();
-      for (final permission in response["permissions"]) {
-        _resourceTokens.add(MapEntry(permission["id"], permission));
+      for (final permission in response['permissions']) {
+        _resourceTokens.add(MapEntry(permission['id'], permission));
       }
 
       _tokenExpiry = expired;
@@ -103,31 +100,35 @@ class AzureADB2CUserSession extends UserSession {
     return List<MapEntry>.from(_resourceTokens);
   }
 
+  @override
   Future<bool> get tokenValid async {
     return _tokenExpiry.isAfter(await NetworkTime.shared.now);
   }
 
+  @override
   set refreshToken(String token) {
-    prefs.setString("refresh_token", token);
+    prefs.setString('refresh_token', token);
   }
 
-  String get refreshToken => prefs.getString("refresh_token");
+  @override
+  String get refreshToken => prefs.getString('refresh_token');
 
+  @override
   set role(String role) {
-    prefs.setString("role", role);
+    prefs.setString('role', role);
   }
 
-  String get role => prefs.getString("role");
+  @override
+  String get role => prefs.getString('role');
 
+  @override
   Future<bool> hasSignedIn() async {
-    if (prefs == null) {
-      prefs = await SharedPreferences.getInstance();
-    }
-
+    prefs ??= await SharedPreferences.getInstance();
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
   /// Removes the refresh token from shared preferences
+  @override
   void signout() {
     prefs.remove('refresh_token');
   }
@@ -141,11 +142,11 @@ class AzureADB2CUserSession extends UserSession {
   Future<String> clientToken() async {
     var now = (await NetworkTime.shared.now).toLocal();
     var expiry = now.add(Duration(minutes: 10));
-    var encodedKey = base64.encode(utf8.encode(config["azureSecret"]));
+    var encodedKey = base64.encode(utf8.encode(config['azureSecret']));
     final claimSet = JwtClaim(
-        subject: config["azure_subject"],
-        issuer: config["azure_issuer"],
-        audience: <String>[config["azure_audience"]],
+        subject: config['azure_subject'],
+        issuer: config['azure_issuer'],
+        audience: <String>[config['azure_audience']],
         notBefore: now,
         defaultIatExp: false,
         expiry: expiry,

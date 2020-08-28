@@ -18,8 +18,6 @@ class SyncLogAdapter {
   /// Set the same logger instance for http
   set logger(Logger value) {
     _logger = value;
-    if (HttpLogAdapter.shared.logger == null) {
-      HttpLogAdapter.shared.logger = value;
-    }
+    HttpLogAdapter.shared.logger ??= value;
   }
 }

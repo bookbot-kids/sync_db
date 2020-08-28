@@ -80,11 +80,12 @@ abstract class Model extends ChangeNotifier {
 
   set map(Map<String, dynamic> map);
 
-  String get tableName => "Model";
+  String get tableName => 'Model';
 
+  @override
   String toString() => map.toString();
 
-  Future<void> save() async => await this.database.save(this);
+  Future<void> save() async => await database.save(this);
 
   Future<void> delete() => throw UnimplementedError();
 }
