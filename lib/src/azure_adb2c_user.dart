@@ -8,7 +8,6 @@ import 'package:sync_db/src/sync_db.dart';
 import 'abstract.dart';
 
 class AzureADB2CUserSession extends UserSession {
-  static Database database;
   HTTP _http;
   Map<String, dynamic> _config;
   final List<MapEntry> _resourceTokens = [];
