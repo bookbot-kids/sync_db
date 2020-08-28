@@ -6,7 +6,7 @@ abstract class UserSession {
   /// Refresh token is stored in Shared Preferences.
   Future<List<MapEntry>> resourceTokens();
 
-  void signout();
+  Future<void> signout();
 
   Future<bool> hasSignedIn();
 
@@ -62,6 +62,9 @@ abstract class Database {
   Future<void> deleteLocal(String modelName, String id);
 
   Future<void> runInTransaction(String tableName, Function action);
+
+  /// clear all data in all tables
+  Future<void> cleanDatabase();
 }
 
 abstract class Model extends ChangeNotifier {

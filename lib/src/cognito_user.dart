@@ -4,6 +4,7 @@ import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/abstract.dart';
+import 'package:sync_db/src/sync_db.dart';
 
 class CognitoUserSession extends UserSession {
   CognitoUserSession(String clientId, Map<String, dynamic> config) {
@@ -63,10 +64,12 @@ class CognitoUserSession extends UserSession {
   set role(String role) => throw UnimplementedError();
 
   @override
-  void signout() {
+  Future<void> signout() async {
     if (_cognitoUser != null) {
-      _cognitoUser.signOut().then((value) => null);
+      await _cognitoUser.signOut();
     }
+
+    await SyncDB.shared.local.cleanDatabase();
   }
 
   /// Initiate user session from local storage if present

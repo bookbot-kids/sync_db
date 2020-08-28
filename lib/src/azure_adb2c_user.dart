@@ -142,9 +142,12 @@ class AzureADB2CUserSession extends UserSession {
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
-  /// Removes the refresh token from shared preferences
+  /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
   @override
-  void signout() {
-    prefs.remove('refresh_token');
+  Future<void> signout() async {
+    _resourceTokens?.clear();
+    _tokenExpiry = null;
+    await prefs.remove('refresh_token');
+    await SyncDB.shared.local.cleanDatabase();
   }
 }

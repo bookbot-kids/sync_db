@@ -94,6 +94,7 @@ class SembastDatabase extends Database {
     return _db[tableName] != null;
   }
 
+  @override
   Future<void> cleanDatabase() async {
     for (var model in _models) {
       var db = _db[model.tableName];
