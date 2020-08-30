@@ -5,12 +5,13 @@ import 'package:logger/logger.dart';
 
 class SyncDB {
   SyncDB._privateConstructor();
+
   static SyncDB shared = SyncDB._privateConstructor();
 
   Database local;
+  Logger logger;
   Sync sync;
   UserSession user;
-  Logger logger;
 
   static void config(Sync sync, UserSession user, Logger logger, Database db) {
     shared.local = db;

@@ -3,6 +3,7 @@ import 'package:universal_platform/universal_platform.dart';
 
 class NetworkTime {
   NetworkTime._privateConstructor();
+
   static NetworkTime shared = NetworkTime._privateConstructor();
 
   int _offset;
@@ -39,9 +40,7 @@ class NetworkTime {
       return DateTime.now();
     }
 
-    return DateTime.now()
-        .toLocal()
-        .add(Duration(milliseconds: offsetValue));
+    return DateTime.now().toLocal().add(Duration(milliseconds: offsetValue));
   }
 
   /// Reset the offset

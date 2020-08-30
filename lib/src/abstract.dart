@@ -75,6 +75,9 @@ abstract class Model extends ChangeNotifier {
 
   Database _database;
 
+  @override
+  String toString() => map.toString();
+
   Database get database => _database;
 
   set database(Database database) => _database = database;
@@ -84,9 +87,6 @@ abstract class Model extends ChangeNotifier {
   set map(Map<String, dynamic> map);
 
   String get tableName => 'Model';
-
-  @override
-  String toString() => map.toString();
 
   Future<void> save() async => await database.save(this);
 

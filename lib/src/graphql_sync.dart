@@ -10,67 +10,25 @@ import 'query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLSync extends Sync {
-  static GraphQLSync shared;
+  GraphQLSync._privateConstructor();
+
+  static GraphQLSync shared = GraphQLSync._privateConstructor();
+
+  Database database;
+  GraphQLClient graphClient;
+  List permissions;
+  Map schema;
+  UserSession user;
+
+  HttpLink _httpLink;
 
   /// synchronized lock for sync all
   final _lock = Lock();
 
+  List<Model> _models;
+
   /// synchronized lock for each table
   final Map<String, Lock> _modelSynchronizedLocks = {};
-
-  HttpLink _httpLink;
-  UserSession user;
-  Database database;
-  List<Model> _models;
-  Map schema;
-  List permissions;
-  GraphQLClient graphClient;
-
-  static void config(Map config, List<Model> models) {
-    shared = GraphQLSync();
-    shared._httpLink = HttpLink(
-      uri: config['appsyncUrl'],
-    );
-    shared._models = models;
-  }
-
-  /// Get synchronized lock for table
-  Lock _getModelLock(String table) {
-    if (!_modelSynchronizedLocks.containsKey(table)) {
-      _modelSynchronizedLocks[table] = Lock();
-    }
-
-    return _modelSynchronizedLocks[table];
-  }
-
-  @override
-  Future<void> syncAll({bool downloadAll = false}) async {
-    if (!(await user.hasSignedIn())) {
-      return;
-    }
-
-    await _lock.synchronized(() async {
-      try {
-        var s = Stopwatch()..start();
-        await _setup();
-
-        // Loop through tables to read sync
-        var tasks = <Future>[];
-        for (var model in _models) {
-          var table = model.tableName;
-          tasks.add(_syncTable(table, false, false, downloadAll));
-        }
-
-        await Future.wait(tasks);
-        var logMessage =
-            'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
-        s.stop();
-        SyncDB.shared.logger?.i(logMessage);
-      } catch (err, stackTrace) {
-        SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
-      }
-    });
-  }
 
   @override
   Future<void> deleteRecord(String table, String id, [bool refreh]) async {
@@ -103,6 +61,122 @@ class GraphQLSync extends Sync {
   }
 
   @override
+  Future<void> syncAll({bool downloadAll = false}) async {
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
+
+    await _lock.synchronized(() async {
+      try {
+        var s = Stopwatch()..start();
+        await _setup();
+
+        // Loop through tables to read sync
+        var tasks = <Future>[];
+        for (var model in _models) {
+          var table = model.tableName;
+          tasks.add(_syncTable(table, false, false, downloadAll));
+        }
+
+        await Future.wait(tasks);
+        var logMessage =
+            'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
+        s.stop();
+        SyncDB.shared.logger?.i(logMessage);
+      } catch (err, stackTrace) {
+        SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
+      }
+    });
+  }
+
+  @override
+  Future<void> syncRead(String table, dynamic graphClient,
+      {bool downloadAll = false}) async {
+    SyncDB.shared.logger?.i('[start syncing read on $table]');
+    dynamic record;
+    // don't download all for read-only table
+    if (!downloadAll || !hasPermission(user.role, table, 'write')) {
+      // Get the last record change timestamp on server side
+      final query = q.Query(table).order('lastSynced desc').limit(1);
+      var records = await database.query(query);
+      record = records.isNotEmpty ? records.first : null;
+    }
+
+    String select;
+    var fields = _getFields(table);
+
+    // TODO paging later
+    var limit = 100000;
+    if (record == null || (record != null && record['lastSynced'] == null)) {
+      select = '''
+        query list${table}s {
+          list${table}s (limit: $limit) {
+            items {
+              $fields
+            }
+          }
+        }
+      ''';
+    } else {
+      select = '''
+      query list$table {
+          list${table}s(filter: {
+            lastSynced: {
+              gt: ${record["lastSynced"]}
+            }
+          }, limit: $limit){
+            items{
+              $fields
+            }
+          }
+      }
+      ''';
+    }
+
+    var response = await _queryDocuments(graphClient, select);
+    // printLog('get table $table response $response', logLevel);
+    if (response != null) {
+      var documents = response['list${table}s']['items'];
+      if (documents != null) {
+        try {
+          // run in transaction
+          SyncDB.shared.logger
+              ?.i('Run table $table(${documents.length}) in transaction');
+          await database.runInTransaction(table, (txn) async {
+            for (var doc in documents) {
+              final query = q.Query(table).where({'id': doc['id']}).limit(1);
+              var records = await database.query(query, transaction: txn);
+              var localRecord = records.isNotEmpty ? records[0] : null;
+              if (localRecord == null) {
+                // save new to local, set status to synced to prevent sync again
+                _fixCreatedAt(doc);
+                await database.saveMap(table, doc['id'], doc,
+                    updatedAt: doc['lastSynced'] * 1000,
+                    status: 'synced',
+                    transaction: txn);
+              } else {
+                // update from appsync to local, set status to synced to prevent sync again
+                var localDate = localRecord['updatedAt'] / 1000;
+                if (localDate < doc['lastSynced']) {
+                  _fixCreatedAt(doc);
+                  await database.saveMap(table, doc['id'], doc,
+                      updatedAt: doc['lastSynced'] * 1000,
+                      status: 'synced',
+                      transaction: txn);
+                }
+              }
+            }
+          });
+        } catch (e) {
+          rethrow;
+        }
+      }
+    }
+
+    SyncDB.shared.logger?.i('[end syncing read on $table]');
+  }
+
+  @override
   Future<void> syncTable(String table,
       [bool refresh = false, bool downloadAll = false]) async {
     await _getModelLock(table).synchronized(() async {
@@ -110,52 +184,80 @@ class GraphQLSync extends Sync {
     });
   }
 
-  Future<void> _syncTable(String table,
-      [bool refresh = false,
-      bool setup = true,
-      bool downloadAll = false]) async {
-    var s = Stopwatch()..start();
-    if (!(await user.hasSignedIn())) {
-      return;
+  @override
+  Future<void> syncWrite(String table, dynamic graphClient) async {
+    SyncDB.shared.logger?.i('[start syncing write on $table]');
+    // Get created records and save to Appsync
+    var query =
+        q.Query(table).where('_status = created').order('createdAt asc');
+    var records = await database.query<Map>(query);
+
+    for (final record in records) {
+      var fields = _getFields(table);
+
+      var response = await _createDocument(table, fields, record);
+      // update to local & set synced status after syncing
+      if (response != null) {
+        var newRecord = response['create${table}'];
+        _fixCreatedAt(newRecord);
+        await database.saveMap(table, newRecord['id'], newRecord,
+            status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
+      }
     }
 
-    try {
-      if (setup) {
-        await _setup();
-      }
+    // Get records that have been updated and update to appsync
+    query = q.Query(table).where('_status = updated').order('updatedAt asc');
+    records = await database.query<Map>(query);
 
-      // Sync read
-      if (schema.containsKey(table)) {
-        if (hasPermission(user.role, table, 'read')) {
-          await syncRead(table, graphClient, downloadAll: downloadAll);
+    for (final localRecord in records) {
+      // get appsync record
+      var fields = _getFields(table);
+      var response = await _getDocument(table, fields, localRecord['id']);
+
+      // printLog(response, logLevel);
+      if (response != null) {
+        if (response['get$table'] != null) {
+          var remoteRecord = response['get$table'];
+          if (remoteRecord != null) {
+            // compare date between local & remote
+            var localDate = localRecord['updatedAt'] / 1000;
+            // if local is newest, merge and save to appsync
+            if (localDate > remoteRecord['lastSynced']) {
+              localRecord.forEach((key, value) {
+                if (key != 'updatedAt') {
+                  remoteRecord[key] = value;
+                }
+              });
+
+              var response = await _updateDocument(table, fields, remoteRecord);
+              // update to local & set synced status after syncing
+              if (response != null) {
+                var updatedRecord = response['update${table}'];
+                _fixCreatedAt(updatedRecord);
+                await database.saveMap(
+                    table, updatedRecord['id'], updatedRecord,
+                    status: 'synced',
+                    updatedAt: updatedRecord['lastSynced'] * 1000);
+              }
+            }
+          }
         } else {
-          SyncDB.shared.logger?.i(
-              'role ${user.role} does not have read permission in table $table');
+          // if there is no record in appsync, then create a new one
+          var fields = _getFields(table);
+          var response = await _createDocument(table, fields, localRecord);
+
+          // update to local & set synced status after syncing
+          if (response != null && response['create${table}'] != null) {
+            var newRecord = response['create${table}'];
+            _fixCreatedAt(newRecord);
+            await database.saveMap(table, newRecord['id'], newRecord,
+                status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
+          }
         }
-      } else {
-        SyncDB.shared.logger?.i('table $table does not exist in schema');
       }
-
-      // Sync write
-      if (schema.containsKey(table)) {
-        if (hasPermission(user.role, table, 'write')) {
-          await syncWrite(table, graphClient);
-        } else {
-          SyncDB.shared.logger?.i(
-              'role ${user.role} does not have write permission in table $table');
-        }
-      } else {
-        SyncDB.shared.logger?.i('table $table does not exist in schema');
-      }
-
-      var logMessage =
-          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
-
-      SyncDB.shared.logger?.i(logMessage);
-      s.stop();
-    } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync table $table error: $err', err, stackTrace);
     }
+
+    SyncDB.shared.logger?.i('[end syncing write on $table]');
   }
 
   @override
@@ -251,167 +353,68 @@ class GraphQLSync extends Sync {
     });
   }
 
-  @override
-  Future<void> syncRead(String table, dynamic graphClient,
-      {bool downloadAll = false}) async {
-    SyncDB.shared.logger?.i('[start syncing read on $table]');
-    dynamic record;
-    // don't download all for read-only table
-    if (!downloadAll || !hasPermission(user.role, table, 'write')) {
-      // Get the last record change timestamp on server side
-      final query = q.Query(table).order('lastSynced desc').limit(1);
-      var records = await database.query(query);
-      record = records.isNotEmpty ? records.first : null;
-    }
-
-    String select;
-    var fields = _getFields(table);
-
-    // TODO paging later
-    var limit = 100000;
-    if (record == null || (record != null && record['lastSynced'] == null)) {
-      select = '''
-        query list${table}s {
-          list${table}s (limit: $limit) {
-            items {
-              $fields
-            }
-          }
-        }
-      ''';
-    } else {
-      select = '''
-      query list$table {
-          list${table}s(filter: {
-            lastSynced: {
-              gt: ${record["lastSynced"]}
-            }
-          }, limit: $limit){
-            items{
-              $fields
-            }
-          }
-      }
-      ''';
-    }
-
-    var response = await _queryDocuments(graphClient, select);
-    // printLog('get table $table response $response', logLevel);
-    if (response != null) {
-      var documents = response['list${table}s']['items'];
-      if (documents != null) {
-        try {
-          // run in transaction
-          SyncDB.shared.logger
-              ?.i('Run table $table(${documents.length}) in transaction');
-          await database.runInTransaction(table, (txn) async {
-            for (var doc in documents) {
-              final query = q.Query(table).where({'id': doc['id']}).limit(1);
-              var records = await database.query(query, transaction: txn);
-              var localRecord = records.isNotEmpty ? records[0] : null;
-              if (localRecord == null) {
-                // save new to local, set status to synced to prevent sync again
-                _fixCreatedAt(doc);
-                await database.saveMap(table, doc['id'], doc,
-                    updatedAt: doc['lastSynced'] * 1000,
-                    status: 'synced',
-                    transaction: txn);
-              } else {
-                // update from appsync to local, set status to synced to prevent sync again
-                var localDate = localRecord['updatedAt'] / 1000;
-                if (localDate < doc['lastSynced']) {
-                  _fixCreatedAt(doc);
-                  await database.saveMap(table, doc['id'], doc,
-                      updatedAt: doc['lastSynced'] * 1000,
-                      status: 'synced',
-                      transaction: txn);
-                }
-              }
-            }
-          });
-        } catch (e) {
-          rethrow;
-        }
-      }
-    }
-
-    SyncDB.shared.logger?.i('[end syncing read on $table]');
+  static void config(Map config, List<Model> models) {
+    shared._httpLink = HttpLink(
+      uri: config['appsyncUrl'],
+    );
+    shared._models = models;
   }
 
-  @override
-  Future<void> syncWrite(String table, dynamic graphClient) async {
-    SyncDB.shared.logger?.i('[start syncing write on $table]');
-    // Get created records and save to Appsync
-    var query =
-        q.Query(table).where('_status = created').order('createdAt asc');
-    var records = await database.query<Map>(query);
-
-    for (final record in records) {
-      var fields = _getFields(table);
-
-      var response = await _createDocument(table, fields, record);
-      // update to local & set synced status after syncing
-      if (response != null) {
-        var newRecord = response['create${table}'];
-        _fixCreatedAt(newRecord);
-        await database.saveMap(table, newRecord['id'], newRecord,
-            status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
-      }
+  /// Get synchronized lock for table
+  Lock _getModelLock(String table) {
+    if (!_modelSynchronizedLocks.containsKey(table)) {
+      _modelSynchronizedLocks[table] = Lock();
     }
 
-    // Get records that have been updated and update to appsync
-    query = q.Query(table).where('_status = updated').order('updatedAt asc');
-    records = await database.query<Map>(query);
+    return _modelSynchronizedLocks[table];
+  }
 
-    for (final localRecord in records) {
-      // get appsync record
-      var fields = _getFields(table);
-      var response = await _getDocument(table, fields, localRecord['id']);
+  Future<void> _syncTable(String table,
+      [bool refresh = false,
+      bool setup = true,
+      bool downloadAll = false]) async {
+    var s = Stopwatch()..start();
+    if (!(await user.hasSignedIn())) {
+      return;
+    }
 
-      // printLog(response, logLevel);
-      if (response != null) {
-        if (response['get$table'] != null) {
-          var remoteRecord = response['get$table'];
-          if (remoteRecord != null) {
-            // compare date between local & remote
-            var localDate = localRecord['updatedAt'] / 1000;
-            // if local is newest, merge and save to appsync
-            if (localDate > remoteRecord['lastSynced']) {
-              localRecord.forEach((key, value) {
-                if (key != 'updatedAt') {
-                  remoteRecord[key] = value;
-                }
-              });
+    try {
+      if (setup) {
+        await _setup();
+      }
 
-              var response = await _updateDocument(table, fields, remoteRecord);
-              // update to local & set synced status after syncing
-              if (response != null) {
-                var updatedRecord = response['update${table}'];
-                _fixCreatedAt(updatedRecord);
-                await database.saveMap(
-                    table, updatedRecord['id'], updatedRecord,
-                    status: 'synced',
-                    updatedAt: updatedRecord['lastSynced'] * 1000);
-              }
-            }
-          }
+      // Sync read
+      if (schema.containsKey(table)) {
+        if (hasPermission(user.role, table, 'read')) {
+          await syncRead(table, graphClient, downloadAll: downloadAll);
         } else {
-          // if there is no record in appsync, then create a new one
-          var fields = _getFields(table);
-          var response = await _createDocument(table, fields, localRecord);
-
-          // update to local & set synced status after syncing
-          if (response != null && response['create${table}'] != null) {
-            var newRecord = response['create${table}'];
-            _fixCreatedAt(newRecord);
-            await database.saveMap(table, newRecord['id'], newRecord,
-                status: 'synced', updatedAt: newRecord['lastSynced'] * 1000);
-          }
+          SyncDB.shared.logger?.i(
+              'role ${user.role} does not have read permission in table $table');
         }
+      } else {
+        SyncDB.shared.logger?.i('table $table does not exist in schema');
       }
-    }
 
-    SyncDB.shared.logger?.i('[end syncing write on $table]');
+      // Sync write
+      if (schema.containsKey(table)) {
+        if (hasPermission(user.role, table, 'write')) {
+          await syncWrite(table, graphClient);
+        } else {
+          SyncDB.shared.logger?.i(
+              'role ${user.role} does not have write permission in table $table');
+        }
+      } else {
+        SyncDB.shared.logger?.i('table $table does not exist in schema');
+      }
+
+      var logMessage =
+          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
+
+      SyncDB.shared.logger?.i(logMessage);
+      s.stop();
+    } catch (err, stackTrace) {
+      SyncDB.shared.logger?.e('Sync table $table error: $err', err, stackTrace);
+    }
   }
 
   Future<void> _setup() async {
