@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:pool/pool.dart' as pool;
 import 'package:robust_http/exceptions.dart';
+import 'package:synchronized/synchronized.dart';
 import '../sync_db.dart';
 import 'abstract.dart';
 import 'query.dart' as q;
@@ -12,11 +12,12 @@ import 'query.dart' as q;
 class GraphQLSync extends Sync {
   static GraphQLSync shared;
 
-  ///Thread pool for sync all
-  final _pool = pool.Pool(1);
+  /// synchronized lock for sync all
+  final _lock = Lock();
 
-  /// Thread pool for sync one
-  final _modelPool = pool.Pool(1);
+  /// synchronized lock for each table
+  final Map<String, Lock> _modelSynchronizedLocks = {};
+
   HttpLink _httpLink;
   UserSession user;
   Database database;
@@ -33,13 +34,22 @@ class GraphQLSync extends Sync {
     shared._models = models;
   }
 
+  /// Get synchronized lock for table
+  Lock _getModelLock(String table) {
+    if (!_modelSynchronizedLocks.containsKey(table)) {
+      _modelSynchronizedLocks[table] = Lock();
+    }
+
+    return _modelSynchronizedLocks[table];
+  }
+
   @override
   Future<void> syncAll({bool downloadAll = false}) async {
     if (!(await user.hasSignedIn())) {
       return;
     }
 
-    await _pool.withResource(() async {
+    await _lock.synchronized(() async {
       try {
         var s = Stopwatch()..start();
         await _setup();
@@ -68,7 +78,7 @@ class GraphQLSync extends Sync {
       return;
     }
 
-    await _pool.withResource(() async {
+    await _getModelLock(table).synchronized(() async {
       try {
         await _setup();
 
@@ -95,7 +105,7 @@ class GraphQLSync extends Sync {
   @override
   Future<void> syncTable(String table,
       [bool refresh = false, bool downloadAll = false]) async {
-    await _modelPool.withResource(() async {
+    await _getModelLock(table).synchronized(() async {
       await _syncTable(table, refresh, true, downloadAll);
     });
   }
@@ -156,7 +166,7 @@ class GraphQLSync extends Sync {
       return;
     }
 
-    await _modelPool.withResource(() async {
+    await _getModelLock(table).synchronized(() async {
       try {
         await _setup();
 

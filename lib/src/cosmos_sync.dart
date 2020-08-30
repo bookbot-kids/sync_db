@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart' as dio;
-import 'package:pool/pool.dart' as pool;
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/src/network_time.dart';
@@ -19,13 +18,11 @@ class CosmosSync extends Sync {
   String databaseId;
   int pageSize;
 
-  /// Thread pool for sync all
-  final _pool = pool.Pool(1);
-
-  /// Thread pool for sync one
-  final _modelPool = pool.Pool(1);
-
+  /// synchronized lock for sync all
   final _lock = Lock();
+
+  /// synchronized lock for each table
+  final Map<String, Lock> _modelSynchronizedLocks = {};
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -36,6 +33,15 @@ class CosmosSync extends Sync {
         config);
     shared.databaseId = config['dbId'];
     shared.pageSize = config['pageSize'] ?? 100;
+  }
+
+  /// Get synchronized lock for table
+  Lock _getModelLock(String table) {
+    if (!_modelSynchronizedLocks.containsKey(table)) {
+      _modelSynchronizedLocks[table] = Lock();
+    }
+
+    return _modelSynchronizedLocks[table];
   }
 
   /// SyncAll will run the sync across the complete database.
@@ -93,7 +99,7 @@ class CosmosSync extends Sync {
         (element) => element.key == table,
         orElse: () => null,
       );
-      await _modelPool.withResource(() async {
+      await _getModelLock(table).synchronized(() async {
         await _syncOne(table, permission, refresh);
       });
     } catch (err, stackTrace) {
@@ -286,7 +292,7 @@ class CosmosSync extends Sync {
       }
 
       final resourceTokens = await user.resourceTokens();
-      await _pool.withResource(() =>
+      await _getModelLock(table).synchronized(() =>
           _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
     } catch (err, stackTrace) {
       SyncDB.shared.logger?.e('Sync error: $err', stackTrace);
