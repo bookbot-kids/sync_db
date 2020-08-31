@@ -77,7 +77,8 @@ abstract class Service {
   }
 
   /// Get records from online services
-  Future<List<Map>> _readRecords(String table, DateTime timestamp);
+  Future<List<Map>> _readRecords(String table, DateTime timestamp,
+      {String paginationToken});
 
   /// Write records to online services and return written records
   Future<List<Map>> _writeRecords(String table);
