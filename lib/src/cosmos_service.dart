@@ -49,7 +49,7 @@ class CosmosService extends Service {
         });
         result.addAll(cosmosResult);
       }
-    } on RetryFailureException catch (e) {
+    } on RetryFailureException {
       if (readRetry < 2) {
         readRetry++;
         await readRecords(table, timestamp, paginationToken: paginationToken);
@@ -154,7 +154,7 @@ class CosmosService extends Service {
           }
         }
       }
-    } on RetryFailureException catch (e) {
+    } on RetryFailureException {
       if (writeRertry < 2) {
         writeRertry++;
         await writeRecords(table);
