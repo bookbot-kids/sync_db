@@ -8,6 +8,8 @@ class CosmosService extends Service {
   HTTP http;
   int pageSize;
   UserSession user;
+  int readRetry = 0;
+  int writeRertry = 0;
 
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
@@ -24,28 +26,36 @@ class CosmosService extends Service {
   @override
   Future<List<Map>> readRecords(String table, DateTime timestamp,
       {String paginationToken}) async {
-    String select;
-    if (timestamp == null) {
-      select = 'SELECT * FROM $table c';
-    } else {
-      select =
-          'SELECT * FROM $table c WHERE c._ts > ${timestamp.millisecondsSinceEpoch}';
-    }
-
     var result = <Map>[];
+    try {
+      String select;
+      if (timestamp == null) {
+        select = 'SELECT * FROM $table c';
+      } else {
+        select =
+            'SELECT * FROM $table c WHERE c._ts > ${timestamp.millisecondsSinceEpoch}';
+      }
 
-    List<CosmosResourceToken> allPermissions = await user.resourceTokens();
-    var availablePermissions = allPermissions.where((element) =>
-        element.id == table ||
-        (element.id.contains('-shared') && element.id.contains(table)));
-    for (var permission in availablePermissions) {
-      var parameters = <Map<String, String>>[];
-      List<Map> cosmosResult = await _queryDocuments(
-          permission.token, table, permission.partition, select, parameters);
-      cosmosResult.forEach((element) {
-        element['serviceUpdatedAt'] = element['_ts'];
-      });
-      result.addAll(cosmosResult);
+      List<CosmosResourceToken> allPermissions = await user.resourceTokens();
+      var availablePermissions = allPermissions.where((element) =>
+          element.id == table ||
+          (element.id.contains('-shared') && element.id.contains(table)));
+      for (var permission in availablePermissions) {
+        var parameters = <Map<String, String>>[];
+        List<Map> cosmosResult = await _queryDocuments(
+            permission.token, table, permission.partition, select, parameters);
+        cosmosResult.forEach((element) {
+          element['serviceUpdatedAt'] = element['_ts'];
+        });
+        result.addAll(cosmosResult);
+      }
+    } on RetryFailureException catch (e) {
+      if (readRetry < 2) {
+        readRetry++;
+        await readRecords(table, timestamp, paginationToken: paginationToken);
+      } else {
+        readRetry = 0;
+      }
     }
 
     return result;
@@ -53,93 +63,103 @@ class CosmosService extends Service {
 
   @override
   Future<List<Map>> writeRecords(String table) async {
-    List<CosmosResourceToken> allPermissions = await user.resourceTokens();
-    var availablePermissions = allPermissions.where((element) =>
-        element.id == table ||
-        (element.id.contains('-shared') && element.id.contains(table)));
     var result = <Map>[];
-    // Get created records and save to Cosmos DB
-    var query = Query(table)
-        .where('_status = ${ModelState.created.name}')
-        .order('createdAt asc');
-    var createdRecords = await database.query<Map>(query);
+    try {
+      List<CosmosResourceToken> allPermissions = await user.resourceTokens();
+      var availablePermissions = allPermissions.where((element) =>
+          element.id == table ||
+          (element.id.contains('-shared') && element.id.contains(table)));
 
-    // Get records that have been updated and update Cosmos
-    query = Query(table)
-        .where('_status = ${ModelState.updated.name}')
-        .order('updatedAt asc');
-    var updatedRecords = await database.query<Map>(query);
-    List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
+      // Get created records and save to Cosmos DB
+      var query = Query(table)
+          .where('_status = ${ModelState.created.name}')
+          .order('createdAt asc');
+      var createdRecords = await database.query<Map>(query);
 
-    for (var permission in availablePermissions) {
-      for (final record in createdRecords) {
-        if (record['partition'] == permission.partition) {
-          var newRecord = await _createDocument(
-              permission.token, table, permission.partition, record);
-          // update to local & set synced status after syncing
-          if (newRecord != null) {
-            newRecord['state'] = ModelState.created.name;
-            newRecord['serviceUpdatedAt'] = newRecord['_ts'];
-            result.add(newRecord);
+      // Get records that have been updated and update Cosmos
+      query = Query(table)
+          .where('_status = ${ModelState.updated.name}')
+          .order('updatedAt asc');
+      var updatedRecords = await database.query<Map>(query);
+      List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
+
+      for (var permission in availablePermissions) {
+        for (final record in createdRecords) {
+          if (record['partition'] == permission.partition) {
+            var newRecord = await _createDocument(
+                permission.token, table, permission.partition, record);
+            // update to local & set synced status after syncing
+            if (newRecord != null) {
+              newRecord['state'] = ModelState.created.name;
+              newRecord['serviceUpdatedAt'] = newRecord['_ts'];
+              result.add(newRecord);
+            }
           }
         }
-      }
 
-      if (updatedRecordIds.isNotEmpty) {
-        // get cosmos records base the local id list
-        var select = 'SELECT * FROM $table c ';
-        var parameters = <Map<String, String>>[];
-        var where = '';
-        updatedRecordIds.asMap().forEach((index, value) {
-          where += ' c.id = @id$index OR ';
-          _addParameter(parameters, '@id$index', value);
-        });
+        if (updatedRecordIds.isNotEmpty) {
+          // get cosmos records base the local id list
+          var select = 'SELECT * FROM $table c ';
+          var parameters = <Map<String, String>>[];
+          var where = '';
+          updatedRecordIds.asMap().forEach((index, value) {
+            where += ' c.id = @id$index OR ';
+            _addParameter(parameters, '@id$index', value);
+          });
 
-        // build query & remove last OR
-        select = select + ' WHERE ' + where.substring(0, where.length - 3);
-        var cosmosRecords = await _queryDocuments(permission.token, table,
-            permission.partition, select.trim(), parameters);
-        for (final localRecord in updatedRecords) {
-          // compare to cosmos
-          for (var cosmosRecord in cosmosRecords) {
-            if (cosmosRecord['id'] == localRecord['id'] &&
-                cosmosRecord['partition'] == permission.partition) {
-              var localDate = localRecord['updatedAt'] / 1000;
-              // if local is newest, merge and save to cosmos
-              if (localDate > cosmosRecord['_ts']) {
-                localRecord.forEach((key, value) {
-                  if (key != 'updatedAt') {
-                    cosmosRecord[key] = value;
+          // build query & remove last OR
+          select = select + ' WHERE ' + where.substring(0, where.length - 3);
+          var cosmosRecords = await _queryDocuments(permission.token, table,
+              permission.partition, select.trim(), parameters);
+          for (final localRecord in updatedRecords) {
+            // compare to cosmos
+            for (var cosmosRecord in cosmosRecords) {
+              if (cosmosRecord['id'] == localRecord['id'] &&
+                  cosmosRecord['partition'] == permission.partition) {
+                var localDate = localRecord['updatedAt'] / 1000;
+                // if local is newest, merge and save to cosmos
+                if (localDate > cosmosRecord['_ts']) {
+                  localRecord.forEach((key, value) {
+                    if (key != 'updatedAt') {
+                      cosmosRecord[key] = value;
+                    }
+                  });
+
+                  var updatedRecord = await _updateDocument(
+                      permission.token,
+                      table,
+                      cosmosRecord['id'],
+                      permission.partition,
+                      cosmosRecord);
+                  // update to local & set synced status after syncing
+                  if (updatedRecord != null) {
+                    updatedRecord['_status'] = ModelState.updated.name;
+                    updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
+                    result.add(updatedRecord);
                   }
-                });
+                } else {
+                  // local is older, merge and save to local
+                  cosmosRecord.forEach((key, value) {
+                    if (key != 'updatedAt') {
+                      localRecord[key] = value;
+                    }
+                  });
 
-                var updatedRecord = await _updateDocument(
-                    permission.token,
-                    table,
-                    cosmosRecord['id'],
-                    permission.partition,
-                    cosmosRecord);
-                // update to local & set synced status after syncing
-                if (updatedRecord != null) {
-                  updatedRecord['_status'] = ModelState.updated.name;
-                  updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
-                  result.add(updatedRecord);
+                  localRecord['_status'] = ModelState.synced.name;
+                  await await database.saveMap(
+                      table, localRecord['id'], localRecord);
                 }
-              } else {
-                // local is older, merge and save to local
-                cosmosRecord.forEach((key, value) {
-                  if (key != 'updatedAt') {
-                    localRecord[key] = value;
-                  }
-                });
-
-                localRecord['_status'] = ModelState.synced.name;
-                await await database.saveMap(
-                    table, localRecord['id'], localRecord);
               }
             }
           }
         }
+      }
+    } on RetryFailureException catch (e) {
+      if (writeRertry < 2) {
+        writeRertry++;
+        await writeRecords(table);
+      } else {
+        writeRertry = 0;
       }
     }
 
@@ -190,7 +210,16 @@ class CosmosService extends Service {
 
       return docs;
     } catch (e, stackTrace) {
-      Sync.shared.logger?.e('query cosmos document error', e, stackTrace);
+      if (e is UnexpectedResponseException) {
+        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
+          await user.reset();
+          throw RetryFailureException();
+        } else {
+          Sync.shared.logger?.e('query cosmos document error', e, stackTrace);
+        }
+      } else {
+        Sync.shared.logger?.e('query cosmos document error', e, stackTrace);
+      }
     }
 
     return [];
@@ -217,16 +246,16 @@ class CosmosService extends Service {
       };
       var response = await http.post('colls/$table/docs', data: json);
       return response;
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (e is UnexpectedResponseException) {
-        try {
-          if (e.response.statusCode == 409) {
-            // conflict
-            return 'conflict';
-          }
-        } catch (e) {
-          // ignore
+        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
+          await user.reset();
+          throw RetryFailureException();
+        } else {
+          Sync.shared.logger?.e('create cosmos document', e, stackTrace);
         }
+      } else {
+        Sync.shared.logger?.e('create cosmos document', e, stackTrace);
       }
     }
   }
@@ -251,8 +280,17 @@ class CosmosService extends Service {
       };
       var response = await http.put('colls/$table/docs/$id', data: json);
       return response;
-    } catch (e) {
-      print(e);
+    } catch (e, stackTrace) {
+      if (e is UnexpectedResponseException) {
+        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
+          await user.reset();
+          throw RetryFailureException();
+        } else {
+          Sync.shared.logger?.e('update cosmos document', e, stackTrace);
+        }
+      } else {
+        Sync.shared.logger?.e('update cosmos document', e, stackTrace);
+      }
     }
   }
 

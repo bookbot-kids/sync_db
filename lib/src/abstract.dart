@@ -18,7 +18,7 @@ abstract class UserSession {
 
   String get role;
 
-  Future<void> refresh();
+  Future<void> reset();
 }
 
 abstract class Database {

@@ -53,8 +53,9 @@ class AzureADB2CUserSession extends UserSession {
   String get role => prefs.getString('role');
 
   @override
-  Future<void> refresh() async {
+  Future<void> reset() async {
     _tokenExpiry = await NetworkTime.shared.now;
+    await resourceTokens();
   }
 
   @override
@@ -156,7 +157,7 @@ class AzureADB2CUserSession extends UserSession {
         }
       }
 
-      await refresh();
+      await reset();
       return await resourceTokens();
     } catch (error, stackTrace) {
       Sync.shared.logger?.e('fetch token error', error, stackTrace);
