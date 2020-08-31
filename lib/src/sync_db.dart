@@ -11,7 +11,6 @@ class Sync {
   Database local;
   Service service;
   UserSession user;
-  Logger logger;
 
   static void config(
       Service service, UserSession user, Logger logger, Database db) {

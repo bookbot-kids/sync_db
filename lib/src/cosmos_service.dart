@@ -6,12 +6,29 @@ class CosmosService extends Service {
   CosmosService._privateConstructor();
   Service shared = CosmosService._privateConstructor();
 
+class CosmosSync extends Sync {
+  CosmosSync._privateConstructor();
+
+  static CosmosSync shared = CosmosSync._privateConstructor();
+
+  Database database;
   String databaseId;
   HTTP http;
   int pageSize;
-  AzureADB2CUserSession user;
+  UserSession user;
 
   static const String _apiVersion = '2018-12-31';
+
+  /// synchronized lock for sync all
+  final _lock = Lock();
+
+  /// synchronized lock for each table
+  final Map<String, Lock> _modelSynchronizedLocks = {};
+
+  @override
+  Future<void> deleteRecord(String table, String id, [bool refreh]) async {
+    throw UnimplementedError('Not ready in cosmos yet');
+  }
 
   /// SyncAll will run the sync across the complete database.
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
@@ -46,7 +63,7 @@ class CosmosService extends Service {
         s.stop();
       });
     } catch (err, stackTrace) {
-      Sync.shared.logger?.e('Sync error: $err', err, stackTrace);
+      SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
     }
   }
 
@@ -118,6 +135,26 @@ class CosmosService extends Service {
       });
     } catch (err, stackTrace) {
       Sync.shared.logger?.e('Sync $table error: $err', err, stackTrace);
+    }
+  }
+
+  @override
+  Future<void> syncTable(String table, [bool refresh = false]) async {
+    try {
+      if (refresh) {
+        await user.refresh();
+      }
+
+      final resourceTokens = await user.resourceTokens();
+      var permission = resourceTokens.firstWhere(
+        (element) => element.key == table,
+        orElse: () => null,
+      );
+      await _getModelLock(table).synchronized(() async {
+        await _syncOne(table, permission, refresh);
+      });
+    } catch (err, stackTrace) {
+      SyncDB.shared.logger?.e('Sync $table error: $err', err, stackTrace);
     }
   }
 
@@ -226,7 +263,7 @@ class CosmosService extends Service {
       }
 
       final resourceTokens = await user.resourceTokens();
-      await _pool.withResource(() =>
+      await _getModelLock(table).synchronized(() =>
           _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
     } catch (err, stackTrace) {
       Sync.shared.logger?.e('Sync error: $err', stackTrace);
@@ -268,6 +305,54 @@ class CosmosService extends Service {
       Sync.shared.logger?.i(logMessage);
     } catch (err, stackTrace) {
       Sync.shared.logger?.e('Sync $table error: $err', stackTrace);
+    }
+  }
+
+  /// Configure the Cosmos DB, which in this case is the DB url
+  /// This will require the `databaseAccount` name, and database id `dbId` in the config map
+  static void config(Map config) {
+    shared.http = HTTP(
+        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
+        config);
+    shared.databaseId = config['dbId'];
+    shared.pageSize = config['pageSize'] ?? 100;
+  }
+
+  /// Get synchronized lock for table
+  Lock _getModelLock(String table) {
+    if (!_modelSynchronizedLocks.containsKey(table)) {
+      _modelSynchronizedLocks[table] = Lock();
+    }
+
+    return _modelSynchronizedLocks[table];
+  }
+
+  Future<void> _syncOne(String table, dynamic permission,
+      [bool refresh = false]) async {
+    var s = Stopwatch()..start();
+
+    try {
+      if (permission != null) {
+        // sync read
+        if (database.hasTable(table)) {
+          await syncRead(table, permission.value);
+        }
+
+        // sync write
+        if (permission.value['permissionMode'] == 'All' &&
+            database.hasTable(table)) {
+          await syncWrite(table, permission.value);
+        }
+      } else {
+        SyncDB.shared.logger
+            ?.i('does not have sync permission for table $table');
+      }
+
+      var logMessage =
+          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
+      SyncDB.shared.logger?.i(logMessage);
+    } catch (err, stackTrace) {
+      SyncDB.shared.logger?.e('Sync $table error: $err', stackTrace);
     }
   }
 

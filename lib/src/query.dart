@@ -3,18 +3,18 @@ import 'abstract.dart';
 
 /// Based on https://guides.rubyonrails.org/active_record_querying.html
 class Query {
-  Function instantiateModel;
-  Database database;
+  Query(this.tableName);
+
+  bool caseSensitive = false;
   dynamic condition;
+  Database database;
+  String filterOperator = 'and';
+  int index;
+  Function instantiateModel;
+  bool isMatches; // is search text mode
   String ordering;
   int resultLimit;
-  int index;
   String tableName;
-  String filterOperator = 'and';
-  bool isMatches; // is search text mode
-  bool caseSensitive = false;
-
-  Query(this.tableName);
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value

@@ -8,12 +8,6 @@ import 'package:sync_db/src/sync_db.dart';
 import 'abstract.dart';
 
 class AzureADB2CUserSession extends UserSession {
-  HTTP _http;
-  Map<String, dynamic> _config;
-  final List<MapEntry> _resourceTokens = [];
-  DateTime _tokenExpiry;
-  SharedPreferences prefs;
-
   /// Config will need:
   /// `azureBaseUrl` for Azure authentication functions
   /// `azureCode` the secure code to request azure function
@@ -30,26 +24,33 @@ class AzureADB2CUserSession extends UserSession {
     });
   }
 
-  /// Fetch refresh token & resource tokens from id token
-  /// Return a list of resource tokens or guest resource tokens if id token is invalid
-  Future<List<MapEntry>> fetchTokens(String idToken) async {
-    try {
-      if (idToken != null && idToken.isNotEmpty) {
-        var response = await _http.get('/GetRefreshAndAccessToken',
-            parameters: {'code': _config['azureCode'], 'id_token': idToken});
-        if (response['success'] == true && response['token'] != null) {
-          var token = response['token'];
-          refreshToken = token['refresh_token'];
-        }
-      }
+  SharedPreferences prefs;
 
-      await refresh();
-      return await resourceTokens();
-    } catch (error, stackTrace) {
-      Sync.shared.logger?.e('fetch token error', error, stackTrace);
-    }
+  Map<String, dynamic> _config;
+  HTTP _http;
+  final List<MapEntry> _resourceTokens = [];
+  DateTime _tokenExpiry;
 
-    return null;
+  @override
+  Future<bool> hasSignedIn() async {
+    prefs ??= await SharedPreferences.getInstance();
+    return refreshToken != null && refreshToken.isNotEmpty;
+  }
+
+  @override
+  String get refreshToken => prefs.getString('refresh_token');
+
+  @override
+  String get role => prefs.getString('role');
+
+  @override
+  Future<void> refresh() async {
+    _tokenExpiry = await NetworkTime.shared.now;
+  }
+
+  @override
+  set refreshToken(String token) {
+    prefs.setString('refresh_token', token);
   }
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
@@ -115,30 +116,8 @@ class AzureADB2CUserSession extends UserSession {
   }
 
   @override
-  Future<void> refresh() async {
-    _tokenExpiry = await NetworkTime.shared.now;
-  }
-
-  @override
-  set refreshToken(String token) {
-    prefs.setString('refresh_token', token);
-  }
-
-  @override
-  String get refreshToken => prefs.getString('refresh_token');
-
-  @override
   set role(String role) {
     prefs.setString('role', role);
-  }
-
-  @override
-  String get role => prefs.getString('role');
-
-  @override
-  Future<bool> hasSignedIn() async {
-    prefs ??= await SharedPreferences.getInstance();
-    return refreshToken != null && refreshToken.isNotEmpty;
   }
 
   /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
@@ -148,5 +127,27 @@ class AzureADB2CUserSession extends UserSession {
     _tokenExpiry = null;
     await prefs.remove('refresh_token');
     await Sync.shared.local.cleanDatabase();
+  }
+
+  /// Fetch refresh token & resource tokens from id token
+  /// Return a list of resource tokens or guest resource tokens if id token is invalid
+  Future<List<MapEntry>> fetchTokens(String idToken) async {
+    try {
+      if (idToken != null && idToken.isNotEmpty) {
+        var response = await _http.get('/GetRefreshAndAccessToken',
+            parameters: {'code': _config['azureCode'], 'id_token': idToken});
+        if (response['success'] == true && response['token'] != null) {
+          var token = response['token'];
+          refreshToken = token['refresh_token'];
+        }
+      }
+
+      await refresh();
+      return await resourceTokens();
+    } catch (error, stackTrace) {
+      SyncDB.shared.logger?.e('fetch token error', error, stackTrace);
+    }
+
+    return null;
   }
 }

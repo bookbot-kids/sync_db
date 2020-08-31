@@ -59,9 +59,6 @@ abstract class Model extends ChangeNotifier {
 
   String get tableName => 'Model';
 
-  @override
-  String toString() => map.toString();
-
   Future<void> save() async => await database.save(this);
 
   Future<void> delete() => throw UnimplementedError();

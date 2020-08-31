@@ -22,15 +22,17 @@ import 'package:universal_io/io.dart';
 // }
 
 class Category extends Model {
-  String name;
   String image;
+  String name;
+
+  @override
+  String get tableName => 'Category';
 
   @override
   Map<String, dynamic> get map => $Category(this).map;
+
   @override
   set map(Map<String, dynamic> map) => $Category(this).map = map;
-  @override
-  String get tableName => 'Category';
 }
 
 extension $Category on Category {
@@ -79,17 +81,21 @@ extension $Layout on Layout {
 }
 
 class Test extends Model {
-  String testString = 'Test String';
-  Layout layout = Layout.fixed;
-  String _categoryId;
   Category category2;
+  Layout layout = Layout.fixed;
+  String testString = 'Test String';
+
+  String _categoryId;
+
+  @override
+  String get tableName => 'Test';
 
   @override
   Map<String, dynamic> get map => $Test(this).map;
+
   @override
   set map(Map<String, dynamic> map) => $Test(this).map = map;
-  @override
-  String get tableName => 'Test';
+
   @override
   Database get database => SembastDatabase.shared;
 }
