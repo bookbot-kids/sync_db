@@ -9,10 +9,9 @@ import 'abstract.dart';
 import 'query.dart' as q;
 
 /// Aws AppSync client
-class GraphQLService extends Sync {
-  static GraphQLService shared;
-
-  static GraphQLSync shared = GraphQLSync._privateConstructor();
+class GraphQLService extends Service {
+  GraphQLService._privateConstructor();
+  GraphQLService shared = GraphQLService._privateConstructor();
 
   Database database;
   GraphQLClient graphClient;
@@ -388,11 +387,11 @@ class GraphQLService extends Sync {
         if (hasPermission(user.role, table, 'read')) {
           await syncRead(table, graphClient, downloadAll: downloadAll);
         } else {
-          SyncDB.shared.logger?.i(
+          Sync.shared.logger?.i(
               'role ${user.role} does not have read permission in table $table');
         }
       } else {
-        SyncDB.shared.logger?.i('table $table does not exist in schema');
+        Sync.shared.logger?.i('table $table does not exist in schema');
       }
 
       // Sync write
@@ -400,20 +399,20 @@ class GraphQLService extends Sync {
         if (hasPermission(user.role, table, 'write')) {
           await syncWrite(table, graphClient);
         } else {
-          SyncDB.shared.logger?.i(
+          Sync.shared.logger?.i(
               'role ${user.role} does not have write permission in table $table');
         }
       } else {
-        SyncDB.shared.logger?.i('table $table does not exist in schema');
+        Sync.shared.logger?.i('table $table does not exist in schema');
       }
 
       var logMessage =
           'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
 
-      SyncDB.shared.logger?.i(logMessage);
+      Sync.shared.logger?.i(logMessage);
       s.stop();
     } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync table $table error: $err', err, stackTrace);
+      Sync.shared.logger?.e('Sync table $table error: $err', err, stackTrace);
     }
   }
 
