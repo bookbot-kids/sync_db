@@ -7,6 +7,15 @@ import 'package:sync_db/src/sync_db.dart';
 
 import 'abstract.dart';
 
+class CosmosResourceToken {
+  final String id;
+  final String token;
+  final String partition;
+  final String mode;
+
+  CosmosResourceToken(this.id, this.token, this.partition, this.mode);
+}
+
 class AzureADB2CUserSession extends UserSession {
   /// Config will need:
   /// `azureBaseUrl` for Azure authentication functions
@@ -28,7 +37,7 @@ class AzureADB2CUserSession extends UserSession {
 
   Map<String, dynamic> _config;
   HTTP _http;
-  final List<MapEntry> _resourceTokens = [];
+  final List<CosmosResourceToken> _resourceTokens = [];
   DateTime _tokenExpiry;
 
   @override
@@ -44,8 +53,9 @@ class AzureADB2CUserSession extends UserSession {
   String get role => prefs.getString('role');
 
   @override
-  Future<void> refresh() async {
+  Future<void> reset() async {
     _tokenExpiry = await NetworkTime.shared.now;
+    await resourceTokens();
   }
 
   @override
@@ -57,14 +67,14 @@ class AzureADB2CUserSession extends UserSession {
   /// When refresh is true it will get new resource tokens from web services
   /// If there is no refresh token, guest resource token is returned
   @override
-  Future<List<MapEntry>> resourceTokens() async {
+  Future<List<CosmosResourceToken>> resourceTokens() async {
     prefs ??= await SharedPreferences.getInstance();
 
     _tokenExpiry ??= await NetworkTime.shared.now;
 
     var now = await NetworkTime.shared.now;
     if (_tokenExpiry.isAfter(now)) {
-      return List<MapEntry>.from(_resourceTokens);
+      return List<CosmosResourceToken>.from(_resourceTokens);
     }
 
     final expired = now.add(Duration(hours: 4, minutes: 45));
@@ -79,7 +89,12 @@ class AzureADB2CUserSession extends UserSession {
 
       _resourceTokens.clear();
       for (final permission in response['permissions']) {
-        _resourceTokens.add(MapEntry(permission['id'], permission));
+        var resourceToken = CosmosResourceToken(
+            permission['id'],
+            permission['_token'],
+            permission['resourcePartitionKey'].first,
+            permission['']);
+        _resourceTokens.add(resourceToken);
       }
 
       _tokenExpiry = expired;
@@ -112,7 +127,7 @@ class AzureADB2CUserSession extends UserSession {
       }
     }
 
-    return List<MapEntry>.from(_resourceTokens);
+    return List<CosmosResourceToken>.from(_resourceTokens);
   }
 
   @override
@@ -131,7 +146,7 @@ class AzureADB2CUserSession extends UserSession {
 
   /// Fetch refresh token & resource tokens from id token
   /// Return a list of resource tokens or guest resource tokens if id token is invalid
-  Future<List<MapEntry>> fetchTokens(String idToken) async {
+  Future<List<CosmosResourceToken>> fetchTokens(String idToken) async {
     try {
       if (idToken != null && idToken.isNotEmpty) {
         var response = await _http.get('/GetRefreshAndAccessToken',
@@ -142,10 +157,10 @@ class AzureADB2CUserSession extends UserSession {
         }
       }
 
-      await refresh();
+      await reset();
       return await resourceTokens();
     } catch (error, stackTrace) {
-      SyncDB.shared.logger?.e('fetch token error', error, stackTrace);
+      Sync.shared.logger?.e('fetch token error', error, stackTrace);
     }
 
     return null;

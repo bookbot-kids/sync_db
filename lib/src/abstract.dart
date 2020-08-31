@@ -4,7 +4,7 @@ import 'package:sync_db/sync_db.dart';
 abstract class UserSession {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
   /// Refresh token is stored in Shared Preferences.
-  Future<List<MapEntry>> resourceTokens();
+  Future<List<dynamic>> resourceTokens();
 
   Future<void> signout();
 
@@ -18,7 +18,7 @@ abstract class UserSession {
 
   String get role;
 
-  Future<void> refresh();
+  Future<void> reset();
 }
 
 abstract class Database {

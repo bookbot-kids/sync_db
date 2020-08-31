@@ -44,7 +44,7 @@ class CognitoUserSession extends UserSession {
   Future<bool> hasSignedIn() async => await _checkAuthenticated();
 
   @override
-  Future<void> refresh() async {
+  Future<void> reset() async {
     _session = await _cognitoUser.getSession();
   }
 

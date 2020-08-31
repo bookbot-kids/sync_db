@@ -3,6 +3,25 @@ import 'package:synchronized/synchronized.dart';
 
 enum Access { all, read, write }
 
+enum ModelState { created, updated, synced }
+
+extension $ModelState on ModelState {
+  static final string = {
+    ModelState.created: 'created',
+    ModelState.updated: 'updated',
+    ModelState.synced: 'synced',
+  };
+
+  static final toEnum = {
+    'created': ModelState.created,
+    'updated': ModelState.updated,
+    'synced': ModelState.synced,
+  };
+
+  String get name => $ModelState.string[this];
+  static ModelState fromString(String value) => $ModelState.toEnum[value];
+}
+
 abstract class Service {
   static Service shared;
 
@@ -80,11 +99,11 @@ abstract class Service {
   }
 
   /// Get records from online services
-  Future<List<Map>> _readRecords(String table, DateTime timestamp,
+  Future<List<Map>> readRecords(String table, DateTime timestamp,
       {String paginationToken});
 
   /// Write records to online services and return written records
-  Future<List<Map>> _writeRecords(String table);
+  Future<List<Map>> writeRecords(String table);
 }
 
 /// The ServiceModel class keeps a record of the timestamp of where to sync from
