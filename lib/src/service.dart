@@ -3,6 +3,25 @@ import 'package:synchronized/synchronized.dart';
 
 enum Access { all, read, write }
 
+enum ModelState { created, updated, synced }
+
+extension $ModelState on ModelState {
+  static final string = {
+    ModelState.created: 'created',
+    ModelState.updated: 'updated',
+    ModelState.synced: 'synced',
+  };
+
+  static final toEnum = {
+    'created': ModelState.created,
+    'updated': ModelState.updated,
+    'synced': ModelState.synced,
+  };
+
+  String get name => $ModelState.string[this];
+  static ModelState fromString(String value) => $ModelState.toEnum[value];
+}
+
 abstract class Service {
   static Service shared;
 
@@ -61,7 +80,7 @@ abstract class Service {
 
     // This is to prevent multiple reads or multiple writes at the same time on the same table
     await _serviceLock[table].synchronized(() async {
-      final result = await _readRecords(table, _serviceModel[table].from);
+      final result = await readRecords(table, _serviceModel[table].from);
       // Compare records if newer or older and save out
       // Call _readRecords again if it paginates
     });
@@ -71,17 +90,17 @@ abstract class Service {
   }
 
   /// Write created or updated records in this table
-  Future<void> writeTable(String table) async {
+  Future<List<Map>> writeTable(String table) async {
     // Write created records
     // Write updated records
   }
 
   /// Get records from online services
-  Future<List<Map>> _readRecords(String table, DateTime timestamp,
+  Future<List<Map>> readRecords(String table, DateTime timestamp,
       {String paginationToken});
 
   /// Write records to online services and return written records
-  Future<List<Map>> _writeRecords(String table);
+  Future<List<Map>> writeRecords(String table);
 }
 
 /// The ServiceModel class keeps a record of the timestamp of where to sync from
