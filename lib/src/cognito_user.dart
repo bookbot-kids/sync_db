@@ -69,7 +69,7 @@ class CognitoUserSession extends UserSession {
       await _cognitoUser.signOut();
     }
 
-    await SyncDB.shared.local.cleanDatabase();
+    await Sync.shared.local.cleanDatabase();
   }
 
   /// Initiate user session from local storage if present

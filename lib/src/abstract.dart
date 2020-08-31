@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'query.dart';
+import 'package:sync_db/sync_db.dart';
 
 abstract class UserSession {
   /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
@@ -21,33 +21,11 @@ abstract class UserSession {
   Future<void> refresh();
 }
 
-abstract class Sync {
-  /// Sync all tables
-  Future<void> syncAll();
-
-  /// Sync read a table
-  Future<void> syncRead(String table, dynamic permission);
-
-  /// Sync write a table
-  Future<void> syncWrite(String table, dynamic permission);
-
-  /// Sync write a record
-  Future<void> syncWriteRecord(
-      String table, Map<String, dynamic> map, bool isCreated,
-      [bool refresh]);
-
-  /// Sync read, write for one table only
-  Future<void> syncTable(String table, [bool refresh]);
-
-  /// Delete a record
-  Future<void> deleteRecord(String table, String id, [bool refreh]);
-}
-
 abstract class Database {
   void saveMap(String tableName, String id, Map map,
       {int updatedAt, String status, dynamic transaction});
 
-  Future<void> save(Model model, {bool syncToCloud});
+  Future<void> save(Model model, {bool syncToService});
 
   bool hasTable(String tableName);
 
@@ -68,16 +46,12 @@ abstract class Database {
 }
 
 abstract class Model extends ChangeNotifier {
+  Database get database => Sync.shared.local;
+
   DateTime createdAt;
   DateTime deletedAt;
   String id;
   DateTime updatedAt;
-
-  Database _database;
-
-  Database get database => _database;
-
-  set database(Database database) => _database = database;
 
   Map<String, dynamic> get map;
 

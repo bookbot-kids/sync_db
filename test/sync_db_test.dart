@@ -90,6 +90,8 @@ class Test extends Model {
   set map(Map<String, dynamic> map) => $Test(this).map = map;
   @override
   String get tableName => 'Test';
+  @override
+  Database get database => SembastDatabase.shared;
 }
 
 extension $Test on Test {
@@ -158,7 +160,6 @@ void main() {
 
       var test = Test();
       await SembastDatabase.config(null, []);
-      test.database = SembastDatabase.shared;
       await test.save();
 
       print(await $Test.all());

@@ -1,46 +1,20 @@
-import 'package:dio/dio.dart' as dio;
-import 'package:pool/pool.dart' as pool;
-import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
-import 'package:sync_db/src/network_time.dart';
-import 'package:sync_db/src/sync_db.dart';
-import 'package:synchronized/synchronized.dart';
+import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
-import 'abstract.dart';
-import 'query.dart';
+class CosmosService extends Service {
+  CosmosService._privateConstructor();
+  Service shared = CosmosService._privateConstructor();
 
-class CosmosSync extends Sync {
-  static CosmosSync shared;
-  HTTP http;
-  Database database;
-  UserSession user;
-  static const String _apiVersion = '2018-12-31';
   String databaseId;
+  HTTP http;
   int pageSize;
+  AzureADB2CUserSession user;
 
-  /// Thread pool for sync all
-  final _pool = pool.Pool(1);
-
-  /// Thread pool for sync one
-  final _modelPool = pool.Pool(1);
-
-  final _lock = Lock();
-
-  /// Configure the Cosmos DB, which in this case is the DB url
-  /// This will require the `databaseAccount` name, and database id `dbId` in the config map
-  static void config(Map config) {
-    shared = CosmosSync();
-    shared.http = HTTP(
-        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
-        config);
-    shared.databaseId = config['dbId'];
-    shared.pageSize = config['pageSize'] ?? 100;
-  }
+  static const String _apiVersion = '2018-12-31';
 
   /// SyncAll will run the sync across the complete database.
   /// Cosmos has a resource token structure so it knows which tables have read or write sync.
-  /// Reading and writing of tables is done sequentially to manage load to the server.
   @override
   Future<void> syncAll([bool refresh = false]) async {
     try {
@@ -68,72 +42,18 @@ class CosmosSync extends Sync {
 
         var logMessage =
             'Sync completed, total time is ${s.elapsedMilliseconds / 1000} seconds';
-        SyncDB.shared.logger?.i(logMessage);
+        Sync.shared.logger?.i(logMessage);
         s.stop();
       });
     } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync error: $err', err, stackTrace);
-    }
-  }
-
-  @override
-  Future<void> deleteRecord(String table, String id, [bool refreh]) async {
-    throw UnimplementedError('Not ready in cosmos yet');
-  }
-
-  @override
-  Future<void> syncTable(String table, [bool refresh = false]) async {
-    try {
-      if (refresh) {
-        await user.refresh();
-      }
-
-      final resourceTokens = await user.resourceTokens();
-      var permission = resourceTokens.firstWhere(
-        (element) => element.key == table,
-        orElse: () => null,
-      );
-      await _modelPool.withResource(() async {
-        await _syncOne(table, permission, refresh);
-      });
-    } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync $table error: $err', err, stackTrace);
-    }
-  }
-
-  Future<void> _syncOne(String table, dynamic permission,
-      [bool refresh = false]) async {
-    var s = Stopwatch()..start();
-
-    try {
-      if (permission != null) {
-        // sync read
-        if (database.hasTable(table)) {
-          await syncRead(table, permission.value);
-        }
-
-        // sync write
-        if (permission.value['permissionMode'] == 'All' &&
-            database.hasTable(table)) {
-          await syncWrite(table, permission.value);
-        }
-      } else {
-        SyncDB.shared.logger
-            ?.i('does not have sync permission for table $table');
-      }
-
-      var logMessage =
-          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
-      SyncDB.shared.logger?.i(logMessage);
-    } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync $table error: $err', stackTrace);
+      Sync.shared.logger?.e('Sync error: $err', err, stackTrace);
     }
   }
 
   /// Read sync this table
   @override
   Future<void> syncRead(String table, dynamic permission) async {
-    SyncDB.shared.logger?.i('[start syncing read on $table]');
+    Sync.shared.logger?.i('[start syncing read on $table]');
     String token = permission['_token'];
     String partition = permission['resourcePartitionKey'][0];
     // Get the last record change timestamp on server side
@@ -152,7 +72,7 @@ class CosmosSync extends Sync {
     var cosmosResult =
         await _queryDocuments(token, table, partition, select, parameters);
 
-    SyncDB.shared.logger
+    Sync.shared.logger
         ?.i('Run table $table(${cosmosResult.length}) in transaction');
     await database.runInTransaction(table, (txn) async {
       for (var cosmosRecord in cosmosResult) {
@@ -178,7 +98,27 @@ class CosmosSync extends Sync {
       }
     });
 
-    SyncDB.shared.logger?.i('[end syncing read on $table]');
+    Sync.shared.logger?.i('[end syncing read on $table]');
+  }
+
+  @override
+  Future<void> syncTable(String table, [bool refresh = false]) async {
+    try {
+      if (refresh) {
+        await user.refresh();
+      }
+
+      final resourceTokens = await user.resourceTokens();
+      var permission = resourceTokens.firstWhere(
+        (element) => element.key == table,
+        orElse: () => null,
+      );
+      await _modelPool.withResource(() async {
+        await _syncOne(table, permission, refresh);
+      });
+    } catch (err, stackTrace) {
+      Sync.shared.logger?.e('Sync $table error: $err', err, stackTrace);
+    }
   }
 
   /// Write sync this table if it has permission
@@ -189,7 +129,7 @@ class CosmosSync extends Sync {
       return;
     }
 
-    SyncDB.shared.logger?.i('[start syncing write on $table]');
+    Sync.shared.logger?.i('[start syncing write on $table]');
     String token = permission['_token'];
     String partition = permission['resourcePartitionKey'][0];
 
@@ -273,7 +213,7 @@ class CosmosSync extends Sync {
       }
     }
 
-    SyncDB.shared.logger?.i('[end syncing write on $table]');
+    Sync.shared.logger?.i('[end syncing write on $table]');
   }
 
   @override
@@ -289,7 +229,45 @@ class CosmosSync extends Sync {
       await _pool.withResource(() =>
           _syncWriteRecord(table, localRecord, isCreated, resourceTokens));
     } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync error: $err', stackTrace);
+      Sync.shared.logger?.e('Sync error: $err', stackTrace);
+    }
+  }
+
+  /// Configure the Cosmos DB, which in this case is the DB url
+  /// This will require the `databaseAccount` name, and database id `dbId` in the config map
+  static void config(Map config) {
+    shared.http = HTTP(
+        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
+        config);
+    shared.databaseId = config['dbId'];
+    shared.pageSize = config['pageSize'] ?? 100;
+  }
+
+  Future<void> _syncOne(String table, dynamic permission,
+      [bool refresh = false]) async {
+    var s = Stopwatch()..start();
+
+    try {
+      if (permission != null) {
+        // sync read
+        if (database.hasTable(table)) {
+          await syncRead(table, permission.value);
+        }
+
+        // sync write
+        if (permission.value['permissionMode'] == 'All' &&
+            database.hasTable(table)) {
+          await syncWrite(table, permission.value);
+        }
+      } else {
+        Sync.shared.logger?.i('does not have sync permission for table $table');
+      }
+
+      var logMessage =
+          'Sync table $table completed. It took ${s.elapsedMilliseconds / 1000} seconds';
+      Sync.shared.logger?.i(logMessage);
+    } catch (err, stackTrace) {
+      Sync.shared.logger?.e('Sync $table error: $err', stackTrace);
     }
   }
 
@@ -379,8 +357,13 @@ class CosmosSync extends Sync {
         }
       }
     } catch (err, stackTrace) {
-      SyncDB.shared.logger?.e('Sync model $table error: $err', err, stackTrace);
+      Sync.shared.logger?.e('Sync model $table error: $err', err, stackTrace);
     }
+  }
+
+  @override
+  Future<void> deleteRecord(String table, String id, [bool refreh]) async {
+    throw UnimplementedError('Not ready in cosmos yet');
   }
 
   /// Cosmos API to Query documents

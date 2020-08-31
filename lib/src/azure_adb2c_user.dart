@@ -46,7 +46,7 @@ class AzureADB2CUserSession extends UserSession {
       await refresh();
       return await resourceTokens();
     } catch (error, stackTrace) {
-      SyncDB.shared.logger?.e('fetch token error', error, stackTrace);
+      Sync.shared.logger?.e('fetch token error', error, stackTrace);
     }
 
     return null;
@@ -101,13 +101,13 @@ class AzureADB2CUserSession extends UserSession {
             _resourceTokens.clear();
             await prefs.remove('refresh_token');
           } else {
-            SyncDB.shared.logger?.e('get resource tokens error', e, stackTrace);
+            Sync.shared.logger?.e('get resource tokens error', e, stackTrace);
           }
         } catch (e) {
           // ignore
         }
       } else {
-        SyncDB.shared.logger?.e('get resource tokens error', e, stackTrace);
+        Sync.shared.logger?.e('get resource tokens error', e, stackTrace);
       }
     }
 
@@ -147,6 +147,6 @@ class AzureADB2CUserSession extends UserSession {
     _resourceTokens?.clear();
     _tokenExpiry = null;
     await prefs.remove('refresh_token');
-    await SyncDB.shared.local.cleanDatabase();
+    await Sync.shared.local.cleanDatabase();
   }
 }

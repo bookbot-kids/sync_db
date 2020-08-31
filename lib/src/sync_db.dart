@@ -1,18 +1,21 @@
 import 'package:robust_http/http_log_adapter.dart';
+import 'package:sync_db/sync_db.dart';
 
 import 'abstract.dart';
 import 'package:logger/logger.dart';
 
-class SyncDB {
-  SyncDB._privateConstructor();
-  static SyncDB shared = SyncDB._privateConstructor();
+class Sync {
+  Sync._privateConstructor();
+  static Sync shared = Sync._privateConstructor();
 
   Database local;
-  Sync sync;
+  Service service;
   UserSession user;
   Logger logger;
 
-  static void config(Sync sync, UserSession user, Logger logger, Database db) {
+  static void config(
+      Service service, UserSession user, Logger logger, Database db) {
+    shared.service = service;
     shared.local = db;
     shared.logger = logger;
     shared.user = user;
