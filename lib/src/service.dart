@@ -80,7 +80,7 @@ abstract class Service {
   Future<List<Map>> _readRecords(String table, DateTime timestamp);
 
   /// Write records to online services and return written records
-  Future<List<Map>> _writeRecords(String table, List<String> ids);
+  Future<List<Map>> _writeRecords(String table);
 }
 
 /// The ServiceModel class keeps a record of the timestamp of where to sync from
