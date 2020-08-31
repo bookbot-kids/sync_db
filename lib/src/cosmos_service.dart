@@ -6,11 +6,6 @@ class CosmosService extends Service {
   CosmosService._privateConstructor();
   Service shared = CosmosService._privateConstructor();
 
-class CosmosSync extends Sync {
-  CosmosSync._privateConstructor();
-
-  static CosmosSync shared = CosmosSync._privateConstructor();
-
   Database database;
   String databaseId;
   HTTP http;

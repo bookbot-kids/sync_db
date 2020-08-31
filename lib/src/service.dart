@@ -61,9 +61,12 @@ abstract class Service {
 
     // This is to prevent multiple reads or multiple writes at the same time on the same table
     await _serviceLock[table].synchronized(() async {
-      final result = await _readRecords(table, _serviceModel[table].from);
-      // Compare records if newer or older and save out
-      // Call _readRecords again if it paginates
+      var paginationToken;
+
+      while (paginationToken == null) {
+        final result = await _readRecords(table, _serviceModel[table].from);
+        // if record is in middle of update - do not touch
+      }
     });
 
     // TODO: Change stale records to updated
@@ -72,8 +75,8 @@ abstract class Service {
 
   /// Write created or updated records in this table
   Future<void> writeTable(String table) async {
-    // Write created records
-    // Write updated records
+    // Create/Write records
+    // Check if records have been updated since
   }
 
   /// Get records from online services
