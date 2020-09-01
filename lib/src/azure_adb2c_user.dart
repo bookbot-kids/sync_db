@@ -165,4 +165,12 @@ class AzureADB2CUserSession extends UserSession {
 
     return null;
   }
+
+  /// Get available resource tokens for a table
+  Future<List<CosmosResourceToken>> getAvailableTokens(String table) async {
+    var allPermissions = await resourceTokens();
+    return allPermissions.where((element) =>
+        element.id == table ||
+        (element.id.contains('-shared') && element.id.contains(table)));
+  }
 }

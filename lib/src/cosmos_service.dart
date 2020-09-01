@@ -36,10 +36,8 @@ class CosmosService extends Service {
             'SELECT * FROM $table c WHERE c._ts > ${timestamp.millisecondsSinceEpoch}';
       }
 
-      List<CosmosResourceToken> allPermissions = await user.resourceTokens();
-      var availablePermissions = allPermissions.where((element) =>
-          element.id == table ||
-          (element.id.contains('-shared') && element.id.contains(table)));
+      var availablePermissions =
+          await (user as AzureADB2CUserSession).getAvailableTokens(table);
       for (var permission in availablePermissions) {
         var parameters = <Map<String, String>>[];
         List<Map> cosmosResult = await _queryDocuments(
@@ -65,10 +63,8 @@ class CosmosService extends Service {
   Future<List<Map>> writeRecords(String table) async {
     var result = <Map>[];
     try {
-      List<CosmosResourceToken> allPermissions = await user.resourceTokens();
-      var availablePermissions = allPermissions.where((element) =>
-          element.id == table ||
-          (element.id.contains('-shared') && element.id.contains(table)));
+      var availablePermissions =
+          await (user as AzureADB2CUserSession).getAvailableTokens(table);
 
       // Get created records and save to Cosmos DB
       var query = Query(table)

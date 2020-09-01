@@ -83,7 +83,7 @@ abstract class Service {
       var paginationToken;
 
       while (paginationToken == null) {
-        final result = await _readRecords(table, _serviceModel[table].from);
+        final result = await readRecords(table, _serviceModel[table].from);
         // if record is in middle of update - do not touch
       }
     });
