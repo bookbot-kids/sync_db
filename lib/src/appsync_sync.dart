@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
-import 'package:pool/pool.dart' as pool;
+import 'package:synchronized/synchronized.dart';
 import '../sync_db.dart';
 import "abstract.dart";
 import 'query.dart' as q;
@@ -13,10 +13,10 @@ import 'query.dart' as q;
 class AppSync extends Sync {
   static AppSync shared;
   /** Thread pool for sync all **/
-  final _pool = pool.Pool(1);
+  final _lock = Lock();
 
   /** Thread pool for sync one table **/
-  Map<String, pool.Pool> _modelPools = Map<String, pool.Pool>();
+  Map<String, Lock> _modelLocks = Map<String, Lock>();
 
   HttpLink _httpLink;
   BaseUser user;
@@ -39,13 +39,13 @@ class AppSync extends Sync {
     shared._modelPoolSize = config['modelPoolSize'] ?? 1;
   }
 
-  /// Get thread pool for each table
-  pool.Pool _getPool(String table) {
-    if (!_modelPools.containsKey(table)) {
-      _modelPools[table] = pool.Pool(_modelPoolSize ?? 1);
+  /// Get sync lock for each table
+  Lock _getLock(String table) {
+    if (!_modelLocks.containsKey(table)) {
+      _modelLocks[table] = Lock();
     }
 
-    return _modelPools[table];
+    return _modelLocks[table];
   }
 
   @override
@@ -54,7 +54,7 @@ class AppSync extends Sync {
       return;
     }
 
-    await _pool.withResource(() async {
+    await _lock.synchronized(() async {
       try {
         Stopwatch s = Stopwatch()..start();
         await _setup();
@@ -83,7 +83,7 @@ class AppSync extends Sync {
       return;
     }
 
-    await _pool.withResource(() async {
+    await _getLock(table).synchronized(() async {
       try {
         await _setup();
 
@@ -109,7 +109,7 @@ class AppSync extends Sync {
 
   Future<void> syncOne(String table,
       [bool refresh = false, bool downloadAll = false]) async {
-    await _getPool(table).withResource(() async {
+    await _getLock(table).synchronized(() async {
       await _syncOne(table, refresh, true, downloadAll);
     });
   }
@@ -172,7 +172,7 @@ class AppSync extends Sync {
       return;
     }
 
-    await _getPool(table).withResource(() async {
+    await _getLock(table).synchronized(() async {
       try {
         await _setup();
 
@@ -273,7 +273,7 @@ class AppSync extends Sync {
     String select;
     var fields = _getFields(table);
 
-    int limit = 200;
+    int limit = 10000;
     String nextToken;
     List documents = List();
 
