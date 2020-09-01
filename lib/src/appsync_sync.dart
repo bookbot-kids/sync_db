@@ -273,7 +273,8 @@ class AppSync extends Sync {
     String select;
     var fields = _getFields(table);
 
-    int limit = 10000;
+    // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
+    int limit = 1000;
     String nextToken;
     List documents = List();
 
