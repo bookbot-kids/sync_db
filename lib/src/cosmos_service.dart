@@ -28,6 +28,7 @@ class CosmosService extends Service {
       {String paginationToken}) async {
     var result = <Map>[];
     try {
+      // query all records in cosmos that have updated timestamp > given timestamp
       String select;
       if (timestamp == null) {
         select = 'SELECT * FROM $table c';
@@ -36,12 +37,16 @@ class CosmosService extends Service {
             'SELECT * FROM $table c WHERE c._ts > ${timestamp.millisecondsSinceEpoch}';
       }
 
+      // use all available resource tokens to query records
       var availablePermissions =
           await (user as AzureADB2CUserSession).getAvailableTokens(table);
       for (var permission in availablePermissions) {
         var parameters = <Map<String, String>>[];
+        // query the document with paging
+        // the last item in the result may have next page token `paginationToken`
         List<Map> cosmosResult = await _queryDocuments(
             permission.token, table, permission.partition, select, parameters);
+        // Set `_ts` timestamp field as `serviceUpdatedAt` for the list
         cosmosResult.forEach((element) {
           element['serviceUpdatedAt'] = element['_ts'];
         });
@@ -93,6 +98,8 @@ class CosmosService extends Service {
           }
         }
 
+        // Get all the updated records on local, then fetch the remote records in cosmos by ids
+        // Then compare date between local and cosmos record to update correctly
         if (updatedRecordIds.isNotEmpty) {
           // get cosmos records base the local id list
           var select = 'SELECT * FROM $table c ';
@@ -108,7 +115,7 @@ class CosmosService extends Service {
           var cosmosRecords = await _queryDocuments(permission.token, table,
               permission.partition, select.trim(), parameters);
           for (final localRecord in updatedRecords) {
-            // compare to cosmos
+            // compare date to cosmos
             for (var cosmosRecord in cosmosRecords) {
               if (cosmosRecord['id'] == localRecord['id'] &&
                   cosmosRecord['partition'] == permission.partition) {
@@ -173,7 +180,7 @@ class CosmosService extends Service {
   ///      {"@prop": 5}
   ///  ]
   ///
-  /// Return a list of documents
+  /// Return a list of documents, the last item can have the next page
   Future<dynamic> _queryDocuments(String resouceToken, String table,
       String partitionKey, String query, List<Map<String, String>> parameters,
       {String paginationToken}) async {
