@@ -273,71 +273,96 @@ class AppSync extends Sync {
     String select;
     var fields = _getFields(table);
 
-    // TODO paging later
-    int limit = 100000;
-    if (record == null || (record != null && record["lastSynced"] == null)) {
-      select = """
-        query list${table}s {
-          list${table}s (limit: $limit) {
+    int limit = 200;
+    String nextToken;
+    List documents = List();
+
+    while (true) {
+      Map<String, dynamic> variables;
+      String nextTokenParam = '';
+      String nextTokenVariable = '';
+      if (nextToken != null) {
+        variables = Map<String, dynamic>();
+        variables['nextToken'] = nextToken;
+        nextTokenParam = ', nextToken: \$nextToken';
+        nextTokenVariable = ' (\$nextToken: String)';
+      }
+
+      if (record == null || (record != null && record["lastSynced"] == null)) {
+        select = """
+        query list${table}s${nextTokenVariable}  {
+          list${table}s (limit: $limit${nextTokenParam}) {
             items {
               $fields
-            }
+            },
+            nextToken
           }
         }
       """;
-    } else {
-      select = """
-      query list$table {
+      } else {
+        select = """
+      query list$table${nextTokenVariable} {
           list${table}s(filter: {
             lastSynced: {
               gt: ${record["lastSynced"]}
             }
-          }, limit: $limit){
+          }, limit: $limit${nextTokenParam}){
             items{
               $fields
-            }
+            },
+            nextToken
           }
       }
       """;
+      }
+
+      var response = await _queryDocuments(graphClient, select, variables);
+      if (response != null) {
+        var docs = response['list${table}s']['items'];
+        if (docs != null) {
+          documents.addAll(docs);
+        }
+      }
+
+      nextToken = response['list${table}s']['nextToken'];
+      if (nextToken == null) {
+        break;
+      }
     }
 
-    var response = await _queryDocuments(graphClient, select);
     // printLog('get table $table response $response', logLevel);
-    if (response != null) {
-      var documents = response['list${table}s']['items'];
-      if (documents != null) {
-        try {
-          // run in transaction
-          printLog(
-              'Run table $table(${documents.length}) in transaction', logLevel);
-          await database.runInTransaction(table, (txn) async {
-            for (var doc in documents) {
-              final query = q.Query(table).where({"id": doc['id']}).limit(1);
-              var records = await database.query(query, transaction: txn);
-              var localRecord = records.isNotEmpty ? records[0] : null;
-              if (localRecord == null) {
-                // save new to local, set status to synced to prevent sync again
+    if (documents.isNotEmpty) {
+      try {
+        // run in transaction
+        printLog(
+            'Run table $table(${documents.length}) in transaction', logLevel);
+        await database.runInTransaction(table, (txn) async {
+          for (var doc in documents) {
+            final query = q.Query(table).where({"id": doc['id']}).limit(1);
+            var records = await database.query(query, transaction: txn);
+            var localRecord = records.isNotEmpty ? records[0] : null;
+            if (localRecord == null) {
+              // save new to local, set status to synced to prevent sync again
+              _fixCreatedAt(doc);
+              await database.saveMap(table, doc['id'], doc,
+                  updatedAt: doc['lastSynced'] * 1000,
+                  status: 'synced',
+                  transaction: txn);
+            } else {
+              // update from appsync to local, set status to synced to prevent sync again
+              var localDate = localRecord['updatedAt'] / 1000;
+              if (localDate < doc['lastSynced']) {
                 _fixCreatedAt(doc);
                 await database.saveMap(table, doc['id'], doc,
                     updatedAt: doc['lastSynced'] * 1000,
                     status: 'synced',
                     transaction: txn);
-              } else {
-                // update from appsync to local, set status to synced to prevent sync again
-                var localDate = localRecord['updatedAt'] / 1000;
-                if (localDate < doc['lastSynced']) {
-                  _fixCreatedAt(doc);
-                  await database.saveMap(table, doc['id'], doc,
-                      updatedAt: doc['lastSynced'] * 1000,
-                      status: 'synced',
-                      transaction: txn);
-                }
               }
             }
-          });
-        } catch (e) {
-          throw e;
-        }
+          }
+        });
+      } catch (e) {
+        throw e;
       }
     }
 
@@ -535,7 +560,6 @@ class AppSync extends Sync {
       [Map<String, dynamic> variables]) async {
     var options = QueryOptions(documentNode: gql(query), variables: variables);
     var result = await graphClient.query(options);
-    // printLog('_queryDocuments ${result.data}', logLevel);
     return result.data;
   }
 
