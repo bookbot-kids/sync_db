@@ -9,3 +9,4 @@ export 'src/graphql_service.dart';
 export 'src/network_time.dart';
 export 'src/sync_db.dart';
 export 'src/service.dart';
+export 'src/service_model.dart';
