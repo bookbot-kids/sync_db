@@ -53,9 +53,9 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime updatedAt;
 
-  Map<String, dynamic> get map;
+  Map<String, dynamic> get map => {};
 
-  set map(Map<String, dynamic> map);
+  set map(Map<String, dynamic> map) {}
 
   String get tableName => 'Model';
 
