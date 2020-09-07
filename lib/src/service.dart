@@ -52,7 +52,7 @@ abstract class Service {
   }
 
   Future<void> writeServicePoint(ServicePoint service) async {
-    // Needs all or read access
+    // Needs all or write access
     if (service.access == Access.read) return;
 
     // Get lock for only running one service point at a time
@@ -74,7 +74,7 @@ abstract class Service {
   /// Compare and save record coming from services
   /// When accessing a web service will use the _pool to limit accesses at the same time
   Future<void> _saveLocalRecords(
-      ServicePoint service, List<Map> records) async {
+      ServicePoint service, List<Map> records, int responseTimestamp) async {
     // if access is read -> put all records in transaction and save
     // if access is all -> get records in updated state and compare timestamp
     // save over records in transaction that are allowed,
@@ -82,15 +82,24 @@ abstract class Service {
 
     final database = Sync.shared.local;
     var lastTimestamp = DateTime.utc(0);
-    if (service.access == Access.read) {
-      await database.runInTransaction(service.name, (transaction) async {
-        for (final map in records) {
+    Map<String, Map> transientRecords = {};
+
+    await database.runInTransaction(service.name, (transaction) async {
+      // Get updating records to compare
+      if (service.access == Access.all) {
+        // Get transient records
+      }
+      for (final map in records) {
+        final existingRecord = transientRecords[map['id']];
+
+        if (existingRecord == null ||
+            map['updatedAt'] > existingRecord['updatedAt']) {
           database.saveMap(service.name, map);
-          //map['serviceUpdatedAt'];
         }
-      });
-      //database.saveMap(table, localRecord['id'], localRecord);
-    }
+
+        //map['serviceUpdatedAt'];
+      }
+    });
   }
 
   Future<void> _updateRecordStatus(ServicePoint service, Map record) async {
