@@ -3,29 +3,22 @@ import 'dart:convert';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:robust_http/exceptions.dart';
+import 'package:sync_db/src/cognito_user.dart';
 import '../sync_db.dart';
-import 'abstract.dart';
 import 'query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
-  GraphQLClient graphClient;
   List permissions;
-  Map schema;
-  UserSession user;
-  int pageSize;
-
+  Map _schema;
+  CognitoUserSession user;
+  GraphQLClient _graphClient;
   HttpLink _httpLink;
 
-  List<Model> _models;
-
-  GraphQLService(Map config, List<Model> models) {
+  GraphQLService(Map config) {
     _httpLink = HttpLink(
       uri: config['appsyncUrl'],
     );
-
-    _models = models;
-    pageSize = config['pageSize'] ?? 100;
   }
 
   @override
@@ -38,19 +31,21 @@ class GraphQLService extends Service {
     final limit = 1000;
     String nextToken;
 
-    while (true) {
-      Map<String, dynamic> variables;
-      var nextTokenParam = '';
-      var nextTokenVariable = '';
-      if (nextToken != null) {
-        variables = <String, dynamic>{};
-        variables['nextToken'] = nextToken;
-        nextTokenParam = ', nextToken: \$nextToken';
-        nextTokenVariable = ' (\$nextToken: String)';
-      }
+    // ignore: unawaited_futures
+    pool.withResource(() async {
+      while (true) {
+        Map<String, dynamic> variables;
+        var nextTokenParam = '';
+        var nextTokenVariable = '';
+        if (nextToken != null) {
+          variables = <String, dynamic>{};
+          variables['nextToken'] = nextToken;
+          nextTokenParam = ', nextToken: \$nextToken';
+          nextTokenVariable = ' (\$nextToken: String)';
+        }
 
-      if (service.from == null) {
-        select = '''
+        if (service.from == null) {
+          select = '''
         query list${table}s${nextTokenVariable}  {
           list${table}s (limit: $limit${nextTokenParam}) {
             items {
@@ -60,9 +55,10 @@ class GraphQLService extends Service {
           }
         }
       ''';
-      } else {
-        var lastTimestamp = service.from;
-        select = '''
+        } else {
+          // minus one second
+          var lastTimestamp = service.from - 1000;
+          select = '''
         query list$table${nextTokenVariable} {
             list${table}s(filter: {
               lastSynced: {
@@ -76,25 +72,26 @@ class GraphQLService extends Service {
             }
         }
       ''';
-      }
+        }
 
-      var response = await _queryDocuments(graphClient, select, variables);
-      if (response != null) {
-        var docs = response['list${table}s']['items'];
-        if (docs != null) {
-          docs.forEach((element) {
-            element['serviceUpdatedAt'] = element['lastSynced'];
-          });
+        var response = await _queryDocuments(select, variables);
+        if (response != null) {
+          var docs = response['list${table}s']['items'];
+          if (docs != null) {
+            docs.forEach((element) {
+              element['serviceUpdatedAt'] = element['lastSynced'];
+            });
 
-          await saveLocalRecords(service, docs);
+            await saveLocalRecords(service, docs);
+          }
+        }
+
+        nextToken = response['list${table}s']['nextToken'];
+        if (nextToken == null) {
+          break;
         }
       }
-
-      nextToken = response['list${table}s']['nextToken'];
-      if (nextToken == null) {
-        break;
-      }
-    }
+    });
   }
 
   @override
@@ -182,10 +179,10 @@ class GraphQLService extends Service {
 
   Future<void> _setup() async {
     // Get graph client base on token
-    await _getGraphClient();
+    await graphClient;
 
     // query all schema
-    await _getSchema();
+    await schema;
 
     // query permissions map
     await _getRolePermissions();
@@ -207,7 +204,7 @@ class GraphQLService extends Service {
             }
           ''';
 
-    return await _queryDocuments(graphClient, query);
+    return await _queryDocuments(query);
   }
 
   /// Create new document and return a new document
@@ -224,7 +221,7 @@ class GraphQLService extends Service {
 
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
-    return _mutationDocument(graphClient, query, variables);
+    return _mutationDocument(query, variables);
   }
 
   /// Update a document and return an updated document
@@ -241,7 +238,7 @@ class GraphQLService extends Service {
 
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
-    return _mutationDocument(graphClient, query, variables);
+    return _mutationDocument(query, variables);
   }
 
   /// Delete a document and return a deleted document
@@ -258,43 +255,49 @@ class GraphQLService extends Service {
             ''';
 
     var variables = <String, dynamic>{};
-    return _mutationDocument(graphClient, query, variables);
+    return _mutationDocument(query, variables);
   }
 
   /// Execute mutation query like update, insert, delete and return a document
-  Future<dynamic> _mutationDocument(GraphQLClient graphClient, String query,
-      Map<String, dynamic> variables) async {
+  Future<dynamic> _mutationDocument(
+      String query, Map<String, dynamic> variables) async {
+    var client = await graphClient;
     var options =
         MutationOptions(documentNode: gql(query), variables: variables);
-    var result = await graphClient.mutate(options);
+    var result = await client.mutate(options);
     // printLog('_mutationDocument ${result.data}', logLevel);
     return result.data;
   }
 
   /// Query documents
-  Future<dynamic> _queryDocuments(GraphQLClient graphClient, String query,
+  Future<dynamic> _queryDocuments(String query,
       [Map<String, dynamic> variables]) async {
+    var client = await graphClient;
     var options = QueryOptions(documentNode: gql(query), variables: variables);
-    var result = await graphClient.query(options);
+    var result = await client.query(options);
     // printLog('_queryDocuments ${result.data}', logLevel);
     return result.data;
   }
 
   /// Get graph client base on token from cognito
-  Future<void> _getGraphClient() async {
-    await user.resourceTokens();
-    final authLink = AuthLink(getToken: () => user.refreshToken);
-    final link = authLink.concat(_httpLink);
-    graphClient = GraphQLClient(
-      cache: InMemoryCache(),
-      link: link,
-    );
+  Future<GraphQLClient> get graphClient async {
+    if (_graphClient == null) {
+      await user.resourceTokens();
+      final authLink = AuthLink(getToken: () => user.refreshToken);
+      final link = authLink.concat(_httpLink);
+      _graphClient = GraphQLClient(
+        cache: InMemoryCache(),
+        link: link,
+      );
+    }
+
+    return _graphClient;
   }
 
   /// Get defined schema table
-  Future<void> _getSchema() async {
-    if (schema != null) {
-      return;
+  Future<Map> get schema async {
+    if (_schema != null) {
+      return _schema;
     }
 
     var query = '''
@@ -308,18 +311,20 @@ class GraphQLService extends Service {
         }
       }
     ''';
-    var documents = await _queryDocuments(graphClient, query);
+    var documents = await _queryDocuments(query);
     // printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listSchemas')) {
       List list = documents['listSchemas']['items'];
-      schema = {for (var e in list) e['table']: e};
+      _schema = {for (var e in list) e['table']: e};
     }
 
-    if (schema == null) {
+    if (_schema == null) {
       throw SyncDataException('Can not get schema');
     }
+
+    return _schema;
   }
 
   /// Get defined role permissions
@@ -340,7 +345,7 @@ class GraphQLService extends Service {
         }
       }
     ''';
-    var documents = await _queryDocuments(graphClient, query);
+    var documents = await _queryDocuments(query);
     // printLog(documents, logLevel);
     if (documents != null &&
         documents is Map &&
@@ -377,11 +382,11 @@ class GraphQLService extends Service {
 
   /// List available fields from schema for graphql query
   String _getFields(String table) {
-    if (schema == null || !schema.containsKey(table)) {
+    if (_schema == null || !_schema.containsKey(table)) {
       return 'lastSynced\n id';
     }
 
-    var schemaData = schema[table];
+    var schemaData = _schema[table];
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');

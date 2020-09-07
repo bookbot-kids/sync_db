@@ -4,7 +4,7 @@ import 'package:pool/pool.dart';
 
 abstract class Service {
   // Make sure there are no more than 8 server downloads at the same time
-  final _pool = Pool(8, timeout: Duration(seconds: 60));
+  final pool = Pool(8, timeout: Duration(seconds: 60));
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
 
@@ -72,8 +72,7 @@ abstract class Service {
 
   /// Compare and save record coming from services
   /// When accessing a web service will use the _pool to limit accesses at the same time
-  Future<void> saveLocalRecords(
-      ServicePoint service, List<Map> records, int responseTimestamp) async {
+  Future<void> saveLocalRecords(ServicePoint service, List<Map> records) async {
     // if access is read -> put all records in transaction and save
     // if access is all -> get records in updated state and compare timestamp
     // save over records in transaction that are allowed,

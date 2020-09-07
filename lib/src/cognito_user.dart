@@ -4,12 +4,17 @@ import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/abstract.dart';
+import 'package:sync_db/src/graphql_service.dart';
+import 'package:sync_db/src/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
 class CognitoUserSession extends UserSession {
-  CognitoUserSession(String clientId, Map<String, dynamic> config) {
+  GraphQLService _service;
+  CognitoUserSession(
+      GraphQLService service, String clientId, Map<String, dynamic> config) {
     _clientId = config['clientId'];
     _awsUserPoolId = config['userPoolId'];
+    _service = service;
     _initialize().whenComplete(() => null);
   }
 
@@ -37,21 +42,17 @@ class CognitoUserSession extends UserSession {
     return null;
   }
 
-  @override
   String get refreshToken => _session?.accessToken?.getJwtToken();
 
   @override
   Future<bool> hasSignedIn() async => await _checkAuthenticated();
 
-  @override
   Future<void> reset() async {
     _session = await _cognitoUser.getSession();
   }
 
-  @override
   set refreshToken(String token) => throw UnimplementedError();
 
-  @override
   Future<List<MapEntry>> resourceTokens() async {
     if (!_session.isValid()) {
       _session = await _cognitoUser.getSession();
@@ -60,7 +61,6 @@ class CognitoUserSession extends UserSession {
     return null;
   }
 
-  @override
   set role(String role) => throw UnimplementedError();
 
   @override
@@ -93,6 +93,28 @@ class CognitoUserSession extends UserSession {
       return false;
     }
     return _session.isValid();
+  }
+
+  @override
+  Future<List<ServicePoint>> servicePoints() async {
+    var schema = await _service.schema;
+    var results = <ServicePoint>[];
+    schema.forEach((key, value) {
+      results.add(ServicePoint(name: key));
+    });
+
+    return results;
+  }
+
+  @override
+  Future<List<ServicePoint>> servicePointsForable(String table) {
+    // TODO: implement servicePointsForable
+    throw UnimplementedError();
+  }
+
+  @override
+  set token(String token) {
+    throw UnimplementedError();
   }
 }
 
