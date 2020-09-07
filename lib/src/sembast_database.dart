@@ -280,22 +280,6 @@ class SembastDatabase extends Database {
     }
   }
 
-  /// Custom Sembast cooperator in case has slow sort query on web https://github.com/tekartik/sembast.dart/issues/189
-  /// Since version 2.4.6 this issue has been fixed, so assume that we don't need to call this function.
-  /// Notice: In case we need it, make sure it should be called before any query operators.
-  static void enableSembastCooperator(bool enable,
-      {int delayMicroseconds, int pauseMicroseconds}) {
-    if (enable == true) {
-      // ignore: invalid_use_of_visible_for_testing_member
-      sembast.enableSembastCooperator(
-          delayMicroseconds: delayMicroseconds,
-          pauseMicroseconds: pauseMicroseconds);
-    } else {
-      // ignore: invalid_use_of_visible_for_testing_member
-      sembast.disableSembastCooperator();
-    }
-  }
-
   /// initialize and open database for web & other platforms
   Future<void> _initDatabase() async {
     if (UniversalPlatform.isWeb) {
@@ -374,6 +358,22 @@ class SembastDatabase extends Database {
     }
 
     return copiedMap;
+  }
+
+  /// Custom Sembast cooperator in case has slow sort query on web https://github.com/tekartik/sembast.dart/issues/189
+  /// Since version 2.4.6 this issue has been fixed, so assume that we don't need to call this function.
+  /// Notice: In case we need it, make sure it should be called before any query operators.
+  static void enableSembastCooperator(bool enable,
+      {int delayMicroseconds, int pauseMicroseconds}) {
+    if (enable == true) {
+      // ignore: invalid_use_of_visible_for_testing_member
+      sembast.enableSembastCooperator(
+          delayMicroseconds: delayMicroseconds,
+          pauseMicroseconds: pauseMicroseconds);
+    } else {
+      // ignore: invalid_use_of_visible_for_testing_member
+      sembast.disableSembastCooperator();
+    }
   }
 
   // Note on subscribe to changes from Sembast: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
