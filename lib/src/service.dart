@@ -47,7 +47,7 @@ abstract class Service {
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
-      await _readServicePoint(service);
+      await readFromService(service);
     });
   }
 
@@ -58,18 +58,18 @@ abstract class Service {
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
-      await _writeServicePoint(service);
+      await writeToService(service);
     });
   }
 
   /// Get records from online service and send to _saveLocalRecords
   /// When accessing a web service will use the _pool to limit accesses at the same time
   /// Convert server timestamps to serviceUpdatedAt
-  Future<void> _readServicePoint(ServicePoint service);
+  Future<void> readFromService(ServicePoint service);
 
   /// Write records to online services and update record status with _updateRecordStatus
   /// Convert server timestamps to serviceUpdatedAt
-  Future<void> _writeServicePoint(ServicePoint service);
+  Future<void> writeToService(ServicePoint service);
 
   /// Compare and save record coming from services
   /// When accessing a web service will use the _pool to limit accesses at the same time
