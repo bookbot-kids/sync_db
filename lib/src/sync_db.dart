@@ -10,15 +10,15 @@ class Sync {
 
   Database local;
   Service service;
-  UserSession user;
+  UserSession userSession;
   Logger logger;
 
   static void config(
-      Service service, UserSession user, Logger logger, Database db) {
+      Service service, UserSession userSession, Logger logger, Database db) {
     shared.service = service;
     shared.local = db;
     shared.logger = logger;
-    shared.user = user;
+    shared.userSession = userSession;
     HttpLogAdapter.shared.logger = logger;
   }
 }

@@ -1,15 +1,11 @@
+import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:sembast_web/sembast_web.dart';
-import 'package:sync_db/src/network_time.dart';
-import 'package:sync_db/src/sync_db.dart';
 import 'package:universal_io/prefer_universal/io.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'package:uuid/uuid.dart';
-
-import 'abstract.dart';
-import 'query.dart';
 import 'package:sembast/sembast.dart' as sembast;
 import 'package:sembast/src/utils.dart' as sembast_utils;
 
@@ -205,8 +201,8 @@ class SembastDatabase extends Database {
   @override
   Future<void> runInTransaction(String tableName, Function action) async {
     final db = _db[tableName];
-    await db.transaction((txn) async {
-      await action(txn);
+    await db.transaction((transaction) async {
+      await action(transaction);
     });
   }
 
@@ -243,44 +239,18 @@ class SembastDatabase extends Database {
   }
 
   /// Saving the map bypasses going through the model
-  /// The map will coem from a service.
+  /// The map will come from a service.
   @override
-  Future<void> saveMap(String tableName, String id, Map map,
-      {int updatedAt, String status, dynamic transaction}) async {
+  Future<void> saveMap(String tableName, Map map, {dynamic transaction}) async {
+    map.putIfAbsent('id', () => Uuid().v4().toString());
+    map.putIfAbsent('_status', () => SyncState.synced.name);
+
+    final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
+    map.putIfAbsent('createdAt', () => now);
+    map.putIfAbsent('updatedAt', () => now);
+
     final store = sembast.StoreRef<String, dynamic>.main();
-    final create = id == null;
-    if (create) {
-      id = Uuid().v4().toString();
-      map['id'] = id;
-    }
-
-    if (!map.containsKey('createdAt')) {
-      map['createdAt'] = (await NetworkTime.shared.now).millisecondsSinceEpoch;
-    }
-
-    if (updatedAt == null) {
-      map['updatedAt'] = (await NetworkTime.shared.now).millisecondsSinceEpoch;
-    } else {
-      map['updatedAt'] = updatedAt;
-    }
-
-    if (status == null) {
-      map['_status'] = create ? 'created' : 'updated';
-    } else {
-      map['_status'] = status;
-    }
-
-    if (transaction != null) {
-      try {
-        await store.record(id).put(transaction, map);
-      } catch (e) {
-        print('put error $e');
-        rethrow;
-      }
-    } else {
-      final db = _db[tableName];
-      await store.record(id).put(db, map);
-    }
+    await store.record(map['id']).put(transaction ?? _db[tableName], map);
   }
 
   /// Connects online services to the Sembast Database

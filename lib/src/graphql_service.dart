@@ -82,7 +82,7 @@ class GraphQLService extends Service {
   @override
   Future<List<Map>> writeRecords(String table) async {
     var query = q.Query(table)
-        .where('_status = ${ModelState.created.name}')
+        .where('_status = ${SyncState.created.name}')
         .order('createdAt asc');
     var records = await database.query<Map>(query);
     var result = <Map>[];
@@ -94,14 +94,14 @@ class GraphQLService extends Service {
       if (response != null) {
         var newRecord = response['create${table}'];
         _fixFields(newRecord);
-        newRecord['_status'] = ModelState.created.name;
+        newRecord['_status'] = SyncState.created.name;
         result.add(newRecord);
       }
     }
 
     // Get records that have been updated and update to appsync
     query = q.Query(table)
-        .where('_status = ${ModelState.updated.name}')
+        .where('_status = ${SyncState.updated.name}')
         .order('updatedAt asc');
     records = await database.query<Map>(query);
 
@@ -128,7 +128,7 @@ class GraphQLService extends Service {
               if (response != null) {
                 var updatedRecord = response['update${table}'];
                 _fixFields(updatedRecord);
-                updatedRecord['_status'] = ModelState.updated.name;
+                updatedRecord['_status'] = SyncState.updated.name;
                 result.add(updatedRecord);
               }
             } else {
@@ -139,7 +139,7 @@ class GraphQLService extends Service {
                 }
               });
 
-              localRecord['_status'] = ModelState.synced.name;
+              localRecord['_status'] = SyncState.synced.name;
               await await database.saveMap(
                   table, localRecord['id'], localRecord);
             }
@@ -153,7 +153,7 @@ class GraphQLService extends Service {
           if (response != null && response['create${table}'] != null) {
             var newRecord = response['create${table}'];
             _fixFields(newRecord);
-            newRecord['_status'] = ModelState.created.name;
+            newRecord['_status'] = SyncState.created.name;
             result.add(newRecord);
           }
         }

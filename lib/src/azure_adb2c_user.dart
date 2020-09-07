@@ -7,14 +7,14 @@ import 'package:sync_db/src/sync_db.dart';
 
 import 'abstract.dart';
 
-class CosmosResourceToken {
-  final String id;
-  final String token;
-  final String partition;
-  final String mode;
+// class CosmosResourceToken {
+//   final String id;
+//   final String token;
+//   final String partition;
+//   final String mode;
 
-  CosmosResourceToken(this.id, this.token, this.partition, this.mode);
-}
+//   CosmosResourceToken(this.id, this.token, this.partition, this.mode);
+// }
 
 class AzureADB2CUserSession extends UserSession {
   /// Config will need:
@@ -37,8 +37,13 @@ class AzureADB2CUserSession extends UserSession {
 
   Map<String, dynamic> _config;
   HTTP _http;
-  final List<CosmosResourceToken> _resourceTokens = [];
   DateTime _tokenExpiry;
+
+  Future<void> servicePoints() async {
+    await refresh();
+  }
+
+  Future<void> servicePointsForable(String table) async {}
 
   @override
   Future<bool> hasSignedIn() async {
@@ -46,8 +51,7 @@ class AzureADB2CUserSession extends UserSession {
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
-  @override
-  String get refreshToken => prefs.getString('refresh_token');
+  String get _refreshToken => prefs.getString('refresh_token');
 
   @override
   String get role => prefs.getString('role');
@@ -66,8 +70,7 @@ class AzureADB2CUserSession extends UserSession {
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
   /// If there is no refresh token, guest resource token is returned
-  @override
-  Future<List<CosmosResourceToken>> resourceTokens() async {
+  Future<void> refresh({bool force = false}) async {
     prefs ??= await SharedPreferences.getInstance();
 
     _tokenExpiry ??= await NetworkTime.shared.now;

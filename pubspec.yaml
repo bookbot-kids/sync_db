@@ -22,6 +22,7 @@ dependencies:
   universal_platform: ^0.1.3
   amazon_cognito_identity_dart_2: ^0.1.15
   source_gen: ^0.9.6
+  pool: ^1.4.0
 
   robust_http:
     git:

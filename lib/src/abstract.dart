@@ -2,30 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
 
 abstract class UserSession {
-  /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
-  /// Refresh token is stored in Shared Preferences.
-  Future<List<dynamic>> resourceTokens();
-
-  Future<void> signout();
-
+  set token(String token);
+  Future<List<ServicePoint>> servicePoints();
+  Future<List<ServicePoint>> servicePointsForable(String table);
   Future<bool> hasSignedIn();
-
-  set refreshToken(String token);
-
-  String get refreshToken;
-
-  set role(String role);
-
   String get role;
-
-  Future<void> reset();
+  Future<void> signout();
 }
 
 abstract class Database {
-  void saveMap(String tableName, String id, Map map,
-      {int updatedAt, String status, dynamic transaction});
-
   Future<void> save(Model model, {bool syncToService});
+
+  void saveMap(String tableName, Map map, {dynamic transaction});
 
   bool hasTable(String tableName);
 
