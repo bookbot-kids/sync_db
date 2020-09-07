@@ -23,6 +23,8 @@ abstract class Database {
 
   dynamic query<T>(Query query, {dynamic transaction});
 
+  dynamic queryMap(Query query, {dynamic transaction});
+
   Future<void> delete(Model model);
 
   Future<void> deleteLocal(String modelName, String id);

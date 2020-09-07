@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:pool/pool.dart';
@@ -73,7 +72,7 @@ abstract class Service {
 
   /// Compare and save record coming from services
   /// When accessing a web service will use the _pool to limit accesses at the same time
-  Future<void> _saveLocalRecords(
+  Future<void> saveLocalRecords(
       ServicePoint service, List<Map> records, int responseTimestamp) async {
     // if access is read -> put all records in transaction and save
     // if access is all -> get records in updated state and compare timestamp
@@ -102,8 +101,9 @@ abstract class Service {
     });
   }
 
-  Future<void> _updateRecordStatus(ServicePoint service, Map record) async {
-    // On response - check to see if there has been a local change in that time
-    // - if there has, do not update record to synced
+  /// On response check to see if there has been a local change in that time
+  /// if there has, do not update record to synced
+  Future<void> updateRecordStatus(ServicePoint service, Map record) async {
+    // record['_status'] = SyncState.synced.name;
   }
 }

@@ -29,14 +29,30 @@ class GraphQLService extends Service {
   }
 
   @override
-  Future<List<Map>> readRecords(String table, DateTime timestamp,
-      {String paginationToken}) async {
+  Future<void> readFromService(ServicePoint service) async {
     String select;
+    var table = service.name;
+
     var fields = _getFields(table);
-    if (paginationToken != null) {
-      select = '''
-        query list${table}s {
-          list${table}s (limit: $pageSize) {
+    // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
+    final limit = 1000;
+    String nextToken;
+
+    while (true) {
+      Map<String, dynamic> variables;
+      var nextTokenParam = '';
+      var nextTokenVariable = '';
+      if (nextToken != null) {
+        variables = <String, dynamic>{};
+        variables['nextToken'] = nextToken;
+        nextTokenParam = ', nextToken: \$nextToken';
+        nextTokenVariable = ' (\$nextToken: String)';
+      }
+
+      if (service.from == null) {
+        select = '''
+        query list${table}s${nextTokenVariable}  {
+          list${table}s (limit: $limit${nextTokenParam}) {
             items {
               $fields
             },
@@ -44,48 +60,50 @@ class GraphQLService extends Service {
           }
         }
       ''';
-    } else {
-      select = '''
-      query list$table {
-          list${table}s(filter: {
-            lastSynced: {
-              gt: ${timestamp.millisecondsSinceEpoch}
+      } else {
+        var lastTimestamp = service.from;
+        select = '''
+        query list$table${nextTokenVariable} {
+            list${table}s(filter: {
+              lastSynced: {
+                gt: ${lastTimestamp}
+              }
+            }, limit: $limit${nextTokenParam}){
+              items{
+                $fields
+              },
+              nextToken
             }
-          }, limit: $pageSize){
-            items{
-              $fields
-            },
-            nextToken
-          }
-      }
+        }
       ''';
-    }
-
-    var response = await _queryDocuments(graphClient, select);
-    if (response != null) {
-      var documents = response['list${table}s']['items'];
-      var nextToken = response['list${table}s']['nextToken'];
-      documents.forEach((element) {
-        element['serviceUpdatedAt'] = element['lastSynced'];
-      });
-
-      if (nextToken != null && nextToken.isNotEmpty && documents.isNotEmpty) {
-        documents.last['paginationToken'] = nextToken;
       }
 
-      return documents;
-    }
+      var response = await _queryDocuments(graphClient, select, variables);
+      if (response != null) {
+        var docs = response['list${table}s']['items'];
+        if (docs != null) {
+          docs.forEach((element) {
+            element['serviceUpdatedAt'] = element['lastSynced'];
+          });
 
-    return [];
+          await saveLocalRecords(service, docs);
+        }
+      }
+
+      nextToken = response['list${table}s']['nextToken'];
+      if (nextToken == null) {
+        break;
+      }
+    }
   }
 
   @override
-  Future<List<Map>> writeRecords(String table) async {
+  Future<void> writeToService(ServicePoint service) async {
+    final table = service.name;
     var query = q.Query(table)
         .where('_status = ${SyncState.created.name}')
         .order('createdAt asc');
-    var records = await database.query<Map>(query);
-    var result = <Map>[];
+    var records = await Sync.shared.local.query<Map>(query);
 
     for (final record in records) {
       var fields = _getFields(table);
@@ -95,7 +113,9 @@ class GraphQLService extends Service {
         var newRecord = response['create${table}'];
         _fixFields(newRecord);
         newRecord['_status'] = SyncState.created.name;
-        result.add(newRecord);
+        await saveLocalRecords(service, [newRecord]);
+      } else {
+        Sync.shared.logger?.e('create document ${table} ${record} error');
       }
     }
 
@@ -103,7 +123,7 @@ class GraphQLService extends Service {
     query = q.Query(table)
         .where('_status = ${SyncState.updated.name}')
         .order('updatedAt asc');
-    records = await database.query<Map>(query);
+    records = await Sync.shared.local.query<Map>(query);
 
     for (final localRecord in records) {
       // get appsync record
@@ -128,8 +148,8 @@ class GraphQLService extends Service {
               if (response != null) {
                 var updatedRecord = response['update${table}'];
                 _fixFields(updatedRecord);
-                updatedRecord['_status'] = SyncState.updated.name;
-                result.add(updatedRecord);
+                await updateRecordStatus(service, localRecord);
+                await saveLocalRecords(service, [updatedRecord]);
               }
             } else {
               // local is older, merge and save to local
@@ -139,9 +159,8 @@ class GraphQLService extends Service {
                 }
               });
 
-              localRecord['_status'] = SyncState.synced.name;
-              await await database.saveMap(
-                  table, localRecord['id'], localRecord);
+              await updateRecordStatus(service, localRecord);
+              await saveLocalRecords(service, [localRecord]);
             }
           }
         } else {
@@ -154,13 +173,11 @@ class GraphQLService extends Service {
             var newRecord = response['create${table}'];
             _fixFields(newRecord);
             newRecord['_status'] = SyncState.created.name;
-            result.add(newRecord);
+            await saveLocalRecords(service, [newRecord]);
           }
         }
       }
     }
-
-    return result;
   }
 
   Future<void> _setup() async {

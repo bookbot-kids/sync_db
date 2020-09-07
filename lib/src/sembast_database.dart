@@ -88,10 +88,11 @@ class SembastDatabase extends Database {
   }
 
   /// Query the table with the Query class
+  /// Return the list of map
   @override
-  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
+  Future<List<Map>> queryMap(Query query, {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
-    var results = <T>[];
+    var results = <Map>[];
     var finder = sembast.Finder();
 
     // parse condition query
@@ -182,15 +183,29 @@ class SembastDatabase extends Database {
     final db = _db[query.tableName];
     var records = await store.find(transaction ?? db, finder: finder);
     for (var record in records) {
+      var value = sembast_utils.cloneValue(record.value);
+      results.add(value);
+    }
+
+    return results;
+  }
+
+  /// Query the table with the Query class
+  /// Return the list of model
+  @override
+  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
+    var records = await queryMap(query, transaction: transaction);
+    var results = <T>[];
+    for (var record in records) {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();
-        model.import(_fixType(record.value));
+        model.import(_fixType(record));
         if (model.deletedAt == null) {
           results.add(model);
         }
       } else {
         // clone map for writable
-        var value = sembast_utils.cloneValue(record.value);
+        var value = sembast_utils.cloneValue(record);
         results.add(value);
       }
     }

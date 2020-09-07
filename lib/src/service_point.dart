@@ -5,7 +5,7 @@ class ServicePoint extends Model {
   ServicePoint({String name});
 
   String name; // The table name
-  DateTime from;
+  int from;
   String partition;
   Access access;
   String token;
