@@ -73,13 +73,13 @@ class CosmosService extends Service {
 
       // Get created records and save to Cosmos DB
       var query = Query(table)
-          .where('_status = ${SyncState.created.name}')
+          .where('_status = ${SyncStatus.created.name}')
           .order('createdAt asc');
       var createdRecords = await database.query<Map>(query);
 
       // Get records that have been updated and update Cosmos
       query = Query(table)
-          .where('_status = ${SyncState.updated.name}')
+          .where('_status = ${SyncStatus.updated.name}')
           .order('updatedAt asc');
       var updatedRecords = await database.query<Map>(query);
       List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
@@ -91,7 +91,7 @@ class CosmosService extends Service {
                 permission.token, table, permission.partition, record);
             // update to local & set synced status after syncing
             if (newRecord != null) {
-              newRecord['state'] = SyncState.created.name;
+              newRecord['state'] = SyncStatus.created.name;
               newRecord['serviceUpdatedAt'] = newRecord['_ts'];
               result.add(newRecord);
             }
@@ -136,7 +136,7 @@ class CosmosService extends Service {
                       cosmosRecord);
                   // update to local & set synced status after syncing
                   if (updatedRecord != null) {
-                    updatedRecord['_status'] = SyncState.updated.name;
+                    updatedRecord['_status'] = SyncStatus.updated.name;
                     updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
                     result.add(updatedRecord);
                   }
@@ -148,7 +148,7 @@ class CosmosService extends Service {
                     }
                   });
 
-                  localRecord['_status'] = SyncState.synced.name;
+                  localRecord['_status'] = SyncStatus.synced.name;
                   await await database.saveMap(
                       table, localRecord['id'], localRecord);
                 }

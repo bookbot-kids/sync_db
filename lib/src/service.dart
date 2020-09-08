@@ -16,7 +16,7 @@ abstract class Service {
   /// Sync a table to service
   Future<void> syncTable(String table) async {
     await _syncServicePoints(
-        await Sync.shared.userSession.servicePointsForable(table));
+        await Sync.shared.userSession.servicePointsForTable(table));
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
@@ -31,7 +31,7 @@ abstract class Service {
   /// Write created or updated records in this table
   Future<void> writeTable(String table) async {
     final servicePoints =
-        await Sync.shared.userSession.servicePointsForable(table);
+        await Sync.shared.userSession.servicePointsForTable(table);
     var futures = <Future>[];
     for (final servicePoint in servicePoints) {
       futures.add(writeServicePoint(servicePoint));
@@ -63,39 +63,37 @@ abstract class Service {
 
   /// Get records from online service and send to _saveLocalRecords
   /// When accessing a web service will use the _pool to limit accesses at the same time
-  /// Convert server timestamps to serviceUpdatedAt
+  /// Save the response timestamp to ServicePoint.from
   Future<void> readFromService(ServicePoint service);
 
   /// Write records to online services and update record status with _updateRecordStatus
   /// Convert server timestamps to serviceUpdatedAt
+  /// When accessing a web service will use the _pool to limit accesses at the same time
   Future<void> writeToService(ServicePoint service);
 
   /// Compare and save record coming from services
-  /// When accessing a web service will use the _pool to limit accesses at the same time
   Future<void> saveLocalRecords(ServicePoint service, List<Map> records) async {
-    // if access is read -> put all records in transaction and save
-    // if access is all -> get records in updated state and compare timestamp
-    // save over records in transaction that are allowed,
-    // save servicepoint last timestamp on last record
-
     final database = Sync.shared.local;
     var lastTimestamp = DateTime.utc(0);
-    Map<String, Map> transientRecords = {};
+    Map<String, Map> transientRecords;
 
     await database.runInTransaction(service.name, (transaction) async {
       // Get updating records to compare
       if (service.access == Access.all) {
-        // Get transient records
+        final query =
+            Query(service.name).where({statusKey: SyncStatus.updated.name});
+        transientRecords =
+            await database.queryMap(query, transaction: transaction);
       }
-      for (final map in records) {
-        final existingRecord = transientRecords[map['id']];
 
+      // Check all records can be saved - don't save over records that have been updated locally
+      for (final record in records) {
+        final existingRecord = transientRecords[record[idKey]];
         if (existingRecord == null ||
-            map['updatedAt'] > existingRecord['updatedAt']) {
-          database.saveMap(service.name, map);
+            record[updatedKey] > existingRecord[updatedKey]) {
+          record[statusKey] = SyncStatus.synced.name;
+          database.saveMap(service.name, record);
         }
-
-        //map['serviceUpdatedAt'];
       }
     });
   }
@@ -103,6 +101,14 @@ abstract class Service {
   /// On response check to see if there has been a local change in that time
   /// if there has, do not update record to synced
   Future<void> updateRecordStatus(ServicePoint service, Map record) async {
-    // record['_status'] = SyncState.synced.name;
+    final database = Sync.shared.local;
+
+    await database.runInTransaction(service.name, (transaction) async {
+      final liveRecord = database.findMap(service.name, record[idKey]);
+      if (liveRecord[updatedKey] == record[updatedKey]) {
+        record[statusKey] = SyncStatus.synced.name;
+        database.saveMap(service.name, record);
+      }
+    });
   }
 }

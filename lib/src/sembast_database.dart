@@ -81,6 +81,18 @@ class SembastDatabase extends Database {
     return null;
   }
 
+  /// Find map instance by id
+  @override
+  Future<Model> findMap(String modelName, String id) async {
+    final store = sembast.StoreRef.main();
+    final record = await store.record(id).get(_db[modelName]);
+    if (record != null && record[deletedKey] == null) {
+      return record;
+    }
+
+    return null;
+  }
+
   /// Check whether database table has initialized
   @override
   bool hasTable(String tableName) {
@@ -258,7 +270,7 @@ class SembastDatabase extends Database {
   @override
   Future<void> saveMap(String tableName, Map map, {dynamic transaction}) async {
     map.putIfAbsent('id', () => Uuid().v4().toString());
-    map.putIfAbsent('_status', () => SyncState.synced.name);
+    map.putIfAbsent('_status', () => SyncStatus.synced.name);
 
     final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     map.putIfAbsent('createdAt', () => now);

@@ -98,7 +98,7 @@ class GraphQLService extends Service {
   Future<void> writeToService(ServicePoint service) async {
     final table = service.name;
     var query = q.Query(table)
-        .where('_status = ${SyncState.created.name}')
+        .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
     var records = await Sync.shared.local.query<Map>(query);
 
@@ -109,7 +109,7 @@ class GraphQLService extends Service {
       if (response != null) {
         var newRecord = response['create${table}'];
         _fixFields(newRecord);
-        newRecord['_status'] = SyncState.created.name;
+        newRecord['_status'] = SyncStatus.created.name;
         await saveLocalRecords(service, [newRecord]);
       } else {
         Sync.shared.logger?.e('create document ${table} ${record} error');
@@ -118,7 +118,7 @@ class GraphQLService extends Service {
 
     // Get records that have been updated and update to appsync
     query = q.Query(table)
-        .where('_status = ${SyncState.updated.name}')
+        .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
     records = await Sync.shared.local.query<Map>(query);
 
@@ -169,7 +169,7 @@ class GraphQLService extends Service {
           if (response != null && response['create${table}'] != null) {
             var newRecord = response['create${table}'];
             _fixFields(newRecord);
-            newRecord['_status'] = SyncState.created.name;
+            newRecord['_status'] = SyncStatus.created.name;
             await saveLocalRecords(service, [newRecord]);
           }
         }

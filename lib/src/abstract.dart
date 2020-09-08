@@ -1,10 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
 
+const statusKey = '_status';
+const idKey = 'id';
+const updatedKey = 'updatedAt';
+const createdKey = 'createdAt';
+const deletedKey = 'deletedAt';
+
 abstract class UserSession {
   set token(String token);
   Future<List<ServicePoint>> servicePoints();
-  Future<List<ServicePoint>> servicePointsForable(String table);
+  Future<List<ServicePoint>> servicePointsForTable(String table);
   Future<bool> hasSignedIn();
   String get role;
   Future<void> signout();
@@ -20,6 +26,7 @@ abstract class Database {
   dynamic all(String modelName, Function instantiateModel);
 
   dynamic find(String modelName, String id, Model model);
+  dynamic findMap(String modelName, String id);
 
   dynamic query<T>(Query query, {dynamic transaction});
 

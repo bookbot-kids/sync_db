@@ -78,21 +78,21 @@ extension $Access on Access {
   static Access fromString(String value) => $Access.toEnum[value];
 }
 
-enum SyncState { created, updated, synced }
+enum SyncStatus { created, updated, synced }
 
-extension $SyncState on SyncState {
+extension $SyncStatus on SyncStatus {
   static final string = {
-    SyncState.created: 'created',
-    SyncState.updated: 'updated',
-    SyncState.synced: 'synced',
+    SyncStatus.created: 'created',
+    SyncStatus.updated: 'updated',
+    SyncStatus.synced: 'synced',
   };
 
   static final toEnum = {
-    'created': SyncState.created,
-    'updated': SyncState.updated,
-    'synced': SyncState.synced,
+    'created': SyncStatus.created,
+    'updated': SyncStatus.updated,
+    'synced': SyncStatus.synced,
   };
 
-  String get name => $SyncState.string[this];
-  static SyncState fromString(String value) => $SyncState.toEnum[value];
+  String get name => $SyncStatus.string[this];
+  static SyncStatus fromString(String value) => $SyncStatus.toEnum[value];
 }
