@@ -16,6 +16,15 @@ import 'abstract.dart';
 //   CosmosResourceToken(this.id, this.token, this.partition, this.mode);
 // }
 
+// abstract class UserSession {
+//   set token(String token);
+//   Future<List<ServicePoint>> servicePoints();
+//   Future<List<ServicePoint>> servicePointsForTable(String table);
+//   Future<bool> hasSignedIn();
+//   String get role;
+//   Future<void> signout();
+// }
+
 class AzureADB2CUserSession extends UserSession {
   /// Config will need:
   /// `azureBaseUrl` for Azure authentication functions
@@ -39,22 +48,19 @@ class AzureADB2CUserSession extends UserSession {
   HTTP _http;
   DateTime _tokenExpiry;
 
-  Future<void> servicePoints() async {
-    await refresh();
-  }
-
-  Future<void> servicePointsForable(String table) async {}
-
   @override
   Future<bool> hasSignedIn() async {
     prefs ??= await SharedPreferences.getInstance();
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
-  String get _refreshToken => prefs.getString('refresh_token');
-
   @override
   String get role => prefs.getString('role');
+
+  @override
+  set refreshToken(String token) {
+    prefs.setString('refresh_token', token);
+  }
 
   @override
   Future<void> reset() async {
@@ -63,9 +69,26 @@ class AzureADB2CUserSession extends UserSession {
   }
 
   @override
-  set refreshToken(String token) {
-    prefs.setString('refresh_token', token);
+  set role(String role) {
+    prefs.setString('role', role);
   }
+
+  /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
+  @override
+  Future<void> signout() async {
+    _resourceTokens?.clear();
+    _tokenExpiry = null;
+    await prefs.remove('refresh_token');
+    await Sync.shared.local.cleanDatabase();
+  }
+
+  Future<void> servicePoints() async {
+    await refresh();
+  }
+
+  Future<void> servicePointsForable(String table) async {}
+
+  String get _refreshToken => prefs.getString('refresh_token');
 
   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
   /// When refresh is true it will get new resource tokens from web services
@@ -131,20 +154,6 @@ class AzureADB2CUserSession extends UserSession {
     }
 
     return List<CosmosResourceToken>.from(_resourceTokens);
-  }
-
-  @override
-  set role(String role) {
-    prefs.setString('role', role);
-  }
-
-  /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
-  @override
-  Future<void> signout() async {
-    _resourceTokens?.clear();
-    _tokenExpiry = null;
-    await prefs.remove('refresh_token');
-    await Sync.shared.local.cleanDatabase();
   }
 
   /// Fetch refresh token & resource tokens from id token

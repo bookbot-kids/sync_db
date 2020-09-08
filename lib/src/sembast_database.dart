@@ -11,23 +11,45 @@ import 'package:sembast/src/utils.dart' as sembast_utils;
 
 class SembastDatabase extends Database {
   SembastDatabase._privateConstructor();
-
   static SembastDatabase shared = SembastDatabase._privateConstructor();
 
-  final Map<String, sembast.Database> _db = {};
-  List<Model> _models = [];
-  Sync _sync;
+  final Map<String, sembast.Database> _database = {};
+
+  /// Opens up each table connected to each model, which is stored in a separate file.
+  static Future<void> config(List<String> tableNames) async {
+    if (UniversalPlatform.isWeb) {
+      // Open all databases for web
+      for (final tableName in tableNames) {
+        final name = tableName;
+        final dbPath = name + '.db';
+        shared._database[name] = await databaseFactoryWeb.openDatabase(dbPath);
+      }
+    } else {
+      // get document directory
+      final documentPath = await getApplicationDocumentsDirectory();
+      await documentPath.create(recursive: true);
+
+      // Open all databases
+      for (final tableName in tableNames) {
+        final name = tableName;
+        final dbPath = join(documentPath.path, name + '.db');
+        Sync.shared.logger?.d('model $name has path $dbPath');
+        shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+      }
+    }
+  }
 
   /// Get all records in the table
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
     final store = sembast.StoreRef.main();
-    var records = await store.find(_db[modelName], finder: sembast.Finder());
+    var records =
+        await store.find(_database[modelName], finder: sembast.Finder());
 
     var models = <Model>[];
     for (final record in records) {
       final model = instantiateModel();
-      model.import(_fixType(record.value));
+      model.import(record.value);
       if (model.deletedAt == null) {
         models.add(model);
       }
@@ -35,58 +57,26 @@ class SembastDatabase extends Database {
     return models;
   }
 
-  @override
-  Future<void> cleanDatabase() async {
-    for (var model in _models) {
-      var db = _db[model.tableName];
-      final store = sembast.StoreRef.main();
-      await store.delete(db, finder: sembast.Finder());
-      await store.drop(db);
-      await db.close();
-    }
-
-    _db.clear();
-    _models.clear();
-    shared = SembastDatabase._privateConstructor();
-  }
-
-  /// Delete by setting deletedAt and sync
-  @override
-  Future<void> delete(Model model) async {
-    model.deletedAt = await NetworkTime.shared.now;
-    await save(model);
-  }
-
-  /// Delete sembast local record if exists
-  @override
-  Future<void> deleteLocal(String modelName, String id) async {
-    final store = sembast.StoreRef.main();
-    if (await store.record(id).exists(_db[modelName])) {
-      await store.record(id).delete(_db[modelName]);
-    }
-  }
-
   /// Find model instance by id
   @override
   Future<Model> find(String modelName, String id, Model model) async {
     final store = sembast.StoreRef.main();
-    final record = await store.record(id).get(_db[modelName]);
-    if (record != null) {
-      model.map = _fixType(record);
-      if (model.deletedAt == null) {
-        return model;
-      }
+    final record = await store.record(id).get(_database[modelName]);
+    if (record != null && record[deletedKey] == null) {
+      model.map = record;
+      return model;
     }
 
     return null;
   }
 
   /// Find map instance by id
+  /// Will allow getting deleted records
   @override
   Future<Model> findMap(String modelName, String id) async {
     final store = sembast.StoreRef.main();
-    final record = await store.record(id).get(_db[modelName]);
-    if (record != null && record[deletedKey] == null) {
+    final record = await store.record(id).get(_database[modelName]);
+    if (record != null) {
       return record;
     }
 
@@ -96,7 +86,30 @@ class SembastDatabase extends Database {
   /// Check whether database table has initialized
   @override
   bool hasTable(String tableName) {
-    return _db[tableName] != null;
+    return _database[tableName] != null;
+  }
+
+  /// Query the table with the Query class
+  /// Return the list of model
+  @override
+  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
+    var records = await queryMap(query, transaction: transaction);
+    var results = <T>[];
+    for (var record in records) {
+      if (query.instantiateModel != null) {
+        final model = query.instantiateModel();
+        model.import(record);
+        if (model.deletedAt == null) {
+          results.add(model);
+        }
+      } else {
+        // clone map for writable
+        var value = sembast_utils.cloneValue(record);
+        results.add(value);
+      }
+    }
+
+    return results;
   }
 
   /// Query the table with the Query class
@@ -192,7 +205,7 @@ class SembastDatabase extends Database {
       finder.limit = query.resultLimit;
     }
 
-    final db = _db[query.tableName];
+    final db = _database[query.tableName];
     var records = await store.find(transaction ?? db, finder: finder);
     for (var record in records) {
       var value = sembast_utils.cloneValue(record.value);
@@ -202,32 +215,9 @@ class SembastDatabase extends Database {
     return results;
   }
 
-  /// Query the table with the Query class
-  /// Return the list of model
-  @override
-  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
-    var records = await queryMap(query, transaction: transaction);
-    var results = <T>[];
-    for (var record in records) {
-      if (query.instantiateModel != null) {
-        final model = query.instantiateModel();
-        model.import(_fixType(record));
-        if (model.deletedAt == null) {
-          results.add(model);
-        }
-      } else {
-        // clone map for writable
-        var value = sembast_utils.cloneValue(record);
-        results.add(value);
-      }
-    }
-
-    return results;
-  }
-
   @override
   Future<void> runInTransaction(String tableName, Function action) async {
-    final db = _db[tableName];
+    final db = _database[tableName];
     await db.transaction((transaction) async {
       await action(transaction);
     });
@@ -235,11 +225,6 @@ class SembastDatabase extends Database {
 
   @override
   Future<void> save(Model model, {bool syncToService = true}) async {
-    // Get DB
-    final name = model.tableName;
-    final db = _db[name];
-    final store = sembast.StoreRef.main();
-
     // Set id and createdAt if new record. ID is a random UUID
     final create = (model.id == null) || (model.createdAt == null);
     model.id ??= Uuid().v4().toString();
@@ -254,14 +239,19 @@ class SembastDatabase extends Database {
         map[entry.key] = (entry.value as DateTime).millisecondsSinceEpoch;
       }
     }
-    map['_status'] = create ? 'created' : 'updated';
+    map[statusKey] = create ? SyncStatus.created.name : SyncStatus.updated.name;
+
+    // Get DB
+    final name = model.tableName;
+    final store = sembast.StoreRef.main();
 
     // Store and then start the sync
-    await store.record(model.id).put(db, map);
+    await store.record(model.id).put(_database[name], map);
 
     // sync to server
     if (syncToService) {
-      //_sync.writeTable(name);
+      // ignore: unawaited_futures
+      Sync.shared.service.writeTable(name);
     }
   }
 
@@ -269,24 +259,17 @@ class SembastDatabase extends Database {
   /// The map will come from a service.
   @override
   Future<void> saveMap(String tableName, Map map, {dynamic transaction}) async {
-    map.putIfAbsent('id', () => Uuid().v4().toString());
-    map.putIfAbsent('_status', () => SyncStatus.synced.name);
+    map.putIfAbsent(idKey, () => Uuid().v4().toString());
+    map.putIfAbsent(statusKey, () => SyncStatus.synced.name);
 
     final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
-    map.putIfAbsent('createdAt', () => now);
-    map.putIfAbsent('updatedAt', () => now);
+    map.putIfAbsent(createdKey, () => now);
+    map.putIfAbsent(updatedKey, () => now);
 
     final store = sembast.StoreRef<String, dynamic>.main();
-    await store.record(map['id']).put(transaction ?? _db[tableName], map);
-  }
-
-  /// Connects online services to the Sembast Database
-  /// Opens up each table connected to each model, which is stored in a separate file.
-  static Future<void> config(Sync remoteSync, List<Model> models) async {
-    shared._models = models;
-    shared._sync = remoteSync;
-
-    await shared._initDatabase();
+    await store
+        .record(map[idKey])
+        .put(transaction ?? _database[tableName], map);
   }
 
   /// Import data from sembast file (in text string) -> this is not supported for web
@@ -307,35 +290,40 @@ class SembastDatabase extends Database {
     }
   }
 
-  /// initialize and open database for web & other platforms
-  Future<void> _initDatabase() async {
-    if (UniversalPlatform.isWeb) {
-      // Open all databases for web
-      for (final model in _models) {
-        final name = model.tableName;
-        final dbPath = name + '.db';
-        _db[name] = await databaseFactoryWeb.openDatabase(dbPath);
-      }
-    } else {
-      // get document dir
-      final dir = await getApplicationDocumentsDirectory();
-      // make sure it exists
-      await dir.create(recursive: true);
-
-      // Open all databases
-      for (final model in _models) {
-        final name = model.tableName;
-        final dbPath = join(dir.path, name + '.db');
-        Sync.shared.logger?.d('model $name has path $dbPath');
-        _db[name] = await databaseFactoryIo.openDatabase(dbPath);
-      }
-    }
-  }
-
   Future<void> clearTable(String tableName) async {
-    var db = _db[tableName];
+    var db = _database[tableName];
     final store = sembast.StoreRef.main();
     await store.delete(db, finder: sembast.Finder());
+  }
+
+  @override
+  Future<void> cleanDatabase() async {
+    for (var tableName in _database.keys) {
+      var db = _database[tableName];
+      final store = sembast.StoreRef.main();
+      await store.delete(db, finder: sembast.Finder());
+      await store.drop(db);
+      await db.close();
+    }
+
+    _database.clear();
+    shared = SembastDatabase._privateConstructor();
+  }
+
+  /// Delete by setting deletedAt and sync
+  @override
+  Future<void> delete(Model model) async {
+    model.deletedAt = await NetworkTime.shared.now;
+    await save(model);
+  }
+
+  /// Delete sembast local record if exists
+  @override
+  Future<void> deleteLocal(String modelName, String id) async {
+    final store = sembast.StoreRef.main();
+    if (await store.record(id).exists(_database[modelName])) {
+      await store.record(id).delete(_database[modelName]);
+    }
   }
 
   sembast.Filter _buildFilter(String left, String filterOperator, String right,
@@ -369,37 +357,6 @@ class SembastDatabase extends Database {
             anyInList: true);
       default:
         return null;
-    }
-  }
-
-  Map<String, dynamic> _fixType(Map<String, dynamic> map) {
-    var copiedMap = {}..addAll(map);
-
-    copiedMap['createdAt'] =
-        DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0);
-    copiedMap['updatedAt'] =
-        DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0);
-    if (map['deletedAt'] is int) {
-      copiedMap['deletedAt'] =
-          DateTime.fromMillisecondsSinceEpoch(map['deletedAt']);
-    }
-
-    return copiedMap;
-  }
-
-  /// Custom Sembast cooperator in case has slow sort query on web https://github.com/tekartik/sembast.dart/issues/189
-  /// Since version 2.4.6 this issue has been fixed, so assume that we don't need to call this function.
-  /// Notice: In case we need it, make sure it should be called before any query operators.
-  static void enableSembastCooperator(bool enable,
-      {int delayMicroseconds, int pauseMicroseconds}) {
-    if (enable == true) {
-      // ignore: invalid_use_of_visible_for_testing_member
-      sembast.enableSembastCooperator(
-          delayMicroseconds: delayMicroseconds,
-          pauseMicroseconds: pauseMicroseconds);
-    } else {
-      // ignore: invalid_use_of_visible_for_testing_member
-      sembast.disableSembastCooperator();
     }
   }
 

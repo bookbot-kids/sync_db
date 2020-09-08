@@ -19,6 +19,5 @@ class Sync {
     shared.local = db;
     shared.logger = logger;
     shared.userSession = userSession;
-    HttpLogAdapter.shared.logger = logger;
   }
 }

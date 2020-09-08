@@ -4,13 +4,6 @@ import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class CosmosService extends Service {
-  String databaseId;
-  HTTP http;
-  int pageSize;
-  UserSession user;
-  int readRetry = 0;
-  int writeRetry = 0;
-
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `databaseAccount` name, and database id `dbId` in the config map
   CosmosService(Map config) {
@@ -18,13 +11,20 @@ class CosmosService extends Service {
         'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
         config);
     databaseId = config['dbId'];
-    pageSize = config['pageSize'] ?? 100;
+    pageSize = config['pageSize'] ?? 1000;
   }
+
+  String databaseId;
+  HTTP http;
+  int pageSize;
+  int readRetry = 0;
+  UserSession user;
+  int writeRetry = 0;
 
   static const String _apiVersion = '2018-12-31';
 
   @override
-  Future<List<Map>> readRecords(String table, DateTime timestamp,
+  Future<List<Map>> readFromService(String table, DateTime timestamp,
       {String paginationToken}) async {
     var result = <Map>[];
     try {
@@ -299,7 +299,7 @@ class CosmosService extends Service {
 
   /// Remove local fields before saving to cosmos
   void _excludeLocalFields(Map map) {
-    map.removeWhere((key, value) => key == 'updatedAt' || key.startsWith('_'));
+    map.removeWhere((key, value) => key.startsWith('_'));
   }
 
   /// Add parameter in list of map for cosmos query

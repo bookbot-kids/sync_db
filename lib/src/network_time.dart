@@ -18,9 +18,7 @@ class NetworkTime {
     if (_offset == null) {
       try {
         _offset = await NTP.getNtpOffset(localTime: DateTime.now().toLocal());
-        print('server offset $_offset');
       } catch (e) {
-        print('get server offset error $e');
         _offset = null;
       }
     }

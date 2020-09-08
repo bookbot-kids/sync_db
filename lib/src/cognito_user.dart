@@ -107,8 +107,8 @@ class CognitoUserSession extends UserSession {
   }
 
   @override
-  Future<List<ServicePoint>> servicePointsForable(String table) {
-    // TODO: implement servicePointsForable
+  Future<List<ServicePoint>> servicePointsForTable(String table) {
+    // TODO: implement servicePointsForTable
     throw UnimplementedError();
   }
 
