@@ -30,18 +30,23 @@ class CosmosService extends Service {
     var paginationToken;
 
     // Query the document with paging
-    // the last item in the result may have next page token `paginationToken`
+    // loop while we have a `paginationToken`
     do {
-      final response = await _queryDocuments(
-          servicePoint.token, servicePoint.name, servicePoint.partition, query);
-      // ignore: unawaited_futures
-      saveLocalRecords(servicePoint, response['response']);
+      var response = {};
+      await pool.withResource(() async {
+        response = await _queryDocuments(servicePoint.token, servicePoint.name,
+            servicePoint.partition, query);
+      });
+
+      await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
+      servicePoint.from =
+          HttpDate.parse(response['responseTimestamp']).millisecondsSinceEpoch;
     } while (paginationToken == null);
   }
 
   @override
-  Future<List<Map>> writeRecords(String table) async {
+  Future<void> writeToService(ServicePoint servicePoint) async {
     var result = <Map>[];
     try {
       var availablePermissions =
@@ -185,9 +190,11 @@ class CosmosService extends Service {
 
       return {
         'response': docs,
-        'paginationToken': response.headers.value('x-ms-continuation')
+        'paginationToken': response.headers.value('x-ms-continuation'),
+        'responseTimestamp': response.headers.value('Date')
       };
     } catch (error, stackTrace) {
+      //TODO: Think out what to do with this
       if (error is UnexpectedResponseException) {
         if (error.response.statusCode == 401 ||
             error.response.statusCode == 403) {
@@ -201,6 +208,7 @@ class CosmosService extends Service {
         Sync.shared.logger?.e('Query cosmos document error', error, stackTrace);
       }
     }
+    return {};
   }
 
   /// Cosmos api to create document
