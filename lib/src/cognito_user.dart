@@ -47,7 +47,8 @@ class CognitoUserSession extends UserSession {
   @override
   Future<bool> hasSignedIn() async => await _checkAuthenticated();
 
-  Future<void> reset() async {
+  @override
+  Future<void> forceRefresh() async {
     _session = await _cognitoUser.getSession();
   }
 
@@ -107,9 +108,9 @@ class CognitoUserSession extends UserSession {
   }
 
   @override
-  Future<List<ServicePoint>> servicePointsForTable(String table) {
-    // TODO: implement servicePointsForTable
-    throw UnimplementedError();
+  Future<List<ServicePoint>> servicePointsForTable(String table) async {
+    // Each table has only one service point
+    return [ServicePoint(name: table)];
   }
 
   @override

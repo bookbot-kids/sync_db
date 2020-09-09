@@ -9,16 +9,21 @@ import 'query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
-  List permissions;
+  List _rolePermissions;
   Map _schema;
   CognitoUserSession user;
   GraphQLClient _graphClient;
   HttpLink _httpLink;
 
+  /// Max error retry
+  int maxRetry;
+
   GraphQLService(Map config) {
     _httpLink = HttpLink(
       uri: config['appsyncUrl'],
     );
+
+    maxRetry = config['errorRetry'] ?? 2;
   }
 
   @override
@@ -44,25 +49,11 @@ class GraphQLService extends Service {
           nextTokenVariable = ' (\$nextToken: String)';
         }
 
-        if (service.from == null) {
-          select = '''
-        query list${table}s${nextTokenVariable}  {
-          list${table}s (limit: $limit${nextTokenParam}) {
-            items {
-              $fields
-            },
-            nextToken
-          }
-        }
-      ''';
-        } else {
-          // minus one second
-          var lastTimestamp = service.from - 1000;
-          select = '''
+        select = '''
         query list$table${nextTokenVariable} {
             list${table}s(filter: {
               lastSynced: {
-                gt: ${lastTimestamp}
+                ge: ${service.from}
               }
             }, limit: $limit${nextTokenParam}){
               items{
@@ -71,16 +62,15 @@ class GraphQLService extends Service {
               nextToken
             }
         }
-      ''';
-        }
+        ''';
 
         var response = await _queryDocuments(select, variables);
         if (response != null) {
           var docs = response['list${table}s']['items'];
           if (docs != null) {
-            docs.forEach((element) {
-              element['serviceUpdatedAt'] = element['lastSynced'];
-            });
+            if (docs.isNotEmpty) {
+              service.from = docs.last['lastSynced'];
+            }
 
             await saveLocalRecords(service, docs);
           }
@@ -97,6 +87,7 @@ class GraphQLService extends Service {
   @override
   Future<void> writeToService(ServicePoint service) async {
     final table = service.name;
+    // get created records and create in appsync
     var query = q.Query(table)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
@@ -108,9 +99,7 @@ class GraphQLService extends Service {
       var response = await _createDocument(table, fields, record);
       if (response != null) {
         var newRecord = response['create${table}'];
-        _fixFields(newRecord);
-        newRecord['_status'] = SyncStatus.created.name;
-        await saveLocalRecords(service, [newRecord]);
+        await updateRecordStatus(service, newRecord);
       } else {
         Sync.shared.logger?.e('create document ${table} ${record} error');
       }
@@ -121,58 +110,14 @@ class GraphQLService extends Service {
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
     records = await Sync.shared.local.query<Map>(query);
-
-    for (final localRecord in records) {
-      // get appsync record
+    for (var record in records) {
       var fields = _getFields(table);
-      var response = await _getDocument(table, fields, localRecord['id']);
+      var response = await _updateDocument(table, fields, record);
       if (response != null) {
-        if (response['get$table'] != null) {
-          var remoteRecord = response['get$table'];
-          if (remoteRecord != null) {
-            // compare date between local & remote
-            var localDate = localRecord['updatedAt'] / 1000;
-            // if local is newer, merge and save to appsync
-            if (localDate > remoteRecord['lastSynced']) {
-              localRecord.forEach((key, value) {
-                if (key != 'updatedAt') {
-                  remoteRecord[key] = value;
-                }
-              });
-
-              var response = await _updateDocument(table, fields, remoteRecord);
-              // update to local & set synced status after syncing
-              if (response != null) {
-                var updatedRecord = response['update${table}'];
-                _fixFields(updatedRecord);
-                await updateRecordStatus(service, localRecord);
-                await saveLocalRecords(service, [updatedRecord]);
-              }
-            } else {
-              // local is older, merge and save to local
-              remoteRecord.forEach((key, value) {
-                if (key != 'updatedAt') {
-                  localRecord[key] = value;
-                }
-              });
-
-              await updateRecordStatus(service, localRecord);
-              await saveLocalRecords(service, [localRecord]);
-            }
-          }
-        } else {
-          // if there is no record in appsync, then create a new one
-          var fields = _getFields(table);
-          var response = await _createDocument(table, fields, localRecord);
-
-          // update to local & set synced status after syncing
-          if (response != null && response['create${table}'] != null) {
-            var newRecord = response['create${table}'];
-            _fixFields(newRecord);
-            newRecord['_status'] = SyncStatus.created.name;
-            await saveLocalRecords(service, [newRecord]);
-          }
-        }
+        var updatedRecord = response['update${table}'];
+        await updateRecordStatus(service, updatedRecord);
+      } else {
+        Sync.shared.logger?.e('update document ${table} ${record} error');
       }
     }
   }
@@ -180,18 +125,10 @@ class GraphQLService extends Service {
   Future<void> _setup() async {
     // Get graph client base on token
     await graphClient;
-
     // query all schema
     await schema;
-
     // query permissions map
-    await _getRolePermissions();
-  }
-
-  /// Exclude fields from the local record before sending to server
-  void _excludeLocalFields(Map map) {
-    map.removeWhere((key, value) =>
-        key == 'updatedAt' || key == 'createdAt' || key.startsWith('_'));
+    await rolePermissions;
   }
 
   /// Get document by id
@@ -210,7 +147,7 @@ class GraphQLService extends Service {
   /// Create new document and return a new document
   Future<dynamic> _createDocument(
       String table, String fields, Map record) async {
-    _excludeLocalFields(record);
+    excludePrivateFields(record);
     var query = '''
          mutation put${table}(\$input: Create${table}Input!) {
           create${table}(input: \$input) {
@@ -227,7 +164,7 @@ class GraphQLService extends Service {
   /// Update a document and return an updated document
   Future<dynamic> _updateDocument(
       String table, String fields, Map record) async {
-    _excludeLocalFields(record);
+    excludePrivateFields(record);
     var query = '''
               mutation update${table}(\$input: Update${table}Input!) {
                 update${table}(input: \$input) {
@@ -241,42 +178,42 @@ class GraphQLService extends Service {
     return _mutationDocument(query, variables);
   }
 
-  /// Delete a document and return a deleted document
-  Future<dynamic> _deleteDocument(
-      String table, String fields, String id) async {
-    var query = '''
-              mutation delete$table{
-                delete$table(input:{
-                  id: "$id"
-                }){
-                  $fields
-                }
-              }
-            ''';
-
-    var variables = <String, dynamic>{};
-    return _mutationDocument(query, variables);
-  }
-
   /// Execute mutation query like update, insert, delete and return a document
   Future<dynamic> _mutationDocument(
       String query, Map<String, dynamic> variables) async {
-    var client = await graphClient;
-    var options =
-        MutationOptions(documentNode: gql(query), variables: variables);
-    var result = await client.mutate(options);
-    // printLog('_mutationDocument ${result.data}', logLevel);
-    return result.data;
+    for (var i = 1; i <= maxRetry; i++) {
+      var client = await graphClient;
+      var options =
+          MutationOptions(documentNode: gql(query), variables: variables);
+      var result = await client.mutate(options);
+      if (!result.hasException) {
+        return result.data;
+      } else {
+        Sync.shared.logger?.e('mutationDocument [$query] [$variables] error',
+            result.exception, StackTrace.current);
+      }
+    }
+
+    throw RetryFailureException();
   }
 
   /// Query documents
   Future<dynamic> _queryDocuments(String query,
       [Map<String, dynamic> variables]) async {
-    var client = await graphClient;
-    var options = QueryOptions(documentNode: gql(query), variables: variables);
-    var result = await client.query(options);
-    // printLog('_queryDocuments ${result.data}', logLevel);
-    return result.data;
+    for (var i = 1; i <= maxRetry; i++) {
+      var client = await graphClient;
+      var options =
+          QueryOptions(documentNode: gql(query), variables: variables);
+      var result = await client.query(options);
+      if (!result.hasException) {
+        return result.data;
+      } else {
+        Sync.shared.logger?.e('queryDocuments [$query] [$variables] error',
+            result.exception, StackTrace.current);
+      }
+    }
+
+    throw RetryFailureException();
   }
 
   /// Get graph client base on token from cognito
@@ -328,8 +265,8 @@ class GraphQLService extends Service {
   }
 
   /// Get defined role permissions
-  Future<void> _getRolePermissions() async {
-    if (permissions != null) {
+  Future<void> get rolePermissions async {
+    if (_rolePermissions != null) {
       return;
     }
 
@@ -350,16 +287,16 @@ class GraphQLService extends Service {
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listRolePermissionss')) {
-      permissions = documents['listRolePermissionss']['items'];
+      _rolePermissions = documents['listRolePermissionss']['items'];
     }
 
-    if (permissions == null) {
+    if (_rolePermissions == null) {
       throw SyncDataException('Can not get permission');
     }
   }
 
   bool hasPermission(String role, String table, String checkedPermission) {
-    if (permissions == null) {
+    if (_rolePermissions == null) {
       return false;
     }
 
@@ -368,7 +305,7 @@ class GraphQLService extends Service {
       return true;
     }
 
-    for (var item in permissions) {
+    for (var item in _rolePermissions) {
       if (StringUtils.equalsIgnoreCase(item['role'], role) &&
           StringUtils.equalsIgnoreCase(item['table'], table) &&
           item['permission'] != null &&
@@ -392,15 +329,5 @@ class GraphQLService extends Service {
     var fields = types.entries.map((e) => e.key).toList().join('\n');
     fields += '\n lastSynced\n id\n _createdAt';
     return fields;
-  }
-
-  void _fixFields(dynamic doc) {
-    if (doc['createdAt'] == null && doc.containsKey('_createdAt')) {
-      doc['createdAt'] = doc['_createdAt'] * 1000;
-    }
-
-    if (doc['lastSynced'] != null) {
-      doc['serviceUpdatedAt'] = doc['lastSynced'];
-    }
   }
 }
