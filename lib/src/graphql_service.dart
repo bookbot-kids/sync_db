@@ -101,7 +101,16 @@ class GraphQLService extends Service {
         var newRecord = response['create${table}'];
         await updateRecordStatus(service, newRecord);
       } else {
-        Sync.shared.logger?.e('create document ${table} ${record} error');
+        // try to get server record after retry failure
+        response = await _getDocument(table, fields, record['id']);
+        // check if record already exists
+        if (response != null && response['get${table}'] != null) {
+          // if it does, then update its status to synced
+          await updateRecordStatus(service, response['get${table}']);
+        } else {
+          // otherwise just log as error
+          Sync.shared.logger?.e('create document ${table} ${record} error');
+        }
       }
     }
 
@@ -194,7 +203,7 @@ class GraphQLService extends Service {
       }
     }
 
-    throw RetryFailureException();
+    return null;
   }
 
   /// Query documents
