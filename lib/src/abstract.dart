@@ -27,7 +27,7 @@ abstract class Database {
   dynamic all(String modelName, Function instantiateModel);
 
   dynamic find(String modelName, String id, Model model);
-  dynamic findMap(String modelName, String id);
+  dynamic findMap(String modelName, String id, {dynamic transaction});
 
   dynamic query<T>(Query query, {dynamic transaction});
 

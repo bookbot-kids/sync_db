@@ -103,10 +103,11 @@ abstract class Service {
     final database = Sync.shared.local;
 
     await database.runInTransaction(service.name, (transaction) async {
-      final liveRecord = database.findMap(service.name, record[idKey]);
+      final liveRecord = database.findMap(service.name, record[idKey],
+          transaction: transaction);
       if (liveRecord[updatedKey] == record[updatedKey]) {
         record[statusKey] = SyncStatus.synced.name;
-        database.saveMap(service.name, record);
+        database.saveMap(service.name, record, transaction: transaction);
       }
     });
   }

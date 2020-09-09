@@ -73,9 +73,11 @@ class SembastDatabase extends Database {
   /// Find map instance by id
   /// Will allow getting deleted records
   @override
-  Future<Model> findMap(String modelName, String id) async {
+  Future<Model> findMap(String modelName, String id,
+      {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
-    final record = await store.record(id).get(_database[modelName]);
+    final record =
+        await store.record(id).get(transaction ?? _database[modelName]);
     if (record != null) {
       return record;
     }
