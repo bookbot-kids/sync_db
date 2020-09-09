@@ -226,7 +226,6 @@ class SembastDatabase extends Database {
   @override
   Future<void> save(Model model, {bool syncToService = true}) async {
     // Set id and createdAt if new record. ID is a random UUID
-    final create = (model.id == null) || (model.createdAt == null);
     model.id ??= Uuid().v4().toString();
 
     model.createdAt ??= await NetworkTime.shared.now;
@@ -239,6 +238,8 @@ class SembastDatabase extends Database {
         map[entry.key] = (entry.value as DateTime).millisecondsSinceEpoch;
       }
     }
+
+    final create = (model.id == null) || (model.createdAt == null);
     map[statusKey] = create ? SyncStatus.created.name : SyncStatus.updated.name;
 
     // Get DB
