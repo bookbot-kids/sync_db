@@ -24,34 +24,19 @@ class CosmosService extends Service {
   static const String _apiVersion = '2018-12-31';
 
   @override
-  Future<List<Map>> readFromService(String table, DateTime timestamp,
-      {String paginationToken}) async {
+  Future<void> readFromService(ServicePoint servicePoint) async {
     var result = <Map>[];
     try {
-      // query all records in cosmos that have updated timestamp > given timestamp
-      String select;
-      if (timestamp == null) {
-        select = 'SELECT * FROM $table c';
-      } else {
-        select =
-            'SELECT * FROM $table c WHERE c._ts > ${timestamp.millisecondsSinceEpoch}';
-      }
+      // query records in cosmos that have updated timestamp > given timestamp
+      final query =
+          'SELECT * FROM ${servicePoint.name} c WHERE c._ts > ${servicePoint.from}';
 
-      // use all available resource tokens to query records
-      var availablePermissions =
-          await (user as AzureADB2CUserSession).getAvailableTokens(table);
-      for (var permission in availablePermissions) {
-        var parameters = <Map<String, String>>[];
-        // query the document with paging
-        // the last item in the result may have next page token `paginationToken`
-        List<Map> cosmosResult = await _queryDocuments(
-            permission.token, table, permission.partition, select, parameters);
-        // Set `_ts` timestamp field as `serviceUpdatedAt` for the list
-        cosmosResult.forEach((element) {
-          element['serviceUpdatedAt'] = element['_ts'];
-        });
-        result.addAll(cosmosResult);
-      }
+      // query the document with paging
+      // the last item in the result may have next page token `paginationToken`
+      List<Map> cosmosResult = await _queryDocuments(
+          permission.token, table, permission.partition, query, parameters);
+
+      result.addAll(cosmosResult);
     } on RetryFailureException {
       if (readRetry < 2) {
         readRetry++;

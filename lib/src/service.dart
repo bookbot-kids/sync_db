@@ -67,14 +67,13 @@ abstract class Service {
   Future<void> readFromService(ServicePoint service);
 
   /// Write records to online services and update record status with _updateRecordStatus
-  /// Convert server timestamps to serviceUpdatedAt
   /// When accessing a web service will use the _pool to limit accesses at the same time
   Future<void> writeToService(ServicePoint service);
 
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List<Map> records) async {
     final database = Sync.shared.local;
-    var lastTimestamp = DateTime.utc(0);
+    //var lastTimestamp = DateTime.utc(0);
     Map<String, Map> transientRecords;
 
     await database.runInTransaction(service.name, (transaction) async {
