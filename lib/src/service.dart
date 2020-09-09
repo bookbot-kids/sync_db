@@ -110,4 +110,9 @@ abstract class Service {
       }
     });
   }
+
+  /// Remove private fields before saving to cosmos
+  void excludePrivateFields(Map map) {
+    map.removeWhere((key, value) => key.startsWith('_'));
+  }
 }

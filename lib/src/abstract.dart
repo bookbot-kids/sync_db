@@ -9,6 +9,7 @@ const deletedKey = 'deletedAt';
 
 abstract class UserSession {
   set token(String token);
+  Future<void> forceRefresh();
   Future<List<ServicePoint>> servicePoints();
   Future<List<ServicePoint>> servicePointsForTable(String table);
   Future<bool> hasSignedIn();

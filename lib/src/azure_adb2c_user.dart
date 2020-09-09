@@ -58,12 +58,12 @@ class AzureADB2CUserSession extends UserSession {
   String get role => prefs.getString('role');
 
   @override
-  set refreshToken(String token) {
+  set token(String token) {
     prefs.setString('refresh_token', token);
   }
 
   @override
-  Future<void> reset() async {
+  Future<void> forceRefresh() async {
     _tokenExpiry = await NetworkTime.shared.now;
     await resourceTokens();
   }

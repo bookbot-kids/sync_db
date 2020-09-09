@@ -5,7 +5,7 @@ class ServicePoint extends Model {
   ServicePoint({String name});
 
   String name; // The table name
-  int from = 0;
+  int from = 0; // From is the timestamp the sync point in time
   String partition;
   Access access;
   String token;

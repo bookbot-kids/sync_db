@@ -5,48 +5,39 @@ import 'package:universal_io/io.dart';
 
 class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
-  /// This will require the `databaseAccount` name, and database id `dbId` in the config map
+  /// This will require the `databaseAccount` name, and database id `databaseId` in the config map
   CosmosService(Map config) {
-    http = HTTP(
-        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["dbId"]}/',
-        config);
-    databaseId = config['dbId'];
-    pageSize = config['pageSize'] ?? 1000;
+    final httpConfig = {'httpRetries': 1};
+    _http = HTTP(
+        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["databaseId"]}/',
+        httpConfig);
+    _pageSize = config['pageSize'] ?? 1000;
   }
 
-  String databaseId;
-  HTTP http;
-  int pageSize;
-  int readRetry = 0;
-  UserSession user;
-  int writeRetry = 0;
+  HTTP _http;
+  int _pageSize;
 
-  static const String _apiVersion = '2018-12-31';
+  final _apiVersion = '2018-12-31';
 
+  /// Get records from online service and send to _saveLocalRecords
+  /// When accessing a web service will use the _pool to limit accesses at the same time
+  /// Save the response timestamp to ServicePoint.from
   @override
   Future<void> readFromService(ServicePoint servicePoint) async {
-    var result = <Map>[];
-    try {
-      // query records in cosmos that have updated timestamp > given timestamp
-      final query =
-          'SELECT * FROM ${servicePoint.name} c WHERE c._ts > ${servicePoint.from}';
+    // query records in cosmos that have updated timestamp > given timestamp
+    final query =
+        'SELECT * FROM ${servicePoint.name} c WHERE c._ts > ${servicePoint.from}';
+    var paginationToken;
 
-      // query the document with paging
-      // the last item in the result may have next page token `paginationToken`
-      List<Map> cosmosResult = await _queryDocuments(
-          permission.token, table, permission.partition, query, parameters);
-
-      result.addAll(cosmosResult);
-    } on RetryFailureException {
-      if (readRetry < 2) {
-        readRetry++;
-        await readRecords(table, timestamp, paginationToken: paginationToken);
-      } else {
-        readRetry = 0;
-      }
-    }
-
-    return result;
+    // Query the document with paging
+    // the last item in the result may have next page token `paginationToken`
+    do {
+      final response = await _queryDocuments(
+          servicePoint.token, servicePoint.name, servicePoint.partition, query);
+      // ignore: unawaited_futures
+      saveLocalRecords(servicePoint, response['response']);
+      paginationToken = response['paginationToken'];
+    } while (paginationToken == null);
   }
 
   @override
@@ -165,10 +156,11 @@ class CosmosService extends Service {
   ///      {"@prop": 5}
   ///  ]
   ///
-  /// Return a list of documents, the last item can have the next page
-  Future<dynamic> _queryDocuments(String resouceToken, String table,
-      String partitionKey, String query, List<Map<String, String>> parameters,
-      {String paginationToken}) async {
+  /// Return a list of documents, the last item can have a pagination token
+  Future<Map<String, dynamic>> _queryDocuments(
+      String resouceToken, String table, String partitionKey, String query,
+      {List<Map<String, String>> parameters = const [{}],
+      String paginationToken}) async {
     try {
       var headers = <String, dynamic>{
         'authorization': Uri.encodeComponent(resouceToken),
@@ -176,41 +168,39 @@ class CosmosService extends Service {
         'x-ms-version': _apiVersion,
         'x-ms-documentdb-partitionkey': '[\"$partitionKey\"]',
         'x-ms-documentdb-isquery': true,
-        'x-ms-max-item-count': pageSize
+        'x-ms-max-item-count': _pageSize
       };
 
       if (paginationToken != null) {
         headers['x-ms-continuation'] = paginationToken;
       }
 
-      http.headers = headers;
+      _http.headers = headers;
 
       var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
-      var response = await http.post('colls/$table/docs',
+      var response = await _http.post('colls/$table/docs',
           data: data, includeHttpResponse: true);
       var responseData = response.data;
       List docs = responseData['Documents'];
 
-      var nextToken = response.headers.value('x-ms-continuation');
-      if (nextToken != null && docs != null && docs.isNotEmpty) {
-        docs.last['paginationToken'] = paginationToken;
-      }
-
-      return docs;
-    } catch (e, stackTrace) {
-      if (e is UnexpectedResponseException) {
-        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
-          await user.reset();
+      return {
+        'response': docs,
+        'paginationToken': response.headers.value('x-ms-continuation')
+      };
+    } catch (error, stackTrace) {
+      if (error is UnexpectedResponseException) {
+        if (error.response.statusCode == 401 ||
+            error.response.statusCode == 403) {
+          await Sync.shared.userSession.forceRefresh();
           throw RetryFailureException();
         } else {
-          Sync.shared.logger?.e('query cosmos document error', e, stackTrace);
+          Sync.shared.logger
+              ?.e('Query cosmos document error', error, stackTrace);
         }
       } else {
-        Sync.shared.logger?.e('query cosmos document error', e, stackTrace);
+        Sync.shared.logger?.e('Query cosmos document error', error, stackTrace);
       }
     }
-
-    return [];
   }
 
   /// Cosmos api to create document
@@ -222,22 +212,22 @@ class CosmosService extends Service {
     json['partition'] = partition;
 
     // we don't want to save updatedAt & _field in cosmos
-    _excludeLocalFields(json);
+    excludePrivateFields(json);
 
     try {
-      http.headers = {
+      _http.headers = {
         'x-ms-date': now,
         'authorization': Uri.encodeComponent(resouceToken),
         'content-type': 'application/json',
         'x-ms-version': _apiVersion,
         'x-ms-documentdb-partitionkey': '[\"$partition\"]'
       };
-      var response = await http.post('colls/$table/docs', data: json);
+      var response = await _http.post('colls/$table/docs', data: json);
       return response;
     } catch (e, stackTrace) {
       if (e is UnexpectedResponseException) {
         if (e.response.statusCode == 401 || e.response.statusCode == 403) {
-          await user.reset();
+          await Sync.shared.userSession.forceRefresh();
           throw RetryFailureException();
         } else {
           Sync.shared.logger?.e('create cosmos document', e, stackTrace);
@@ -256,10 +246,10 @@ class CosmosService extends Service {
     json['partition'] = partition;
 
     // we don't want to save updatedAt & _field in cosmos
-    _excludeLocalFields(json);
+    excludePrivateFields(json);
 
     try {
-      http.headers = {
+      _http.headers = {
         'x-ms-date': now,
         'authorization': Uri.encodeComponent(resouceToken),
         'content-type': 'application/json',
@@ -280,11 +270,6 @@ class CosmosService extends Service {
         Sync.shared.logger?.e('update cosmos document', e, stackTrace);
       }
     }
-  }
-
-  /// Remove local fields before saving to cosmos
-  void _excludeLocalFields(Map map) {
-    map.removeWhere((key, value) => key.startsWith('_'));
   }
 
   /// Add parameter in list of map for cosmos query
