@@ -42,19 +42,12 @@ class SembastDatabase extends Database {
   /// Get all records in the table
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel) async {
-    final store = sembast.StoreRef.main();
-    var records =
-        await store.find(_database[modelName], finder: sembast.Finder());
-
-    var models = <Model>[];
-    for (final record in records) {
-      final model = instantiateModel();
-      model.import(record.value);
-      if (model.deletedAt == null) {
-        models.add(model);
-      }
-    }
-    return models;
+    var q = Query(modelName).where(
+      '$deletedKey is null',
+      null,
+      instantiateModel,
+    );
+    return await query<Model>(q);
   }
 
   /// Find model instance by id
@@ -73,7 +66,7 @@ class SembastDatabase extends Database {
   /// Find map instance by id
   /// Will allow getting deleted records
   @override
-  Future<Model> findMap(String modelName, String id,
+  Future<dynamic> findMap(String modelName, String id,
       {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
     final record =
@@ -104,10 +97,6 @@ class SembastDatabase extends Database {
         if (model.deletedAt == null) {
           results.add(model);
         }
-      } else {
-        // clone map for writable
-        var value = sembast_utils.cloneValue(record);
-        results.add(value);
       }
     }
 
@@ -241,8 +230,18 @@ class SembastDatabase extends Database {
       }
     }
 
-    final create = (model.id == null) || (model.createdAt == null);
-    map[statusKey] = create ? SyncStatus.created.name : SyncStatus.updated.name;
+    if (model.id == null || model.createdAt == null) {
+      map[statusKey] = SyncStatus.created.name;
+    } else {
+      var currentRecord = await findMap(model.tableName, model.id);
+      if (currentRecord == null ||
+          currentRecord[statusKey] == SyncStatus.created.name) {
+        // keep it as created status
+        map[statusKey] = SyncStatus.created.name;
+      } else {
+        map[statusKey] = SyncStatus.updated.name;
+      }
+    }
 
     // Get DB
     final name = model.tableName;
