@@ -51,13 +51,39 @@ abstract class Model extends ChangeNotifier {
   String id;
   DateTime updatedAt;
 
-  Map<String, dynamic> get map => {};
+  Map<String, dynamic> get map {
+    var map = <String, dynamic>{};
+    map[idKey] = id;
+    map[createdKey] = createdAt;
+    map[updatedKey] = updatedAt;
+    if (deletedAt != null) {
+      map[deletedKey] = deletedAt.millisecondsSinceEpoch;
+    }
 
-  set map(Map<String, dynamic> map) {}
+    return map;
+  }
 
-  String get tableName => 'Model';
+  set map(Map<String, dynamic> map) {
+    id = map[idKey];
+    createdAt = map[createdKey];
+    updatedAt = map[updatedKey];
+
+    if (map[deletedKey] is int) {
+      deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
+    }
+  }
+
+  String get tableName => throw UnimplementedError();
 
   Future<void> save() async => await database.save(this);
 
-  Future<void> delete() => throw UnimplementedError();
+  Future<void> delete() async {
+    deletedAt = await NetworkTime.shared.now;
+    await save();
+  }
+
+  @override
+  String toString() {
+    return map.toString();
+  }
 }
