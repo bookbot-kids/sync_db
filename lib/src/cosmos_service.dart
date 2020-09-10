@@ -134,7 +134,6 @@ class CosmosService extends Service {
           Sync.shared.logger?.e('Resource token error', error, stackTrace);
           return {'retry': true};
         }
-        Sync.shared.logger?.e('Query cosmos document error', error, stackTrace);
       }
 
       return {'response': []};
