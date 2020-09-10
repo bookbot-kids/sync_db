@@ -10,7 +10,8 @@ abstract class Service {
 
   /// Sync everything
   Future<void> sync() async {
-    await _syncServicePoints(await Sync.shared.userSession.servicePoints());
+    var servicePoints = await Sync.shared.userSession.servicePoints();
+    await _syncServicePoints(servicePoints);
   }
 
   /// Sync a table to service
@@ -33,6 +34,7 @@ abstract class Service {
     final servicePoints =
         await Sync.shared.userSession.servicePointsForTable(table);
     var futures = <Future>[];
+    Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
       futures.add(writeServicePoint(servicePoint));
     }
@@ -41,23 +43,29 @@ abstract class Service {
 
   Future<void> readServicePoint(ServicePoint service) async {
     // Needs all or read access
-    if (service.access == Access.write) return;
+    if (service.access == null || service.access == Access.write) return;
 
+    Sync.shared.logger?.i('readServicePoint ${service.name}');
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
+      Sync.shared.logger?.i('start readFromService ${service.name}');
       await readFromService(service);
+      Sync.shared.logger?.i('end readFromService ${service.name}');
     });
   }
 
   Future<void> writeServicePoint(ServicePoint service) async {
     // Needs all or write access
-    if (service.access == Access.read) return;
+    if (service.access == null || service.access == Access.read) return;
 
+    Sync.shared.logger?.i('writeServicePoint ${service.name}');
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
+      Sync.shared.logger?.i('start writeToService ${service.name}');
       await writeToService(service);
+      Sync.shared.logger?.i('end writeToService ${service.name}');
     });
   }
 
@@ -71,10 +79,10 @@ abstract class Service {
   Future<void> writeToService(ServicePoint service);
 
   /// Compare and save record coming from services
-  Future<void> saveLocalRecords(ServicePoint service, List<Map> records) async {
+  Future<void> saveLocalRecords(ServicePoint service, List records) async {
     final database = Sync.shared.local;
     //var lastTimestamp = DateTime.utc(0);
-    Map<String, Map> transientRecords;
+    var transientRecords = <String, Map>{};
 
     await database.runInTransaction(service.name, (transaction) async {
       // Get updating records to compare
@@ -91,7 +99,8 @@ abstract class Service {
         if (existingRecord == null ||
             record[updatedKey] > existingRecord[updatedKey]) {
           record[statusKey] = SyncStatus.synced.name;
-          database.saveMap(service.name, record);
+          await database.saveMap(service.name, record,
+              transaction: transaction);
         }
       }
     });

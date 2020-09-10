@@ -11,19 +11,19 @@ import 'query.dart' as q;
 class GraphQLService extends Service {
   List _rolePermissions;
   Map _schema;
-  CognitoUserSession user;
+  CognitoUserSyncSession user;
   GraphQLClient _graphClient;
   HttpLink _httpLink;
 
   /// Max error retry
-  int maxRetry;
+  int _maxRetry = 2;
 
   GraphQLService(Map config) {
     _httpLink = HttpLink(
       uri: config['appsyncUrl'],
     );
 
-    maxRetry = config['errorRetry'] ?? 2;
+    _maxRetry = config['errorRetry'] ?? 2;
   }
 
   @override
@@ -37,19 +37,18 @@ class GraphQLService extends Service {
     String nextToken;
 
     // ignore: unawaited_futures
-    pool.withResource(() async {
-      while (true) {
-        Map<String, dynamic> variables;
-        var nextTokenParam = '';
-        var nextTokenVariable = '';
-        if (nextToken != null) {
-          variables = <String, dynamic>{};
-          variables['nextToken'] = nextToken;
-          nextTokenParam = ', nextToken: \$nextToken';
-          nextTokenVariable = ' (\$nextToken: String)';
-        }
+    while (true) {
+      Map<String, dynamic> variables;
+      var nextTokenParam = '';
+      var nextTokenVariable = '';
+      if (nextToken != null) {
+        variables = <String, dynamic>{};
+        variables['nextToken'] = nextToken;
+        nextTokenParam = ', nextToken: \$nextToken';
+        nextTokenVariable = ' (\$nextToken: String)';
+      }
 
-        select = '''
+      select = '''
         query list$table${nextTokenVariable} {
             list${table}s(filter: {
               lastSynced: {
@@ -64,24 +63,26 @@ class GraphQLService extends Service {
         }
         ''';
 
-        var response = await _queryDocuments(select, variables);
-        if (response != null) {
-          var docs = response['list${table}s']['items'];
-          if (docs != null) {
-            if (docs.isNotEmpty) {
-              service.from = docs.last['lastSynced'];
-            }
-
-            await saveLocalRecords(service, docs);
+      var response = await _queryDocuments(select, variables);
+      //Sync.shared.logger?.i('query response $response');
+      if (response != null) {
+        var docs = response['list${table}s']['items'];
+        if (docs != null) {
+          if (docs.isNotEmpty) {
+            service.from = docs.last['lastSynced'];
           }
-        }
 
-        nextToken = response['list${table}s']['nextToken'];
-        if (nextToken == null) {
-          break;
+          await saveLocalRecords(service, docs);
         }
       }
-    });
+
+      nextToken = response['list${table}s']['nextToken'];
+      Sync.shared.logger
+          ?.i('running readFromService $table with nextToken = $nextToken');
+      if (nextToken == null) {
+        break;
+      }
+    }
   }
 
   @override
@@ -188,7 +189,7 @@ class GraphQLService extends Service {
   /// Execute mutation query like update, insert, delete and return a document
   Future<dynamic> _mutationDocument(
       String query, Map<String, dynamic> variables) async {
-    for (var i = 1; i <= maxRetry; i++) {
+    for (var i = 1; i <= _maxRetry; i++) {
       var client = await graphClient;
       var options =
           MutationOptions(documentNode: gql(query), variables: variables);
@@ -207,7 +208,7 @@ class GraphQLService extends Service {
   /// Query documents
   Future<dynamic> _queryDocuments(String query,
       [Map<String, dynamic> variables]) async {
-    for (var i = 1; i <= maxRetry; i++) {
+    for (var i = 1; i <= _maxRetry; i++) {
       var client = await graphClient;
       var options =
           QueryOptions(documentNode: gql(query), variables: variables);

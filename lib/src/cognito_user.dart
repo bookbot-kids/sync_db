@@ -1,21 +1,22 @@
 import 'dart:convert';
 
 import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
+import 'package:random_string/random_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/abstract.dart';
 import 'package:sync_db/src/graphql_service.dart';
 import 'package:sync_db/src/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
-class CognitoUserSession extends UserSession {
+class CognitoUserSyncSession extends UserSession {
   GraphQLService _service;
-  CognitoUserSession(
-      GraphQLService service, String clientId, Map<String, dynamic> config) {
-    _clientId = config['clientId'];
-    _awsUserPoolId = config['userPoolId'];
+  CognitoUserSyncSession(
+      GraphQLService service, String clientId, String poolId) {
+    _clientId = clientId;
+    _awsUserPoolId = poolId;
     _service = service;
-    _initialize().whenComplete(() => null);
   }
 
   String _awsUserPoolId;
@@ -23,6 +24,8 @@ class CognitoUserSession extends UserSession {
   cognito.CognitoUser _cognitoUser;
   cognito.CognitoUserSession _session;
   cognito.CognitoUserPool _userPool;
+  CognitoUserInfo _userInfo;
+  bool isNewUser = true;
 
   @override
   String get role {
@@ -62,6 +65,8 @@ class CognitoUserSession extends UserSession {
     return null;
   }
 
+  String get id => _userInfo?.id;
+
   set role(String role) => throw UnimplementedError();
 
   @override
@@ -74,7 +79,7 @@ class CognitoUserSession extends UserSession {
   }
 
   /// Initiate user session from local storage if present
-  Future<bool> _initialize() async {
+  Future<bool> initialize() async {
     _userPool = cognito.CognitoUserPool(_awsUserPoolId, _clientId);
     final prefs = await SharedPreferences.getInstance();
     final storage = SharedPreferenceStorage(prefs);
@@ -98,10 +103,17 @@ class CognitoUserSession extends UserSession {
 
   @override
   Future<List<ServicePoint>> servicePoints() async {
+    await _service.setup();
     var schema = await _service.schema;
     var results = <ServicePoint>[];
     schema.forEach((key, value) {
-      results.add(ServicePoint(name: key));
+      var servicePoint = ServicePoint(name: key);
+      if (_service.hasPermission(role, key, 'read')) {
+        servicePoint.access = Access.read;
+      } else if (_service.hasPermission(role, key, 'write')) {
+        servicePoint.access = Access.all;
+      }
+      results.add(servicePoint);
     });
 
     return results;
@@ -109,13 +121,182 @@ class CognitoUserSession extends UserSession {
 
   @override
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
+    await _service.setup();
     // Each table has only one service point
-    return [ServicePoint(name: table)];
+    var servicePoint = ServicePoint(name: table);
+    if (_service.hasPermission(role, table, 'read')) {
+      servicePoint.access = Access.read;
+    } else if (_service.hasPermission(role, table, 'write')) {
+      servicePoint.access = Access.all;
+    }
+
+    return [servicePoint];
   }
 
   @override
   set token(String token) {
     throw UnimplementedError();
+  }
+
+  /// Get existing user from session with his/her attributes
+  Future<CognitoUserInfo> getCurrentUser([bool refresh = false]) async {
+    if (_cognitoUser == null || _session == null) {
+      return null;
+    }
+    if (!_session.isValid()) {
+      return null;
+    }
+
+    if (_userInfo != null && !refresh) {
+      return _userInfo;
+    }
+
+    final attributes = await _cognitoUser.getUserAttributes();
+    if (attributes == null) {
+      return null;
+    }
+    _userInfo = CognitoUserInfo.fromUserAttributes(attributes);
+    _userInfo.hasAccess = true;
+    return _userInfo;
+  }
+
+  Future<CognitoUserInfo> signInOrSignUp(String email,
+      {Function signupCallback}) async {
+    CognitoUserInfo result;
+    try {
+      var password = randomString(20);
+      result = await signUp(email, password, email);
+      if (signupCallback != null) {
+        signupCallback();
+      }
+
+      result = await login(email);
+      isNewUser = true;
+    } on CognitoClientException catch (e) {
+      if (e.code == 'UsernameExistsException') {
+        // sign in
+        result = await login(email);
+        isNewUser = false;
+      } else {
+        rethrow;
+      }
+    }
+
+    return result;
+  }
+
+  Future<String> refreshRole() async {
+    await forceRefresh();
+    return role;
+  }
+
+  /// Login user
+  Future<CognitoUserInfo> login(String email) async {
+    email = email.toLowerCase();
+    _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+
+    final authDetails = AuthenticationDetails(
+        username: email, authParameters: [], validationData: {});
+
+    try {
+      _session = await _cognitoUser.initiateAuth(authDetails);
+    } on CognitoUserCustomChallengeException catch (e) {
+      // custom challenage
+      print('custom challenage $e');
+    } on CognitoClientException {
+      rethrow;
+    } on Exception {
+      rethrow;
+    }
+
+    return CognitoUserInfo(email: email);
+  }
+
+  /// Login user with email and password
+  Future<CognitoUserInfo> loginPassword(String email, String password) async {
+    email = email.toLowerCase();
+    _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+    _cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
+
+    final authDetails = AuthenticationDetails(
+        username: email,
+        authParameters: [],
+        validationData: {},
+        password: password);
+
+    try {
+      _session = await _cognitoUser.authenticateUser(authDetails);
+    } on CognitoUserCustomChallengeException catch (e) {
+      // custom challenage
+      print('custom challenage $e');
+    } on CognitoClientException {
+      rethrow;
+    } on Exception {
+      rethrow;
+    }
+
+    return CognitoUserInfo(email: email);
+  }
+
+  /// Sign up user
+  Future<CognitoUserInfo> signUp(
+      String email, String password, String name) async {
+    email = email.toLowerCase();
+    CognitoUserPoolData data;
+    final userAttributes = [
+      AttributeArg(name: 'name', value: name),
+    ];
+    data =
+        await _userPool.signUp(email, password, userAttributes: userAttributes);
+
+    final user = CognitoUserInfo();
+    user.email = email;
+    user.name = name;
+    user.confirmed = data.userConfirmed;
+
+    return user;
+  }
+
+  Future<CognitoUserInfo> answerOTPCustomChallenge(
+      String email, String answer) async {
+    _session = await _cognitoUser.sendCustomChallengeAnswer(answer);
+
+    if (!_session.isValid()) {
+      return null;
+    }
+
+    final attributes = await _cognitoUser.getUserAttributes();
+    final user = CognitoUserInfo.fromUserAttributes(attributes);
+    user.confirmed = true;
+    user.hasAccess = true;
+
+    return user;
+  }
+}
+
+class CognitoUserInfo {
+  String id;
+  String email;
+  String name;
+  bool confirmed = false;
+  bool hasAccess = false;
+
+  CognitoUserInfo({this.email, this.name});
+
+  /// Decode user from Cognito User Attributes
+  factory CognitoUserInfo.fromUserAttributes(
+      List<CognitoUserAttribute> attributes) {
+    final user = CognitoUserInfo();
+    attributes.forEach((attribute) {
+      if (attribute.getName() == 'email') {
+        user.email = attribute.getValue();
+      } else if (attribute.getName() == 'name') {
+        user.name = attribute.getValue();
+      } else if (attribute.getName() == 'sub') {
+        user.id = attribute.getValue();
+      }
+    });
+    return user;
   }
 }
 

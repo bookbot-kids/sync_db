@@ -93,7 +93,7 @@ class SembastDatabase extends Database {
     for (var record in records) {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();
-        model.import(record);
+        model.map = record;
         if (model.deletedAt == null) {
           results.add(model);
         }
