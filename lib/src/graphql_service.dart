@@ -97,9 +97,8 @@ class GraphQLService extends Service {
       var fields = _getFields(table);
 
       var response = await _createDocument(table, fields, record);
-      if (response != null) {
-        var newRecord = response['create${table}'];
-        await updateRecordStatus(service, newRecord);
+      if (response != null && response['create${table}'] != null) {
+        await updateRecordStatus(service, response['create${table}']);
       } else {
         // try to get server record after retry failure
         response = await _getDocument(table, fields, record['id']);
@@ -122,16 +121,15 @@ class GraphQLService extends Service {
     for (var record in records) {
       var fields = _getFields(table);
       var response = await _updateDocument(table, fields, record);
-      if (response != null) {
-        var updatedRecord = response['update${table}'];
-        await updateRecordStatus(service, updatedRecord);
+      if (response != null && response['update${table}'] != null) {
+        await updateRecordStatus(service, response['update${table}']);
       } else {
         Sync.shared.logger?.e('update document ${table} ${record} error');
       }
     }
   }
 
-  Future<void> _setup() async {
+  Future<void> setup() async {
     // Get graph client base on token
     await graphClient;
     // query all schema
