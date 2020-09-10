@@ -37,7 +37,7 @@ class GraphQLService extends Service {
     String nextToken;
 
     // ignore: unawaited_futures
-    pool.withResource(() async {
+    await pool.withResource(() async {
       while (true) {
         Map<String, dynamic> variables;
         var nextTokenParam = '';

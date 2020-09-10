@@ -47,107 +47,78 @@ class CosmosService extends Service {
 
   @override
   Future<void> writeToService(ServicePoint servicePoint) async {
+    var futures = <Future>[];
     var result = <Map>[];
-    try {
-      var availablePermissions =
-          await (user as AzureADB2CUserSession).getAvailableTokens(table);
 
-      // Get created records and save to Cosmos DB
-      var query = Query(table)
-          .where('_status = ${SyncStatus.created.name}')
-          .order('createdAt asc');
-      var createdRecords = await database.query<Map>(query);
+    // Get created records and save to Cosmos DB
+    var query = Query(servicePoint.name)
+        .where(
+            '_status = ${SyncStatus.created.name} & partition = ${servicePoint.partition}')
+        .order('createdAt asc');
+    var createdRecords = await Sync.shared.local.query<Map>(query);
+
+    for (final record in createdRecords) {
+      // This allows multiple create records to happen at the same time with a pool limit
+      futures.add(pool.withResource(() async {
+        var newRecord = await _createDocument(
+          servicePoint.token, servicePoint.name, servicePoint.partition, record);
+        await updateRecordStatus(servicePoint, newRecord);
+      }));
+    }
 
       // Get records that have been updated and update Cosmos
-      query = Query(table)
+    query = Query(servicePoint.name)
           .where('_status = ${SyncStatus.updated.name}')
           .order('updatedAt asc');
-      var updatedRecords = await database.query<Map>(query);
-      List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
+    var updatedRecords = await Sync.shared.local.query<Map>(query);
+    List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
 
-      for (var permission in availablePermissions) {
-        for (final record in createdRecords) {
-          if (record['partition'] == permission.partition) {
-            var newRecord = await _createDocument(
-                permission.token, table, permission.partition, record);
-            // update to local & set synced status after syncing
-            if (newRecord != null) {
-              newRecord['state'] = SyncStatus.created.name;
-              newRecord['serviceUpdatedAt'] = newRecord['_ts'];
-              result.add(newRecord);
-            }
-          }
-        }
 
-        // Get all the updated records on local, then fetch the remote records in cosmos by ids
-        // Then compare date between local and cosmos record to update correctly
-        if (updatedRecordIds.isNotEmpty) {
-          // get cosmos records base the local id list
-          var select = 'SELECT * FROM $table c ';
-          var parameters = <Map<String, String>>[];
-          var where = '';
-          updatedRecordIds.asMap().forEach((index, value) {
-            where += ' c.id = @id$index OR ';
-            _addParameter(parameters, '@id$index', value);
-          });
-
-          // build query & remove last OR
-          select = select + ' WHERE ' + where.substring(0, where.length - 3);
-          var cosmosRecords = await _queryDocuments(permission.token, table,
-              permission.partition, select.trim(), parameters);
-          for (final localRecord in updatedRecords) {
-            // compare date to cosmos
-            for (var cosmosRecord in cosmosRecords) {
-              if (cosmosRecord['id'] == localRecord['id'] &&
-                  cosmosRecord['partition'] == permission.partition) {
-                var localDate = localRecord['updatedAt'] / 1000;
-                // if local is newest, merge and save to cosmos
-                if (localDate > cosmosRecord['_ts']) {
-                  localRecord.forEach((key, value) {
-                    if (key != 'updatedAt') {
-                      cosmosRecord[key] = value;
-                    }
-                  });
-
-                  var updatedRecord = await _updateDocument(
-                      permission.token,
-                      table,
-                      cosmosRecord['id'],
-                      permission.partition,
-                      cosmosRecord);
-                  // update to local & set synced status after syncing
-                  if (updatedRecord != null) {
-                    updatedRecord['_status'] = SyncStatus.updated.name;
-                    updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
-                    result.add(updatedRecord);
+        for (final localRecord in updatedRecords) {
+          // compare date to cosmos
+          for (var cosmosRecord in cosmosRecords) {
+            if (cosmosRecord['id'] == localRecord['id'] &&
+                cosmosRecord['partition'] == permission.partition) {
+              var localDate = localRecord['updatedAt'] / 1000;
+              // if local is newest, merge and save to cosmos
+              if (localDate > cosmosRecord['_ts']) {
+                localRecord.forEach((key, value) {
+                  if (key != 'updatedAt') {
+                    cosmosRecord[key] = value;
                   }
-                } else {
-                  // local is older, merge and save to local
-                  cosmosRecord.forEach((key, value) {
-                    if (key != 'updatedAt') {
-                      localRecord[key] = value;
-                    }
-                  });
+                });
 
-                  localRecord['_status'] = SyncStatus.synced.name;
-                  await await database.saveMap(
-                      table, localRecord['id'], localRecord);
+                var updatedRecord = await _updateDocument(
+                    permission.token,
+                    table,
+                    cosmosRecord['id'],
+                    permission.partition,
+                    cosmosRecord);
+                // update to local & set synced status after syncing
+                if (updatedRecord != null) {
+                  updatedRecord['_status'] = SyncStatus.updated.name;
+                  updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
+                  result.add(updatedRecord);
                 }
+              } else {
+                // local is older, merge and save to local
+                cosmosRecord.forEach((key, value) {
+                  if (key != 'updatedAt') {
+                    localRecord[key] = value;
+                  }
+                });
+
+                localRecord['_status'] = SyncStatus.synced.name;
+                await await database.saveMap(
+                    table, localRecord['id'], localRecord);
               }
             }
           }
         }
       }
-    } on RetryFailureException {
-      if (writeRetry < 2) {
-        writeRetry++;
-        await writeRecords(table);
-      } else {
-        writeRetry = 0;
-      }
     }
 
-    return result;
+    return await Future.wait(futures);
   }
 
   /// Cosmos API to Query documents
