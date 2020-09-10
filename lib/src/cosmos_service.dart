@@ -34,14 +34,16 @@ class CosmosService extends Service {
     do {
       var response = {};
       await pool.withResource(() async {
-        response = await _queryDocuments(servicePoint.token, servicePoint.name,
-            servicePoint.partition, query);
+        response = await _queryDocuments(servicePoint, query);
+        //if (response['retry']?.)
       });
 
       await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
-      servicePoint.from =
-          HttpDate.parse(response['responseTimestamp']).millisecondsSinceEpoch;
+      final serverTimestamp =
+          HttpDate.parse(response['responseTimestamp'])?.millisecondsSinceEpoch;
+      if (serverTimestamp > 0) servicePoint.from = serverTimestamp;
+      await servicePoint.save();
     } while (paginationToken == null);
   }
 
@@ -60,65 +62,25 @@ class CosmosService extends Service {
     for (final record in createdRecords) {
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
-        var newRecord = await _createDocument(
-          servicePoint.token, servicePoint.name, servicePoint.partition, record);
+        var newRecord = await _createDocument(servicePoint, record);
         await updateRecordStatus(servicePoint, newRecord);
       }));
     }
 
-      // Get records that have been updated and update Cosmos
+    // Get records that have been updated and update Cosmos
     query = Query(servicePoint.name)
-          .where('_status = ${SyncStatus.updated.name}')
-          .order('updatedAt asc');
+        .where('_status = ${SyncStatus.updated.name}')
+        .order('updatedAt asc');
     var updatedRecords = await Sync.shared.local.query<Map>(query);
-    List updatedRecordIds = updatedRecords.map((item) => item['id']).toList();
 
-
-        for (final localRecord in updatedRecords) {
-          // compare date to cosmos
-          for (var cosmosRecord in cosmosRecords) {
-            if (cosmosRecord['id'] == localRecord['id'] &&
-                cosmosRecord['partition'] == permission.partition) {
-              var localDate = localRecord['updatedAt'] / 1000;
-              // if local is newest, merge and save to cosmos
-              if (localDate > cosmosRecord['_ts']) {
-                localRecord.forEach((key, value) {
-                  if (key != 'updatedAt') {
-                    cosmosRecord[key] = value;
-                  }
-                });
-
-                var updatedRecord = await _updateDocument(
-                    permission.token,
-                    table,
-                    cosmosRecord['id'],
-                    permission.partition,
-                    cosmosRecord);
-                // update to local & set synced status after syncing
-                if (updatedRecord != null) {
-                  updatedRecord['_status'] = SyncStatus.updated.name;
-                  updatedRecord['serviceUpdatedAt'] = updatedRecord['_ts'];
-                  result.add(updatedRecord);
-                }
-              } else {
-                // local is older, merge and save to local
-                cosmosRecord.forEach((key, value) {
-                  if (key != 'updatedAt') {
-                    localRecord[key] = value;
-                  }
-                });
-
-                localRecord['_status'] = SyncStatus.synced.name;
-                await await database.saveMap(
-                    table, localRecord['id'], localRecord);
-              }
-            }
-          }
-        }
-      }
+    for (final record in updatedRecords) {
+      futures.add(pool.withResource(() async {
+        final updatedRecord = await _updateDocument(servicePoint, record);
+        await updateRecordStatus(servicePoint, updatedRecord);
+      }));
     }
 
-    return await Future.wait(futures);
+    await Future.wait(futures);
   }
 
   /// Cosmos API to Query documents
@@ -134,15 +96,15 @@ class CosmosService extends Service {
   ///
   /// Return a list of documents, the last item can have a pagination token
   Future<Map<String, dynamic>> _queryDocuments(
-      String resouceToken, String table, String partitionKey, String query,
+      ServicePoint servicePoint, String query,
       {List<Map<String, String>> parameters = const [{}],
       String paginationToken}) async {
     try {
       var headers = <String, dynamic>{
-        'authorization': Uri.encodeComponent(resouceToken),
+        'authorization': Uri.encodeComponent(servicePoint.token),
         'content-type': 'application/query+json',
         'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"$partitionKey\"]',
+        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]',
         'x-ms-documentdb-isquery': true,
         'x-ms-max-item-count': _pageSize
       };
@@ -154,7 +116,7 @@ class CosmosService extends Service {
       _http.headers = headers;
 
       var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
-      var response = await _http.post('colls/$table/docs',
+      var response = await _http.post('colls/${servicePoint.name}/docs',
           data: data, includeHttpResponse: true);
       var responseData = response.data;
       List docs = responseData['Documents'];
@@ -165,26 +127,25 @@ class CosmosService extends Service {
         'responseTimestamp': response.headers.value('Date')
       };
     } catch (error, stackTrace) {
-      //TODO: Think out what to do with this
       if (error is UnexpectedResponseException) {
         if (error.response.statusCode == 401 ||
             error.response.statusCode == 403) {
           await Sync.shared.userSession.forceRefresh();
-          throw RetryFailureException();
-        } else {
-          Sync.shared.logger
-              ?.e('Query cosmos document error', error, stackTrace);
+          Sync.shared.logger?.e('Resource token error', error, stackTrace);
+          return {'retry': true};
         }
-      } else {
         Sync.shared.logger?.e('Query cosmos document error', error, stackTrace);
       }
+
+      return {'response': []};
     }
-    return {};
   }
 
   /// Cosmos api to create document
   Future<dynamic> _createDocument(
-      String resouceToken, String table, String partition, Map json) async {
+    ServicePoint servicePoint,
+    String query,
+  ) async {
     var now = HttpDate.format(await NetworkTime.shared.now);
 
     // make sure there is partition in model
@@ -218,8 +179,10 @@ class CosmosService extends Service {
   }
 
   /// Cosmos api to update document
-  Future<dynamic> _updateDocument(String resouceToken, String table, String id,
-      String partition, Map json) async {
+  Future<dynamic> _updateDocument(
+    ServicePoint servicePoint,
+    String query,
+  ) async {
     var now = HttpDate.format(await NetworkTime.shared.now);
     // make sure there is partition in model
     json['partition'] = partition;

@@ -86,7 +86,7 @@ class AzureADB2CUserSession extends UserSession {
     await refresh();
   }
 
-  Future<void> servicePointsForable(String table) async {}
+  Future<void> servicePointsForTable(String table) async {}
 
   String get _refreshToken => prefs.getString('refresh_token');
 

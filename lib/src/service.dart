@@ -110,6 +110,8 @@ abstract class Service {
         database.saveMap(service.name, record, transaction: transaction);
       }
     });
+    // TODO: Also check if model fields are different from record map. If not, change to updated state,
+    // not sync
   }
 
   /// Remove private fields before saving to cosmos
