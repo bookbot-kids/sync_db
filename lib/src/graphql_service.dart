@@ -70,6 +70,7 @@ class GraphQLService extends Service {
         if (docs != null) {
           if (docs.isNotEmpty) {
             service.from = docs.last['lastSynced'];
+            await service.save(syncToService: false);
           }
 
           await saveLocalRecords(service, docs);
@@ -77,8 +78,8 @@ class GraphQLService extends Service {
       }
 
       nextToken = response['list${table}s']['nextToken'];
-      Sync.shared.logger
-          ?.i('running readFromService $table with nextToken = $nextToken');
+      Sync.shared.logger?.i(
+          'running readFromService $table from [${service.from}] with nextToken = $nextToken');
       if (nextToken == null) {
         break;
       }

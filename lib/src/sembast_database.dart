@@ -17,6 +17,9 @@ class SembastDatabase extends Database {
 
   /// Opens up each table connected to each model, which is stored in a separate file.
   static Future<void> config(List<String> tableNames) async {
+    // need to setup the ServicePoint in sembast
+    tableNames.add(ServicePoint().tableName);
+
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
       for (final tableName in tableNames) {

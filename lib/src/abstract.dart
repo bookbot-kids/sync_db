@@ -80,7 +80,8 @@ abstract class Model extends ChangeNotifier {
 
   String get tableName => throw UnimplementedError();
 
-  Future<void> save() async => await database.save(this);
+  Future<void> save({bool syncToService = true}) async =>
+      await database.save(this, syncToService: syncToService);
 
   Future<void> delete() async {
     deletedAt = await NetworkTime.shared.now;
@@ -90,7 +91,8 @@ abstract class Model extends ChangeNotifier {
   Future<void> deleteAll() async {
     var now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     await database.runInTransaction(tableName, (transaction) async {
-      var list = database.queryMap(Query(tableName), transaction: transaction);
+      var list =
+          await database.queryMap(Query(tableName), transaction: transaction);
       for (var item in list) {
         item[deletedKey] = now;
         await database.saveMap(tableName, item, transaction: transaction);
