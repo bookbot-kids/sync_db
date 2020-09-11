@@ -54,8 +54,14 @@ abstract class Model extends ChangeNotifier {
   Map<String, dynamic> get map {
     var map = <String, dynamic>{};
     map[idKey] = id;
-    map.putIfAbsent(createdKey, () => createdAt?.millisecondsSinceEpoch);
-    map.putIfAbsent(updatedKey, () => updatedAt?.millisecondsSinceEpoch);
+    if (createdAt != null) {
+      map[createdKey] = createdAt.millisecondsSinceEpoch ~/ 1000;
+    }
+
+    if (updatedAt != null) {
+      map[updatedKey] = updatedAt.millisecondsSinceEpoch ~/ 1000;
+    }
+
     if (deletedAt != null) {
       map[deletedKey] = deletedAt.millisecondsSinceEpoch;
     }
@@ -66,11 +72,11 @@ abstract class Model extends ChangeNotifier {
   set map(Map<String, dynamic> map) {
     id = map[idKey];
     if (map[createdKey] is int) {
-      createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
+      createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey] * 1000);
     }
 
     if (map[updatedAt] is int) {
-      updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt]);
+      updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt] * 1000);
     }
 
     if (map[deletedKey] is int) {

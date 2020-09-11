@@ -12,11 +12,11 @@ dependencies:
   uuid: ^2.0.4
   sembast: ^2.4.7+4
   jaguar_jwt: ^2.1.6
-  shared_preferences: ^0.5.7+3
+  shared_preferences: ^0.5.10
   synchronized: ^2.2.0+1
   universal_io: ^1.0.1
   sembast_web: ^1.2.0
-  graphql_flutter: 3.1.0-beta.4
+  graphql_flutter: ^3.1.0
   basic_utils: ^2.5.4
   ntp: ^1.0.7
   universal_platform: ^0.1.3

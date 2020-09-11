@@ -217,15 +217,10 @@ class SembastDatabase extends Database {
     model.id ??= Uuid().v4().toString();
 
     model.createdAt ??= await NetworkTime.shared.now;
-
-    // Export model as map and convert DateTime to int
     model.updatedAt = await NetworkTime.shared.now;
+
+    // Export model as map
     final map = model.map;
-    for (final entry in map.entries) {
-      if (entry.value is DateTime) {
-        map[entry.key] = (entry.value as DateTime).millisecondsSinceEpoch;
-      }
-    }
 
     if (model.id == null || model.createdAt == null) {
       map[statusKey] = SyncStatus.created.name;
@@ -261,9 +256,9 @@ class SembastDatabase extends Database {
     map.putIfAbsent(idKey, () => Uuid().v4().toString());
     map.putIfAbsent(statusKey, () => SyncStatus.synced.name);
 
-    final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
+    final now = (await NetworkTime.shared.now).millisecondsSinceEpoch ~/ 1000;
     map.putIfAbsent(createdKey, () => now);
-    map.putIfAbsent(updatedKey, () => now);
+    map[updatedKey] = now;
 
     final store = sembast.StoreRef<String, dynamic>.main();
     await store

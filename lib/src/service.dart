@@ -53,9 +53,8 @@ abstract class Service {
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
-      Sync.shared.logger?.i('start readFromService ${service.name}');
       await readFromService(service);
-      Sync.shared.logger?.i('end readFromService ${service.name}');
+      Sync.shared.logger?.i('[end readFromService ${service.name}]');
     });
   }
 
@@ -67,9 +66,8 @@ abstract class Service {
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
-      Sync.shared.logger?.i('start writeToService ${service.name}');
       await writeToService(service);
-      Sync.shared.logger?.i('end writeToService ${service.name}');
+      Sync.shared.logger?.i('[end writeToService ${service.name}]');
     });
   }
 
@@ -86,15 +84,15 @@ abstract class Service {
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
     final database = Sync.shared.local;
     //var lastTimestamp = DateTime.utc(0);
-    var transientRecords = <String, Map>{};
 
     await database.runInTransaction(service.name, (transaction) async {
       // Get updating records to compare
+      var transientRecords = <String, Map>{};
       if (service.access == Access.all) {
         final query =
             Query(service.name).where({statusKey: SyncStatus.updated.name});
-        transientRecords =
-            await database.queryMap(query, transaction: transaction);
+        var records = await database.queryMap(query, transaction: transaction);
+        transientRecords = {for (var record in records) record[idKey]: record};
       }
 
       // Check all records can be saved - don't save over records that have been updated locally
@@ -116,7 +114,7 @@ abstract class Service {
     final database = Sync.shared.local;
 
     await database.runInTransaction(service.name, (transaction) async {
-      final liveRecord = database.findMap(service.name, record[idKey],
+      final liveRecord = await database.findMap(service.name, record[idKey],
           transaction: transaction);
       if (liveRecord[updatedKey] == record[updatedKey]) {
         record[statusKey] = SyncStatus.synced.name;

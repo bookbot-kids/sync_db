@@ -11,10 +11,12 @@ import 'package:sync_db/src/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
 class CognitoUserSession extends UserSession {
-  CognitoUserSession(GraphQLService service, String clientId, String poolId) {
+  CognitoUserSession(SharedPreferences prefs, GraphQLService service,
+      String clientId, String poolId) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
+    _prefs = prefs;
   }
 
   bool isNewUser = true;
@@ -22,6 +24,7 @@ class CognitoUserSession extends UserSession {
   String _awsUserPoolId;
   String _clientId;
   cognito.CognitoUser _cognitoUser;
+  SharedPreferences _prefs;
   GraphQLService _service;
   cognito.CognitoUserSession _session;
   CognitoUserInfo _userInfo;
@@ -62,16 +65,10 @@ class CognitoUserSession extends UserSession {
     for (var tableName in schema.keys) {
       var servicePoint = await ServicePoint.searchBy(tableName) ??
           ServicePoint(name: tableName);
-      if (_service.hasPermission(roleName, tableName, 'read')) {
-        if (servicePoint.access != Access.read) {
-          servicePoint.access = Access.read;
-          await servicePoint.save(syncToService: false);
-        }
-
-        results.add(servicePoint);
-      } else if (_service.hasPermission(roleName, tableName, 'write')) {
-        if (servicePoint.access != Access.all) {
-          servicePoint.access = Access.all;
+      var access = _createAccess(tableName, roleName);
+      if (access != null) {
+        servicePoint.access = access;
+        if (servicePoint.access != access) {
           await servicePoint.save(syncToService: false);
         }
 
@@ -87,18 +84,13 @@ class CognitoUserSession extends UserSession {
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     await _service.setup();
     // Each table has only one service point
+    var roleName = role;
     var servicePoint =
         await ServicePoint.searchBy(table) ?? ServicePoint(name: table);
-    if (_service.hasPermission(role, table, 'read')) {
-      if (servicePoint.access != Access.read) {
-        servicePoint.access = Access.read;
-        await servicePoint.save(syncToService: false);
-      }
-
-      return [servicePoint];
-    } else if (_service.hasPermission(role, table, 'write')) {
-      if (servicePoint.access != Access.all) {
-        servicePoint.access = Access.all;
+    var access = _createAccess(table, roleName);
+    if (access != null) {
+      servicePoint.access = access;
+      if (servicePoint.access != access) {
         await servicePoint.save(syncToService: false);
       }
 
@@ -122,6 +114,19 @@ class CognitoUserSession extends UserSession {
     throw UnimplementedError();
   }
 
+  Access _createAccess(String table, String roleName) {
+    Access access;
+    if (_service.hasPermission(roleName, table, 'read-write')) {
+      access = Access.all;
+    } else if (_service.hasPermission(roleName, table, 'read')) {
+      access = Access.read;
+    } else if (_service.hasPermission(roleName, table, 'write')) {
+      access = access == Access.read ? Access.all : Access.write;
+    }
+
+    return access;
+  }
+
   String get refreshToken => _session?.accessToken?.getJwtToken();
 
   set refreshToken(String token) => throw UnimplementedError();
@@ -141,9 +146,7 @@ class CognitoUserSession extends UserSession {
   /// Initiate user session from local storage if present
   Future<bool> initialize() async {
     _userPool = cognito.CognitoUserPool(_awsUserPoolId, _clientId);
-    final prefs = await SharedPreferences.getInstance();
-    final storage = SharedPreferenceStorage(prefs);
-    _userPool.storage = storage;
+    _userPool.storage = SharedPreferenceStorage(_prefs);
 
     _cognitoUser = await _userPool.getCurrentUser();
     if (_cognitoUser == null) {
@@ -210,7 +213,21 @@ class CognitoUserSession extends UserSession {
 
   Future<String> refreshRole() async {
     await forceRefresh();
-    return role;
+    var newRole = role;
+    await _resetSyncTime(newRole);
+    return newRole;
+  }
+
+  /// Reset sync time for writable tables
+  Future<void> _resetSyncTime(String roleName) async {
+    var records = await ServicePoint.all();
+    for (var record in records) {
+      var access = _createAccess(record.name, roleName);
+      if (access == Access.write || access == Access.all) {
+        record.from = 0;
+        await record.save(syncToService: false);
+      }
+    }
   }
 
   /// Login user
@@ -338,7 +355,10 @@ class SharedPreferenceStorage extends cognito.CognitoStorage {
   Future getItem(String key) async {
     String item;
     try {
-      item = json.decode(_prefs.getString(key));
+      var value = _prefs.getString(key);
+      if (value != null) {
+        item = json.decode(value);
+      }
     } catch (e) {
       return null;
     }
