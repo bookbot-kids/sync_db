@@ -2,7 +2,7 @@ import 'package:sync_db/sync_db.dart';
 
 /// The ServicePoint class keeps a record of access and the timestamp of where to sync from
 class ServicePoint extends Model {
-  ServicePoint({this.name});
+  ServicePoint({this.name, this.access});
 
   String name; // The table name
   int from = 0; // From is the timestamp the sync point in time
@@ -12,16 +12,13 @@ class ServicePoint extends Model {
 
   @override
   Map<String, dynamic> get map {
-    return {
-      'id': id,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'name': name,
-      'from': from,
-      'partition': partition,
-      'access': access.name,
-      'token': token,
-    };
+    var map = super.map;
+    map['name'] = name;
+    map['from'] = from;
+    map['partition'] = partition;
+    map['access'] = access.name;
+    map['token'] = token;
+    return map;
   }
 
   @override
@@ -29,9 +26,7 @@ class ServicePoint extends Model {
 
   @override
   set map(Map<String, dynamic> map) {
-    id = map['id'];
-    createdAt = map['createdAt'];
-    updatedAt = map['updatedAt'];
+    super.map = map;
     name = map['name'];
     from = map['from'];
     partition = map['partition'];
@@ -54,6 +49,13 @@ class ServicePoint extends Model {
     return Query('ServicePoint').where(condition, ServicePoint().database, () {
       return ServicePoint();
     });
+  }
+
+  static Future<ServicePoint> searchBy(String name, {String partition}) async {
+    var partitionQuery = partition != null ? ' and partition = $partition' : '';
+    var list = List<ServicePoint>.from(
+        await where('name = $name${partitionQuery}').limit(1).load());
+    return list.isNotEmpty ? list.first : null;
   }
 
   String get key => '$name-$partition';

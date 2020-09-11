@@ -11,7 +11,7 @@ import 'query.dart' as q;
 class GraphQLService extends Service {
   List _rolePermissions;
   Map _schema;
-  CognitoUserSyncSession user;
+  CognitoUserSession user;
   GraphQLClient _graphClient;
   HttpLink _httpLink;
 
@@ -28,33 +28,23 @@ class GraphQLService extends Service {
 
   @override
   Future<void> readFromService(ServicePoint service) async {
-    String select;
     var table = service.name;
-
     var fields = _getFields(table);
     // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
     final limit = 1000;
     String nextToken;
+    final start = service.from;
 
     // ignore: unawaited_futures
     while (true) {
-      Map<String, dynamic> variables;
-      var nextTokenParam = '';
-      var nextTokenVariable = '';
-      if (nextToken != null) {
-        variables = <String, dynamic>{};
-        variables['nextToken'] = nextToken;
-        nextTokenParam = ', nextToken: \$nextToken';
-        nextTokenVariable = ' (\$nextToken: String)';
-      }
-
-      select = '''
-        query list$table${nextTokenVariable} {
+      var variables = <String, dynamic>{'nextToken': nextToken};
+      var select = '''
+        query list$table (\$nextToken: String) {
             list${table}s(filter: {
               lastSynced: {
-                ge: ${service.from}
+                ge: ${start}
               }
-            }, limit: $limit${nextTokenParam}){
+            }, limit: $limit, nextToken: \$nextToken){
               items{
                 $fields
               },
@@ -64,21 +54,29 @@ class GraphQLService extends Service {
         ''';
 
       var response = await _queryDocuments(select, variables);
-      //Sync.shared.logger?.i('query response $response');
       if (response != null) {
-        var docs = response['list${table}s']['items'];
-        if (docs != null) {
-          if (docs.isNotEmpty) {
-            service.from = docs.last['lastSynced'];
-          }
+        List docs = response['list${table}s']['items'];
+        nextToken = response['list${table}s']['nextToken'];
+        if (docs != null && docs.isNotEmpty) {
+          // get the max timestamp
+          var max = docs.first;
+          docs.forEach((element) {
+            if (element['lastSynced'] > max['lastSynced']) max = element;
+          });
 
+          service.from = max['lastSynced'];
+          await service.save(syncToService: false);
           await saveLocalRecords(service, docs);
+
+          Sync.shared.logger?.i(
+              'readFromService $table(${docs.length}) timestamp [$start - ${service.from}], nextToken is ${nextToken == null ? 'null' : 'not null'}');
+        } else {
+          break;
         }
+      } else {
+        break;
       }
 
-      nextToken = response['list${table}s']['nextToken'];
-      Sync.shared.logger
-          ?.i('running readFromService $table with nextToken = $nextToken');
       if (nextToken == null) {
         break;
       }
@@ -92,7 +90,7 @@ class GraphQLService extends Service {
     var query = q.Query(table)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
-    var records = await Sync.shared.local.query<Map>(query);
+    var records = await Sync.shared.local.queryMap(query);
 
     for (final record in records) {
       var fields = _getFields(table);
@@ -118,7 +116,7 @@ class GraphQLService extends Service {
     query = q.Query(table)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
-    records = await Sync.shared.local.query<Map>(query);
+    records = await Sync.shared.local.queryMap(query);
     for (var record in records) {
       var fields = _getFields(table);
       var response = await _updateDocument(table, fields, record);
@@ -291,7 +289,7 @@ class GraphQLService extends Service {
       }
     ''';
     var documents = await _queryDocuments(query);
-    // printLog(documents, logLevel);
+    //Sync.shared.logger?.i('permissions response $documents');
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listRolePermissionss')) {

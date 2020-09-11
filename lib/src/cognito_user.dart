@@ -10,22 +10,25 @@ import 'package:sync_db/src/graphql_service.dart';
 import 'package:sync_db/src/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
-class CognitoUserSyncSession extends UserSession {
-  GraphQLService _service;
-  CognitoUserSyncSession(
-      GraphQLService service, String clientId, String poolId) {
+class CognitoUserSession extends UserSession {
+  CognitoUserSession(SharedPreferences prefs, GraphQLService service,
+      String clientId, String poolId) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
+    _prefs = prefs;
   }
+
+  bool isNewUser = true;
 
   String _awsUserPoolId;
   String _clientId;
   cognito.CognitoUser _cognitoUser;
+  SharedPreferences _prefs;
+  GraphQLService _service;
   cognito.CognitoUserSession _session;
-  cognito.CognitoUserPool _userPool;
   CognitoUserInfo _userInfo;
-  bool isNewUser = true;
+  cognito.CognitoUserPool _userPool;
 
   @override
   String get role {
@@ -45,15 +48,86 @@ class CognitoUserSyncSession extends UserSession {
     return null;
   }
 
-  String get refreshToken => _session?.accessToken?.getJwtToken();
+  @override
+  Future<void> forceRefresh() async {
+    _session = await _cognitoUser.getSession();
+  }
 
   @override
   Future<bool> hasSignedIn() async => await _checkAuthenticated();
 
   @override
-  Future<void> forceRefresh() async {
-    _session = await _cognitoUser.getSession();
+  Future<List<ServicePoint>> servicePoints() async {
+    await _service.setup();
+    var schema = await _service.schema;
+    var results = <ServicePoint>[];
+    var roleName = role;
+    for (var tableName in schema.keys) {
+      var servicePoint = await ServicePoint.searchBy(tableName) ??
+          ServicePoint(name: tableName);
+      var access = _createAccess(tableName, roleName);
+      if (access != null) {
+        servicePoint.access = access;
+        if (servicePoint.access != access) {
+          await servicePoint.save(syncToService: false);
+        }
+
+        results.add(servicePoint);
+      }
+    }
+
+    Sync.shared.logger?.i('role $roleName has these service points: $results');
+    return results;
   }
+
+  @override
+  Future<List<ServicePoint>> servicePointsForTable(String table) async {
+    await _service.setup();
+    // Each table has only one service point
+    var roleName = role;
+    var servicePoint =
+        await ServicePoint.searchBy(table) ?? ServicePoint(name: table);
+    var access = _createAccess(table, roleName);
+    if (access != null) {
+      servicePoint.access = access;
+      if (servicePoint.access != access) {
+        await servicePoint.save(syncToService: false);
+      }
+
+      return [servicePoint];
+    }
+
+    return [];
+  }
+
+  @override
+  Future<void> signout() async {
+    if (_cognitoUser != null) {
+      await _cognitoUser.signOut();
+    }
+
+    await Sync.shared.local.cleanDatabase();
+  }
+
+  @override
+  set token(String token) {
+    throw UnimplementedError();
+  }
+
+  Access _createAccess(String table, String roleName) {
+    Access access;
+    if (_service.hasPermission(roleName, table, 'read-write')) {
+      access = Access.all;
+    } else if (_service.hasPermission(roleName, table, 'read')) {
+      access = Access.read;
+    } else if (_service.hasPermission(roleName, table, 'write')) {
+      access = access == Access.read ? Access.all : Access.write;
+    }
+
+    return access;
+  }
+
+  String get refreshToken => _session?.accessToken?.getJwtToken();
 
   set refreshToken(String token) => throw UnimplementedError();
 
@@ -69,21 +143,10 @@ class CognitoUserSyncSession extends UserSession {
 
   set role(String role) => throw UnimplementedError();
 
-  @override
-  Future<void> signout() async {
-    if (_cognitoUser != null) {
-      await _cognitoUser.signOut();
-    }
-
-    await Sync.shared.local.cleanDatabase();
-  }
-
   /// Initiate user session from local storage if present
   Future<bool> initialize() async {
     _userPool = cognito.CognitoUserPool(_awsUserPoolId, _clientId);
-    final prefs = await SharedPreferences.getInstance();
-    final storage = SharedPreferenceStorage(prefs);
-    _userPool.storage = storage;
+    _userPool.storage = SharedPreferenceStorage(_prefs);
 
     _cognitoUser = await _userPool.getCurrentUser();
     if (_cognitoUser == null) {
@@ -99,43 +162,6 @@ class CognitoUserSyncSession extends UserSession {
       return false;
     }
     return _session.isValid();
-  }
-
-  @override
-  Future<List<ServicePoint>> servicePoints() async {
-    await _service.setup();
-    var schema = await _service.schema;
-    var results = <ServicePoint>[];
-    schema.forEach((key, value) {
-      var servicePoint = ServicePoint(name: key);
-      if (_service.hasPermission(role, key, 'read')) {
-        servicePoint.access = Access.read;
-      } else if (_service.hasPermission(role, key, 'write')) {
-        servicePoint.access = Access.all;
-      }
-      results.add(servicePoint);
-    });
-
-    return results;
-  }
-
-  @override
-  Future<List<ServicePoint>> servicePointsForTable(String table) async {
-    await _service.setup();
-    // Each table has only one service point
-    var servicePoint = ServicePoint(name: table);
-    if (_service.hasPermission(role, table, 'read')) {
-      servicePoint.access = Access.read;
-    } else if (_service.hasPermission(role, table, 'write')) {
-      servicePoint.access = Access.all;
-    }
-
-    return [servicePoint];
-  }
-
-  @override
-  set token(String token) {
-    throw UnimplementedError();
   }
 
   /// Get existing user from session with his/her attributes
@@ -187,7 +213,21 @@ class CognitoUserSyncSession extends UserSession {
 
   Future<String> refreshRole() async {
     await forceRefresh();
-    return role;
+    var newRole = role;
+    await _resetSyncTime(newRole);
+    return newRole;
+  }
+
+  /// Reset sync time for writable tables
+  Future<void> _resetSyncTime(String roleName) async {
+    var records = await ServicePoint.all();
+    for (var record in records) {
+      var access = _createAccess(record.name, roleName);
+      if (access == Access.write || access == Access.all) {
+        record.from = 0;
+        await record.save(syncToService: false);
+      }
+    }
   }
 
   /// Login user
@@ -275,12 +315,6 @@ class CognitoUserSyncSession extends UserSession {
 }
 
 class CognitoUserInfo {
-  String id;
-  String email;
-  String name;
-  bool confirmed = false;
-  bool hasAccess = false;
-
   CognitoUserInfo({this.email, this.name});
 
   /// Decode user from Cognito User Attributes
@@ -298,6 +332,12 @@ class CognitoUserInfo {
     });
     return user;
   }
+
+  bool confirmed = false;
+  String email;
+  bool hasAccess = false;
+  String id;
+  String name;
 }
 
 /// Cognito shared preference storage, uses to store session keys
@@ -315,7 +355,10 @@ class SharedPreferenceStorage extends cognito.CognitoStorage {
   Future getItem(String key) async {
     String item;
     try {
-      item = json.decode(_prefs.getString(key));
+      var value = _prefs.getString(key);
+      if (value != null) {
+        item = json.decode(value);
+      }
     } catch (e) {
       return null;
     }
