@@ -69,13 +69,7 @@ class SembastDatabase extends Database {
   Future<dynamic> findMap(String modelName, String id,
       {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
-    final record =
-        await store.record(id).get(transaction ?? _database[modelName]);
-    if (record != null) {
-      return record;
-    }
-
-    return null;
+    return await store.record(id).get(transaction ?? _database[modelName]);
   }
 
   /// Check whether database table has initialized

@@ -335,7 +335,7 @@ class GraphQLService extends Service {
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');
-    fields += '\n lastSynced\n id\n _createdAt';
+    fields += '\n lastSynced\n id\n $createdKey\n $updatedKey\n $deletedKey\n';
     return fields;
   }
 }

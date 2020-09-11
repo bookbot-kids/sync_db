@@ -20,7 +20,7 @@ abstract class UserSession {
 abstract class Database {
   Future<void> save(Model model, {bool syncToService});
 
-  void saveMap(String tableName, Map map, {dynamic transaction});
+  Future<void> saveMap(String tableName, Map map, {dynamic transaction});
 
   bool hasTable(String tableName);
 
@@ -85,6 +85,17 @@ abstract class Model extends ChangeNotifier {
   Future<void> delete() async {
     deletedAt = await NetworkTime.shared.now;
     await save();
+  }
+
+  Future<void> deleteAll() async {
+    var now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
+    await database.runInTransaction(tableName, (transaction) async {
+      var list = database.queryMap(Query(tableName), transaction: transaction);
+      for (var item in list) {
+        item[deletedKey] = now;
+        await database.saveMap(tableName, item, transaction: transaction);
+      }
+    });
   }
 
   @override
