@@ -2,7 +2,7 @@ import 'package:sync_db/sync_db.dart';
 
 /// The ServicePoint class keeps a record of access and the timestamp of where to sync from
 class ServicePoint extends Model {
-  ServicePoint({this.name});
+  ServicePoint({this.name, this.access});
 
   String name; // The table name
   int from = 0; // From is the timestamp the sync point in time

@@ -9,12 +9,4 @@ class Sync {
   Service service;
   UserSession userSession;
   Logger logger;
-
-  static void config(
-      Service service, UserSession userSession, Logger logger, Database db) {
-    shared.service = service;
-    shared.local = db;
-    shared.logger = logger;
-    shared.userSession = userSession;
-  }
 }

@@ -10,10 +10,9 @@ import 'package:sync_db/src/graphql_service.dart';
 import 'package:sync_db/src/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
-class CognitoUserSyncSession extends UserSession {
+class CognitoUserSession extends UserSession {
   GraphQLService _service;
-  CognitoUserSyncSession(
-      GraphQLService service, String clientId, String poolId) {
+  CognitoUserSession(GraphQLService service, String clientId, String poolId) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
@@ -106,16 +105,16 @@ class CognitoUserSyncSession extends UserSession {
     await _service.setup();
     var schema = await _service.schema;
     var results = <ServicePoint>[];
+    var roleName = role;
     schema.forEach((key, value) {
-      var servicePoint = ServicePoint(name: key);
-      if (_service.hasPermission(role, key, 'read')) {
-        servicePoint.access = Access.read;
-      } else if (_service.hasPermission(role, key, 'write')) {
-        servicePoint.access = Access.all;
+      if (_service.hasPermission(roleName, key, 'read')) {
+        results.add(ServicePoint(name: key, access: Access.read));
+      } else if (_service.hasPermission(roleName, key, 'write')) {
+        results.add(ServicePoint(name: key, access: Access.all));
       }
-      results.add(servicePoint);
     });
 
+    Sync.shared.logger?.i('role $roleName has these service points: $results');
     return results;
   }
 
@@ -123,14 +122,13 @@ class CognitoUserSyncSession extends UserSession {
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     await _service.setup();
     // Each table has only one service point
-    var servicePoint = ServicePoint(name: table);
     if (_service.hasPermission(role, table, 'read')) {
-      servicePoint.access = Access.read;
+      return [ServicePoint(name: table, access: Access.read)];
     } else if (_service.hasPermission(role, table, 'write')) {
-      servicePoint.access = Access.all;
+      return [ServicePoint(name: table, access: Access.all)];
     }
 
-    return [servicePoint];
+    return [];
   }
 
   @override

@@ -120,7 +120,7 @@ abstract class Service {
           transaction: transaction);
       if (liveRecord[updatedKey] == record[updatedKey]) {
         record[statusKey] = SyncStatus.synced.name;
-        database.saveMap(service.name, record, transaction: transaction);
+        await database.saveMap(service.name, record, transaction: transaction);
       }
     });
     // TODO: Also check if model fields are different from record map. If not, change to updated state,

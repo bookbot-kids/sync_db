@@ -11,7 +11,7 @@ import 'query.dart' as q;
 class GraphQLService extends Service {
   List _rolePermissions;
   Map _schema;
-  CognitoUserSyncSession user;
+  CognitoUserSession user;
   GraphQLClient _graphClient;
   HttpLink _httpLink;
 
@@ -291,7 +291,7 @@ class GraphQLService extends Service {
       }
     ''';
     var documents = await _queryDocuments(query);
-    // printLog(documents, logLevel);
+    //Sync.shared.logger?.i('permissions response $documents');
     if (documents != null &&
         documents is Map &&
         documents.containsKey('listRolePermissionss')) {
