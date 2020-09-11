@@ -2,111 +2,55 @@
 // import 'package:robust_http/exceptions.dart';
 // import 'package:robust_http/robust_http.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:sync_db/src/network_time.dart';
-// import 'package:sync_db/src/sync_db.dart';
+// import 'package:sync_db/sync_db.dart';
 
-// import 'abstract.dart';
-
-// // class CosmosResourceToken {
-// //   final String id;
-// //   final String token;
-// //   final String partition;
-// //   final String mode;
-
-// //   CosmosResourceToken(this.id, this.token, this.partition, this.mode);
-// // }
-
-// // abstract class UserSession {
-// //   set token(String token);
-// //   Future<List<ServicePoint>> servicePoints();
-// //   Future<List<ServicePoint>> servicePointsForTable(String table);
-// //   Future<bool> hasSignedIn();
-// //   String get role;
-// //   Future<void> signout();
-// // }
+// // set token(String token);
+// // Future<void> forceRefresh();
+// // Future<List<ServicePoint>> servicePoints();
+// // Future<List<ServicePoint>> servicePointsForTable(String table);
+// // Future<bool> hasSignedIn();
+// // String get role;
+// // Future<void> signout();
 
 // class AzureADB2CUserSession extends UserSession {
 //   /// Config will need:
 //   /// `azureBaseUrl` for Azure authentication functions
-//   /// `azureCode` the secure code to request azure function
+//   /// `azureKey` the secure code to request azure function
 //   AzureADB2CUserSession(Map<String, dynamic> config) {
-//     _config = config;
-//     NetworkTime.shared.now.then((value) {
-//       _tokenExpiry = value;
-//     });
-
-//     _http = HTTP(config['azureBaseUrl'], config);
-//     SharedPreferences.getInstance().then((value) async {
-//       prefs = value;
-//       await resourceTokens();
-//     });
+//     _http = HTTP(config['azureBaseUrl']);
+//     _azureKey = config['azureKey'];
+//     // Start the process of getting tokens
+//     _refreshed = refresh();
 //   }
 
-//   SharedPreferences prefs;
-
-//   Map<String, dynamic> _config;
 //   HTTP _http;
+//   String _azureKey;
 //   DateTime _tokenExpiry;
-
-//   @override
-//   Future<bool> hasSignedIn() async {
-//     prefs ??= await SharedPreferences.getInstance();
-//     return refreshToken != null && refreshToken.isNotEmpty;
-//   }
-
-//   @override
-//   String get role => prefs.getString('role');
+//   Future<void> _refreshed;
 
 //   @override
 //   set token(String token) {
-//     prefs.setString('refresh_token', token);
+//     SharedPreferences.getInstance().then((preference) {
+//       preference.setString('refreshToken', token);
+//       _refreshed = refresh();
+//     });
 //   }
 
-//   @override
-//   Future<void> forceRefresh() async {
-//     _tokenExpiry = await NetworkTime.shared.now;
-//     await resourceTokens();
-//   }
-
-//   @override
-//   set role(String role) {
-//     prefs.setString('role', role);
-//   }
-
-//   /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
-//   @override
-//   Future<void> signout() async {
-//     _resourceTokens?.clear();
-//     _tokenExpiry = null;
-//     await prefs.remove('refresh_token');
-//     await Sync.shared.local.cleanDatabase();
-//   }
-
-//   Future<void> servicePoints() async {
-//     await refresh();
-//   }
-
-//   Future<void> servicePointsForable(String table) async {}
-
-//   String get _refreshToken => prefs.getString('refresh_token');
-
-//   /// Will return either resource tokens that have not expired, or will connect to the web service to get new tokens
-//   /// When refresh is true it will get new resource tokens from web services
+//   /// Get resource tokens from Cosmos
 //   /// If there is no refresh token, guest resource token is returned
-//   Future<void> refresh({bool force = false}) async {
-//     prefs ??= await SharedPreferences.getInstance();
+//   @override
+//   Future<void> refresh() async {
+//     //Get shared preference and network time at same time
+//     final preference = SharedPreferences.getInstance();
+//     final futureTime = NetworkTime.shared.now;
 
-//     _tokenExpiry ??= await NetworkTime.shared.now;
+//     final refreshToken = (await preference).getString('refreshToken');
 
-//     var now = await NetworkTime.shared.now;
-//     if (_tokenExpiry.isAfter(now)) {
-//       return List<CosmosResourceToken>.from(_resourceTokens);
-//     }
-
-//     final expired = now.add(Duration(hours: 4, minutes: 45));
+//     // Put at end
+//     _tokenExpiry = (await futureTime).add(Duration(hours: 4, minutes: 59));
 
 //     // Refresh token is an authorisation token to get different permissions for resource tokens
-//     // Azure functions also need a code
+//     // Azure functions also need a key
 //     try {
 //       final response = await _http.get('/GetResourceTokens', parameters: {
 //         'refresh_token': refreshToken ?? '',
@@ -156,6 +100,40 @@
 //     return List<CosmosResourceToken>.from(_resourceTokens);
 //   }
 
+//   @override
+//   Future<bool> hasSignedIn() async {
+//     prefs ??= await SharedPreferences.getInstance();
+//     return refreshToken != null && refreshToken.isNotEmpty;
+//   }
+
+//   @override
+//   String get role => prefs.getString('role');
+
+//   @override
+//   Future<void> servicePoints() async {
+//     await _refreshed;
+//   }
+
+//   Future<void> servicePointsForable(String table) async {
+//     await _refreshed;
+//   }
+
+//   @override
+//   set role(String role) {
+//     prefs.setString('role', role);
+//   }
+
+//   /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
+//   @override
+//   Future<void> signout() async {
+//     _resourceTokens?.clear();
+//     _tokenExpiry = null;
+//     await prefs.remove('refresh_token');
+//     await Sync.shared.local.cleanDatabase();
+//   }
+
+//   String get _refreshToken => prefs.getString('refresh_token');
+
 //   /// Fetch refresh token & resource tokens from id token
 //   /// Return a list of resource tokens or guest resource tokens if id token is invalid
 //   Future<List<CosmosResourceToken>> fetchTokens(String idToken) async {
@@ -176,13 +154,5 @@
 //     }
 
 //     return null;
-//   }
-
-//   /// Get available resource tokens for a table
-//   Future<List<CosmosResourceToken>> getAvailableTokens(String table) async {
-//     var allPermissions = await resourceTokens();
-//     return allPermissions.where((element) =>
-//         element.id == table ||
-//         (element.id.contains('-shared') && element.id.contains(table)));
 //   }
 // }

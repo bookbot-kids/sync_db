@@ -10,21 +10,21 @@ abstract class Service {
 
   /// Sync everything
   Future<void> sync() async {
-    // TODO: manage connectivity & authentication exceptions here
-    // If authentication error - log it - it's not supposed to happen
-    // Connectivity - do a connectivity check each minute. If can connect to google, but not our servers - log this
     var servicePoints = await Sync.shared.userSession.servicePoints();
     await _syncServicePoints(servicePoints);
   }
 
   /// Sync a table to service
   Future<void> syncTable(String table) async {
-    // TODO: manage connectivity & authentication exceptions here
     await _syncServicePoints(
         await Sync.shared.userSession.servicePointsForTable(table));
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
+    // TODO: manage exceptions here
+    // If authentication error - log it - it's not supposed to happen
+    // Connectivity - do a connectivity check each minute. If can connect to google, but not our servers - log this
+
     var futures = <Future>[];
     for (final servicePoint in servicePoints) {
       futures.add(readServicePoint(servicePoint));
@@ -35,6 +35,7 @@ abstract class Service {
 
   /// Write created or updated records in this table
   Future<void> writeTable(String table) async {
+    // TODO: manage connectivity & authentication exceptions here
     final servicePoints =
         await Sync.shared.userSession.servicePointsForTable(table);
     var futures = <Future>[];
