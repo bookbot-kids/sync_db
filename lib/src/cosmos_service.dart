@@ -35,27 +35,31 @@ class CosmosService extends Service {
       var response = {};
       await pool.withResource(() async {
         response = await _queryDocuments(servicePoint, query);
-        //if (response['retry']?.)
       });
 
       await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
-      final serverTimestamp =
-          HttpDate.parse(response['responseTimestamp'])?.millisecondsSinceEpoch;
-      if (serverTimestamp > 0) servicePoint.from = serverTimestamp;
-      await servicePoint.save();
+
+      // Put response timestamp in servicePoint
+      try {
+        final serverTimestamp = HttpDate.parse(response['responseTimestamp'])
+            .millisecondsSinceEpoch;
+        if (serverTimestamp > 0) servicePoint.from = serverTimestamp;
+        await servicePoint.save();
+      } catch (e) {
+        Sync.shared.logger?.e('Parse response Date stamp error', e);
+      }
     } while (paginationToken == null);
   }
 
+  /// Writes created and updated records to Cosmos DB
   @override
   Future<void> writeToService(ServicePoint servicePoint) async {
     var futures = <Future>[];
-    var result = <Map>[];
 
     // Get created records and save to Cosmos DB
     var query = Query(servicePoint.name)
-        .where(
-            '_status = ${SyncStatus.created.name} & partition = ${servicePoint.partition}')
+        .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
     var createdRecords = await Sync.shared.local.query<Map>(query);
 
@@ -95,127 +99,107 @@ class CosmosService extends Service {
   ///  ]
   ///
   /// Return a list of documents, the last item can have a pagination token
+  /// If there are any network exceptions, these will bubble up to Service
   Future<Map<String, dynamic>> _queryDocuments(
       ServicePoint servicePoint, String query,
       {List<Map<String, String>> parameters = const [{}],
       String paginationToken}) async {
-    try {
-      var headers = <String, dynamic>{
-        'authorization': Uri.encodeComponent(servicePoint.token),
-        'content-type': 'application/query+json',
-        'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]',
-        'x-ms-documentdb-isquery': true,
-        'x-ms-max-item-count': _pageSize
-      };
+    var headers = <String, dynamic>{
+      'authorization': Uri.encodeComponent(servicePoint.token),
+      'content-type': 'application/query+json',
+      'x-ms-version': _apiVersion,
+      'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]',
+      'x-ms-documentdb-isquery': true,
+      'x-ms-max-item-count': _pageSize
+    };
 
-      if (paginationToken != null) {
-        headers['x-ms-continuation'] = paginationToken;
-      }
-
-      _http.headers = headers;
-
-      var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
-      var response = await _http.post('colls/${servicePoint.name}/docs',
-          data: data, includeHttpResponse: true);
-      var responseData = response.data;
-      List docs = responseData['Documents'];
-
-      return {
-        'response': docs,
-        'paginationToken': response.headers.value('x-ms-continuation'),
-        'responseTimestamp': response.headers.value('Date')
-      };
-    } catch (error, stackTrace) {
-      if (error is UnexpectedResponseException) {
-        if (error.response.statusCode == 401 ||
-            error.response.statusCode == 403) {
-          await Sync.shared.userSession.forceRefresh();
-          Sync.shared.logger?.e('Resource token error', error, stackTrace);
-          return {'retry': true};
-        }
-      }
-
-      return {'response': []};
+    if (paginationToken != null) {
+      headers['x-ms-continuation'] = paginationToken;
     }
+
+    _http.headers = headers;
+
+    var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
+    var response = await _http.post('colls/${servicePoint.name}/docs',
+        data: data, includeHttpResponse: true);
+    var responseData = response.data;
+    List docs = responseData['Documents'];
+
+    return {
+      'response': docs,
+      'paginationToken': response.headers.value('x-ms-continuation'),
+      'responseTimestamp': response.headers.value('Date')
+    };
   }
 
   /// Cosmos api to create document
-  Future<dynamic> _createDocument(
-    ServicePoint servicePoint,
-    String query,
-  ) async {
+  Future<Map<String, dynamic>> _createDocument(
+      ServicePoint servicePoint, Map record) async {
     var now = HttpDate.format(await NetworkTime.shared.now);
 
-    // make sure there is partition in model
-    json['partition'] = partition;
-
-    // we don't want to save updatedAt & _field in cosmos
-    excludePrivateFields(json);
+    // remove underscore fields
+    excludePrivateFields(record);
+    // Set partition to the records partition or the servicePoint (usually the servicePoint)
+    final partition = record['partition'] ?? servicePoint.partition;
 
     try {
       _http.headers = {
         'x-ms-date': now,
-        'authorization': Uri.encodeComponent(resouceToken),
+        'authorization': Uri.encodeComponent(servicePoint.token),
         'content-type': 'application/json',
         'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"$partition\"]'
+        'x-ms-documentdb-partitionkey': '[\"${partition}\"]'
       };
-      var response = await _http.post('colls/$table/docs', data: json);
+      var response =
+          await _http.post('colls/${servicePoint.name}/docs', data: record);
       return response;
-    } catch (e, stackTrace) {
-      if (e is UnexpectedResponseException) {
-        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
-          await Sync.shared.userSession.forceRefresh();
-          throw RetryFailureException();
-        } else {
-          Sync.shared.logger?.e('create cosmos document', e, stackTrace);
-        }
+    } on UnexpectedResponseException catch (e, stackTrace) {
+      if (e.response.statusCode == 409) {
+        // Strange that this has happened. Record is already created. Log it and try an update.
+        Sync.shared.logger?.e('Create Cosmos document failed.', e, stackTrace);
+        await _updateDocument(servicePoint, record);
       } else {
-        Sync.shared.logger?.e('create cosmos document', e, stackTrace);
+        throw UnexpectedResponseException(e);
       }
     }
+
+    return {};
   }
 
   /// Cosmos api to update document
-  Future<dynamic> _updateDocument(
-    ServicePoint servicePoint,
-    String query,
-  ) async {
+  Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record) async {
     var now = HttpDate.format(await NetworkTime.shared.now);
-    // make sure there is partition in model
-    json['partition'] = partition;
 
     // we don't want to save updatedAt & _field in cosmos
-    excludePrivateFields(json);
+    excludePrivateFields(record);
+    // Set partition to the records partition or the servicePoint (usually the servicePoint)
+    final partition = record['partition'] ?? servicePoint.partition;
 
     try {
       _http.headers = {
         'x-ms-date': now,
-        'authorization': Uri.encodeComponent(resouceToken),
+        'authorization': Uri.encodeComponent(servicePoint.token),
         'content-type': 'application/json',
         'x-ms-version': _apiVersion,
         'x-ms-documentdb-partitionkey': '[\"$partition\"]'
       };
-      var response = await http.put('colls/$table/docs/$id', data: json);
+      var response = await _http
+          .put('colls/${servicePoint.name}/docs/${record['id']}', data: record);
       return response;
-    } catch (e, stackTrace) {
-      if (e is UnexpectedResponseException) {
-        if (e.response.statusCode == 401 || e.response.statusCode == 403) {
-          await user.reset();
-          throw RetryFailureException();
-        } else {
-          Sync.shared.logger?.e('update cosmos document', e, stackTrace);
-        }
+    } on UnexpectedResponseException catch (e, stackTrace) {
+      if (e.response.statusCode == 409) {
+        // Strange that this has happened. Record does not exist. Log it and try an update
+        Sync.shared.logger?.e('Update Cosmos document failed.', e, stackTrace);
+        await _createDocument(servicePoint, record);
       } else {
-        Sync.shared.logger?.e('update cosmos document', e, stackTrace);
+        throw UnexpectedResponseException(e);
       }
     }
   }
 
   /// Add parameter in list of map for cosmos query
-  void _addParameter(
-      List<Map<String, String>> parameters, String key, String value) {
-    parameters.add({'\"name\"': '\"$key\"', '\"value\"': '\"$value\"'});
-  }
+  // void _addParameter(
+  //     List<Map<String, String>> parameters, String key, String value) {
+  //   parameters.add({'\"name\"': '\"$key\"', '\"value\"': '\"$value\"'});
+  // }
 }

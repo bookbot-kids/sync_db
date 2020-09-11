@@ -10,12 +10,16 @@ abstract class Service {
 
   /// Sync everything
   Future<void> sync() async {
+    // TODO: manage connectivity & authentication exceptions here
+    // If authentication error - log it - it's not supposed to happen
+    // Connectivity - do a connectivity check each minute. If can connect to google, but not our servers - log this
     var servicePoints = await Sync.shared.userSession.servicePoints();
     await _syncServicePoints(servicePoints);
   }
 
   /// Sync a table to service
   Future<void> syncTable(String table) async {
+    // TODO: manage connectivity & authentication exceptions here
     await _syncServicePoints(
         await Sync.shared.userSession.servicePointsForTable(table));
   }
@@ -43,7 +47,7 @@ abstract class Service {
 
   Future<void> readServicePoint(ServicePoint service) async {
     // Needs all or read access
-    if (service.access == null || service.access == Access.write) return;
+    if (service.access == Access.write) return;
 
     Sync.shared.logger?.i('readServicePoint ${service.name}');
     // Get lock for only running one service point at a time
@@ -57,7 +61,7 @@ abstract class Service {
 
   Future<void> writeServicePoint(ServicePoint service) async {
     // Needs all or write access
-    if (service.access == null || service.access == Access.read) return;
+    if (service.access == Access.read) return;
 
     Sync.shared.logger?.i('writeServicePoint ${service.name}');
     // Get lock for only running one service point at a time
@@ -120,8 +124,11 @@ abstract class Service {
       }
     });
     // TODO: Also check if model fields are different from record map. If not, change to updated state,
-    // not sync
+    // not synced
   }
+
+  /// A function to handle connectivity checks
+  Future<bool> connectivity() {}
 
   /// Remove private fields before saving to cosmos
   void excludePrivateFields(Map map) {
