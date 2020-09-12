@@ -25,7 +25,10 @@ class SembastDatabase extends Database {
       for (final tableName in tableNames) {
         final name = tableName;
         final dbPath = name + '.db';
-        shared._database[name] = await databaseFactoryWeb.openDatabase(dbPath);
+        if (!shared._database.containsKey(name)) {
+          shared._database[name] =
+              await databaseFactoryWeb.openDatabase(dbPath);
+        }
       }
     } else {
       // get document directory
@@ -35,9 +38,11 @@ class SembastDatabase extends Database {
       // Open all databases
       for (final tableName in tableNames) {
         final name = tableName;
-        final dbPath = join(documentPath.path, name + '.db');
-        Sync.shared.logger?.d('model $name has path $dbPath');
-        shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+        if (!shared._database.containsKey(name)) {
+          final dbPath = join(documentPath.path, name + '.db');
+          Sync.shared.logger?.d('model $name has path $dbPath');
+          shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+        }
       }
     }
   }
