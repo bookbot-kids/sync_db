@@ -229,7 +229,7 @@ class GraphQLService extends Service {
 
   /// Get graph client base on token from cognito
   Future<GraphQLClient> get graphClient async {
-    if (_graphClient == null) {
+    if (_graphClient == null || !(await user.hasSignedIn())) {
       await user.resourceTokens();
       final authLink = AuthLink(getToken: () => user.refreshToken);
       final link = authLink.concat(_httpLink);
