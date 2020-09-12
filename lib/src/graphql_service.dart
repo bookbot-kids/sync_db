@@ -62,6 +62,7 @@ class GraphQLService extends Service {
           var max = docs.first;
           docs.forEach((element) {
             if (element['lastSynced'] > max['lastSynced']) max = element;
+            _fixCreatedDate(element);
           });
 
           service.from = max['lastSynced'];
@@ -97,14 +98,18 @@ class GraphQLService extends Service {
 
       var response = await _createDocument(table, fields, record);
       if (response != null && response['create${table}'] != null) {
-        await updateRecordStatus(service, response['create${table}']);
+        var serverRecord = response['create${table}'];
+        _fixCreatedDate(serverRecord);
+        await updateRecordStatus(service, serverRecord);
       } else {
         // try to get server record after retry failure
         response = await _getDocument(table, fields, record['id']);
         // check if record already exists
         if (response != null && response['get${table}'] != null) {
           // if it does, then update its status to synced
-          await updateRecordStatus(service, response['get${table}']);
+          var serverRecord = response['get${table}'];
+          _fixCreatedDate(serverRecord);
+          await updateRecordStatus(service, serverRecord);
         } else {
           // otherwise just log as error
           Sync.shared.logger?.e('create document ${table} ${record} error');
@@ -323,6 +328,13 @@ class GraphQLService extends Service {
     return false;
   }
 
+  // Copy _createdAt from server into createdAt field
+  void _fixCreatedDate(Map record) {
+    if (record['_createdAt'] is int && record[createdKey] == null) {
+      record[createdKey] = record['_createdAt'];
+    }
+  }
+
   /// List available fields from schema for graphql query
   String _getFields(String table) {
     if (_schema == null || !_schema.containsKey(table)) {
@@ -333,7 +345,8 @@ class GraphQLService extends Service {
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');
-    fields += '\n lastSynced\n id\n $createdKey\n $updatedKey\n $deletedKey\n';
+    fields +=
+        '\n lastSynced\n id\n $createdKey\n $updatedKey\n $deletedKey\n _createdAt';
     return fields;
   }
 }
