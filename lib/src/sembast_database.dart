@@ -25,7 +25,10 @@ class SembastDatabase extends Database {
       for (final tableName in tableNames) {
         final name = tableName;
         final dbPath = name + '.db';
-        shared._database[name] = await databaseFactoryWeb.openDatabase(dbPath);
+        if (!shared._database.containsKey(name)) {
+          shared._database[name] =
+              await databaseFactoryWeb.openDatabase(dbPath);
+        }
       }
     } else {
       // get document directory
@@ -35,9 +38,11 @@ class SembastDatabase extends Database {
       // Open all databases
       for (final tableName in tableNames) {
         final name = tableName;
-        final dbPath = join(documentPath.path, name + '.db');
-        Sync.shared.logger?.d('model $name has path $dbPath');
-        shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+        if (!shared._database.containsKey(name)) {
+          final dbPath = join(documentPath.path, name + '.db');
+          Sync.shared.logger?.d('model $name has path $dbPath');
+          shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+        }
       }
     }
   }
@@ -213,6 +218,8 @@ class SembastDatabase extends Database {
 
   @override
   Future<void> save(Model model, {bool syncToService = true}) async {
+    final isCreated = (model.id == null) || (model.createdAt == null);
+
     // Set id and createdAt if new record. ID is a random UUID
     model.id ??= Uuid().v4().toString();
 
@@ -222,7 +229,7 @@ class SembastDatabase extends Database {
     // Export model as map
     final map = model.map;
 
-    if (model.id == null || model.createdAt == null) {
+    if (isCreated) {
       map[statusKey] = SyncStatus.created.name;
     } else {
       var currentRecord = await findMap(model.tableName, model.id);
