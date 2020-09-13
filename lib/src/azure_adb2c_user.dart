@@ -128,6 +128,7 @@ class AzureADB2CUserSession extends UserSession {
       await Sync.shared.local.clearTable(table);
     }
 
+    _refreshed = refresh();
     signoutNotifier.notify();
   }
 
