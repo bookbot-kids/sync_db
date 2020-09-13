@@ -331,7 +331,13 @@ class GraphQLService extends Service {
   // Copy _createdAt from server into createdAt field
   void _fixCreatedDate(Map record) {
     if (record['_createdAt'] is int && record[createdKey] == null) {
-      record[createdKey] = record['_createdAt'];
+      record[createdKey] = record['_createdAt'] * 1000;
+    }
+
+    // convert from seconds into milliseconds
+    if (record[updatedKey] is int &&
+        record[updatedKey].toString().length == 10) {
+      record[updatedKey] = record[updatedKey] * 1000;
     }
   }
 

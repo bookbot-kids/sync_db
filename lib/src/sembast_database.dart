@@ -263,7 +263,7 @@ class SembastDatabase extends Database {
     map.putIfAbsent(idKey, () => Uuid().v4().toString());
     map.putIfAbsent(statusKey, () => SyncStatus.synced.name);
 
-    final now = (await NetworkTime.shared.now).millisecondsSinceEpoch ~/ 1000;
+    final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     map.putIfAbsent(createdKey, () => now);
     map[updatedKey] = now;
 

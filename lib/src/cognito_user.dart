@@ -49,7 +49,7 @@ class CognitoUserSession extends UserSession {
   }
 
   @override
-  Future<void> forceRefresh() async {
+  Future<void> refresh() async {
     _session = await _cognitoUser.getSession();
   }
 
@@ -212,7 +212,7 @@ class CognitoUserSession extends UserSession {
   }
 
   Future<String> refreshRole() async {
-    await forceRefresh();
+    await refresh();
     var newRole = role;
     await _resetSyncTime(newRole);
     return newRole;
