@@ -9,7 +9,7 @@ const deletedKey = 'deletedAt';
 
 abstract class UserSession {
   set token(String token);
-  Future<void> forceRefresh();
+  Future<void> refresh();
   Future<List<ServicePoint>> servicePoints();
   Future<List<ServicePoint>> servicePointsForTable(String table);
   Future<bool> hasSignedIn();
@@ -33,6 +33,8 @@ abstract class Database {
 
   dynamic queryMap(Query query, {dynamic transaction});
 
+  Future<void> clearTable(String tableName);
+
   Future<void> delete(Model model);
 
   Future<void> deleteLocal(String modelName, String id);
@@ -41,6 +43,12 @@ abstract class Database {
 
   /// clear all data in all tables
   Future<void> cleanDatabase();
+}
+
+class Notifier extends ChangeNotifier {
+  void notify() {
+    notifyListeners();
+  }
 }
 
 abstract class Model extends ChangeNotifier {

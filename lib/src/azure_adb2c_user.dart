@@ -1,158 +1,142 @@
-// import 'package:basic_utils/basic_utils.dart';
-// import 'package:robust_http/exceptions.dart';
-// import 'package:robust_http/robust_http.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:sync_db/sync_db.dart';
+import 'package:robust_http/exceptions.dart';
+import 'package:robust_http/robust_http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sync_db/sync_db.dart';
 
-// // set token(String token);
-// // Future<void> forceRefresh();
-// // Future<List<ServicePoint>> servicePoints();
-// // Future<List<ServicePoint>> servicePointsForTable(String table);
-// // Future<bool> hasSignedIn();
-// // String get role;
-// // Future<void> signout();
+class AzureADB2CUserSession extends UserSession {
+  /// Config will need:
+  /// `azureBaseUrl` for Azure authentication functions
+  /// `azureKey` the secure code to request azure function
+  /// `tablesToClearOnSignout` a list of tables to remove when signing out
+  AzureADB2CUserSession(Map<String, dynamic> config) {
+    _http = HTTP(config['azureBaseUrl']);
+    _azureKey = config['azureKey'];
+    _tablesToClearOnSignout = config['tablesToClearOnSignout'];
+    // Start the process of getting tokens
+    _refreshed = refresh();
+  }
 
-// class AzureADB2CUserSession extends UserSession {
-//   /// Config will need:
-//   /// `azureBaseUrl` for Azure authentication functions
-//   /// `azureKey` the secure code to request azure function
-//   AzureADB2CUserSession(Map<String, dynamic> config) {
-//     _http = HTTP(config['azureBaseUrl']);
-//     _azureKey = config['azureKey'];
-//     // Start the process of getting tokens
-//     _refreshed = refresh();
-//   }
+  HTTP _http;
+  String _azureKey;
+  DateTime _tokenExpiry = DateTime.utc(0);
+  Future<void> _refreshed;
+  List<String> _tablesToClearOnSignout;
+  Notifier signoutNotifier = Notifier();
 
-//   HTTP _http;
-//   String _azureKey;
-//   DateTime _tokenExpiry;
-//   Future<void> _refreshed;
+  @override
+  String role = 'guest';
 
-//   @override
-//   set token(String token) {
-//     SharedPreferences.getInstance().then((preference) {
-//       preference.setString('refreshToken', token);
-//       _refreshed = refresh();
-//     });
-//   }
+  @override
+  set token(String token) {
+    SharedPreferences.getInstance().then((preference) {
+      preference.setString('refreshToken', token);
+      _refreshed = refresh();
+    });
+  }
 
-//   /// Get resource tokens from Cosmos
-//   /// If there is no refresh token, guest resource token is returned
-//   @override
-//   Future<void> refresh() async {
-//     //Get shared preference and network time at same time
-//     final preference = SharedPreferences.getInstance();
-//     final futureTime = NetworkTime.shared.now;
+  /// Get resource tokens from Cosmos
+  /// If there is no refresh token, guest resource tokens are returned
+  @override
+  Future<void> refresh() async {
+    // Start some tasks to await later
+    final asyncTimeStamp = NetworkTime.shared.now;
+    final asyncMapped = _mappedServicePoints();
+    final sharedPreference = await SharedPreferences.getInstance();
+    var refreshToken = sharedPreference.getString('refreshToken');
 
-//     final refreshToken = (await preference).getString('refreshToken');
+    // Refresh token is an authorisation token to get different permissions for resource tokens
+    // Azure functions also need a key
+    try {
+      final response = await _http.get('/GetResourceTokens',
+          parameters: {'refresh_token': refreshToken ?? '', 'code': _azureKey});
+      _tokenExpiry =
+          (await asyncTimeStamp).add(Duration(hours: 4, minutes: 59));
 
-//     // Put at end
-//     _tokenExpiry = (await futureTime).add(Duration(hours: 4, minutes: 59));
+      // Setup or update ServicePoints
+      final mappedServicePoints = await asyncMapped;
+      for (final permission in response['permissions']) {
+        final servicePoint = mappedServicePoints.putIfAbsent(
+            permission['id'], () => ServicePoint(name: permission['id']));
+        servicePoint.partition = permission['resourcePartitionKey'].first;
+        servicePoint.token = permission['_token'];
+        servicePoint.access =
+            $Access.fromString(permission['permissionMode'].toLowerCase());
+        // ignore: unawaited_futures
+        servicePoint.save();
+      }
 
-//     // Refresh token is an authorisation token to get different permissions for resource tokens
-//     // Azure functions also need a key
-//     try {
-//       final response = await _http.get('/GetResourceTokens', parameters: {
-//         'refresh_token': refreshToken ?? '',
-//         'code': _config['azureCode']
-//       });
+      // set role along with the resource tokens
+      role = response['group'];
+      refreshToken = (response['refreshToken'] != null)
+          ? response['refreshToken']
+          : refreshToken;
+      // ignore: unawaited_futures
+      sharedPreference.setString('refreshToken', refreshToken);
+    } on UnexpectedResponseException catch (e, stackTrace) {
+      // Only handle refresh token expiry, otherwise the rest can bubble up
+      if (e.response.statusCode == 401) {
+        // token is expired -> sign out user
+        await signout();
+      } else {
+        Sync.shared.logger?.e('Resource tokens error', e, stackTrace);
+        throw UnexpectedResponseException(e);
+      }
+    }
+  }
 
-//       _resourceTokens.clear();
-//       for (final permission in response['permissions']) {
-//         var resourceToken = CosmosResourceToken(
-//             permission['id'],
-//             permission['_token'],
-//             permission['resourcePartitionKey'].first,
-//             permission['']);
-//         _resourceTokens.add(resourceToken);
-//       }
+  @override
+  Future<List<ServicePoint>> servicePoints() async {
+    await _refreshIfExpired();
+    return ServicePoint.all();
+  }
 
-//       _tokenExpiry = expired;
+  @override
+  Future<List<ServicePoint>> servicePointsForTable(String table) async {
+    await _refreshIfExpired();
+    return ServicePoint.where('name = $table').load();
+  }
 
-//       // set role along with the resource tokens
-//       if (response['group'] != null) {
-//         role = response['group'];
-//       }
+  Future<void> _refreshIfExpired() async {
+    await _refreshed;
+    final now = await NetworkTime.shared.now;
+    if (now.isAfter(_tokenExpiry)) {
+      _refreshed = refresh();
+      await _refreshed;
+    }
+  }
 
-//       // Update new refresh token from server
-//       if (response['refreshToken'] is String &&
-//           StringUtils.isNotNullOrEmpty(response['refreshToken'])) {
-//         refreshToken = response['refreshToken'];
-//       }
-//     } catch (e, stackTrace) {
-//       if (e is UnexpectedResponseException) {
-//         try {
-//           if (e.response.statusCode == 401) {
-//             // token is expired, need to sign out user
-//             _resourceTokens.clear();
-//             await prefs.remove('refresh_token');
-//           } else {
-//             Sync.shared.logger?.e('get resource tokens error', e, stackTrace);
-//           }
-//         } catch (e) {
-//           // ignore
-//         }
-//       } else {
-//         Sync.shared.logger?.e('get resource tokens error', e, stackTrace);
-//       }
-//     }
+  @override
+  Future<bool> hasSignedIn() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString('refreshToken') != null;
+  }
 
-//     return List<CosmosResourceToken>.from(_resourceTokens);
-//   }
+  /// Sign out user, remove the refresh token from shared preferences
+  /// and clear certain ServicePoints and databases
+  @override
+  Future<void> signout() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove('refresh_token');
+    _tokenExpiry = DateTime.utc(0);
+    role = 'guest';
 
-//   @override
-//   Future<bool> hasSignedIn() async {
-//     prefs ??= await SharedPreferences.getInstance();
-//     return refreshToken != null && refreshToken.isNotEmpty;
-//   }
+    for (final table in _tablesToClearOnSignout) {
+      final servicePoints = await ServicePoint.where('name = $table').load();
+      for (final servicePoint in servicePoints) {
+        servicePoint.deleteLocal();
+      }
+      await Sync.shared.local.clearTable(table);
+    }
 
-//   @override
-//   String get role => prefs.getString('role');
+    signoutNotifier.notify();
+  }
 
-//   @override
-//   Future<void> servicePoints() async {
-//     await _refreshed;
-//   }
-
-//   Future<void> servicePointsForable(String table) async {
-//     await _refreshed;
-//   }
-
-//   @override
-//   set role(String role) {
-//     prefs.setString('role', role);
-//   }
-
-//   /// Sign out user, remove the refresh token from shared preferences and clear all resource tokens and database
-//   @override
-//   Future<void> signout() async {
-//     _resourceTokens?.clear();
-//     _tokenExpiry = null;
-//     await prefs.remove('refresh_token');
-//     await Sync.shared.local.cleanDatabase();
-//   }
-
-//   String get _refreshToken => prefs.getString('refresh_token');
-
-//   /// Fetch refresh token & resource tokens from id token
-//   /// Return a list of resource tokens or guest resource tokens if id token is invalid
-//   Future<List<CosmosResourceToken>> fetchTokens(String idToken) async {
-//     try {
-//       if (idToken != null && idToken.isNotEmpty) {
-//         var response = await _http.get('/GetRefreshAndAccessToken',
-//             parameters: {'code': _config['azureCode'], 'id_token': idToken});
-//         if (response['success'] == true && response['token'] != null) {
-//           var token = response['token'];
-//           refreshToken = token['refresh_token'];
-//         }
-//       }
-
-//       await reset();
-//       return await resourceTokens();
-//     } catch (error, stackTrace) {
-//       Sync.shared.logger?.e('fetch token error', error, stackTrace);
-//     }
-
-//     return null;
-//   }
-// }
+  Future<Map<String, ServicePoint>> _mappedServicePoints() async {
+    final servicePoints = await ServicePoint.all();
+    final map = <String, ServicePoint>{};
+    for (final servicePoint in servicePoints) {
+      map[servicePoint.name] = servicePoint;
+    }
+    return map;
+  }
+}

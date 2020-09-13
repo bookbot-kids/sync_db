@@ -61,9 +61,13 @@ class CosmosService extends Service {
     var query = Query(servicePoint.name)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
-    var createdRecords = await Sync.shared.local.query<Map>(query);
+    var createdRecords = await Sync.shared.local.queryMap(query);
 
     for (final record in createdRecords) {
+      // If record has a partion and it doesn't match service point partition, then skip
+      if (record['partition'] != null &&
+          servicePoint.partition != record['partition']) continue;
+
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
         var newRecord = await _createDocument(servicePoint, record);
@@ -75,9 +79,13 @@ class CosmosService extends Service {
     query = Query(servicePoint.name)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
-    var updatedRecords = await Sync.shared.local.query<Map>(query);
+    var updatedRecords = await Sync.shared.local.queryMap(query);
 
     for (final record in updatedRecords) {
+      // If record has a partion and it doesn't match service point partition, then skip
+      if (record['partition'] != null &&
+          servicePoint.partition != record['partition']) continue;
+
       futures.add(pool.withResource(() async {
         final updatedRecord = await _updateDocument(servicePoint, record);
         await updateRecordStatus(servicePoint, updatedRecord);
@@ -139,8 +147,6 @@ class CosmosService extends Service {
 
     // remove underscore fields
     excludePrivateFields(record);
-    // Set partition to the records partition or the servicePoint (usually the servicePoint)
-    final partition = record['partition'] ?? servicePoint.partition;
 
     try {
       _http.headers = {
@@ -148,32 +154,27 @@ class CosmosService extends Service {
         'authorization': Uri.encodeComponent(servicePoint.token),
         'content-type': 'application/json',
         'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"${partition}\"]'
+        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
       };
-      var response =
-          await _http.post('colls/${servicePoint.name}/docs', data: record);
-      return response;
+
+      return await _http.post('colls/${servicePoint.name}/docs', data: record);
     } on UnexpectedResponseException catch (e, stackTrace) {
       if (e.response.statusCode == 409) {
         // Strange that this has happened. Record is already created. Log it and try an update.
         Sync.shared.logger?.e('Create Cosmos document failed.', e, stackTrace);
-        await _updateDocument(servicePoint, record);
+        return await _updateDocument(servicePoint, record);
       } else {
         throw UnexpectedResponseException(e);
       }
     }
-
-    return {};
   }
 
   /// Cosmos api to update document
   Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record) async {
     var now = HttpDate.format(await NetworkTime.shared.now);
 
-    // we don't want to save updatedAt & _field in cosmos
+    // we don't want to save local private fields
     excludePrivateFields(record);
-    // Set partition to the records partition or the servicePoint (usually the servicePoint)
-    final partition = record['partition'] ?? servicePoint.partition;
 
     try {
       _http.headers = {
@@ -181,16 +182,15 @@ class CosmosService extends Service {
         'authorization': Uri.encodeComponent(servicePoint.token),
         'content-type': 'application/json',
         'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"$partition\"]'
+        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
       };
-      var response = await _http
-          .put('colls/${servicePoint.name}/docs/${record['id']}', data: record);
-      return response;
+      return await _http.put('colls/${servicePoint.name}/docs/${record['id']}',
+          data: record);
     } on UnexpectedResponseException catch (e, stackTrace) {
       if (e.response.statusCode == 409) {
         // Strange that this has happened. Record does not exist. Log it and try an update
         Sync.shared.logger?.e('Update Cosmos document failed.', e, stackTrace);
-        await _createDocument(servicePoint, record);
+        return await _createDocument(servicePoint, record);
       } else {
         throw UnexpectedResponseException(e);
       }

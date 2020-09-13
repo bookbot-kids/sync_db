@@ -71,8 +71,8 @@ extension $Access on Access {
   };
 
   static final toEnum = {
-    'created': Access.all,
-    'updated': Access.read,
+    'all': Access.all,
+    'read': Access.read,
     'write': Access.write,
   };
 

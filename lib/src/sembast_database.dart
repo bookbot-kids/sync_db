@@ -284,6 +284,7 @@ class SembastDatabase extends Database {
     }
   }
 
+  @override
   Future<void> clearTable(String tableName) async {
     var db = _database[tableName];
     final store = sembast.StoreRef.main();
