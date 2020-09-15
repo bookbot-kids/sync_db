@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:sembast/utils/sembast_import_export.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -23,27 +26,71 @@ class SembastDatabase extends Database {
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
       for (final tableName in tableNames) {
-        final name = tableName;
-        final dbPath = name + '.db';
-        if (!shared._database.containsKey(name)) {
-          shared._database[name] =
+        if (!shared._database.containsKey(tableName)) {
+          final dbPath = _generateDatabasePath(tableName);
+          shared._database[tableName] =
               await databaseFactoryWeb.openDatabase(dbPath);
         }
       }
     } else {
       // get document directory
-      final documentPath = await getApplicationDocumentsDirectory();
+      final documentPath = await getApplicationSupportDirectory();
       await documentPath.create(recursive: true);
 
       // Open all databases
       for (final tableName in tableNames) {
-        final name = tableName;
-        if (!shared._database.containsKey(name)) {
-          final dbPath = join(documentPath.path, name + '.db');
-          Sync.shared.logger?.d('model $name has path $dbPath');
-          shared._database[name] = await databaseFactoryIo.openDatabase(dbPath);
+        if (!shared._database.containsKey(tableName)) {
+          final dbPath =
+              _generateDatabasePath(tableName, dir: documentPath.path);
+          Sync.shared.logger?.d('model $tableName has path $dbPath');
+          shared._database[tableName] =
+              await databaseFactoryIo.openDatabase(dbPath);
         }
       }
+    }
+  }
+
+  /// Get database file path
+  static String _generateDatabasePath(String table, {String dir}) {
+    var fileName = table + '.db';
+    return dir == null ? fileName : join(dir, fileName);
+  }
+
+  @override
+  Future<void> export(List<String> tableNames) async {
+    final docDir = await getApplicationSupportDirectory();
+    var exportDir = Directory(join(docDir.path, 'export'));
+    if (!exportDir.existsSync()) {
+      exportDir.createSync(recursive: true);
+    }
+
+    for (final name in tableNames) {
+      var content = await exportDatabase(shared._database[name]);
+      var json = jsonEncode(content);
+      final dbPath = join(exportDir.path, name + '.db');
+      await File(dbPath).writeAsString(json);
+      Sync.shared.logger?.i('export $name into $dbPath');
+    }
+  }
+
+  @override
+  Future<void> import(Map<String, Map> data) async {
+    var dbFactory;
+    String dbDir;
+    if (UniversalPlatform.isWeb) {
+      dbFactory = databaseFactoryWeb;
+    } else {
+      dbFactory = databaseFactoryIo;
+      var dir = await getApplicationSupportDirectory();
+      await dir.create(recursive: true);
+      dbDir = dir.path;
+    }
+
+    for (var key in data.keys) {
+      var content = data[key];
+      final dbPath = _generateDatabasePath(key, dir: dbDir);
+      var db = await importDatabase(content, dbFactory, dbPath);
+      shared._database[key] = db;
     }
   }
 
