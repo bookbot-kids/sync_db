@@ -19,7 +19,7 @@ class SembastDatabase extends Database {
   final Map<String, sembast.Database> _database = {};
 
   /// Opens up each table connected to each model, which is stored in a separate file.
-  static Future<void> config(List<String> tableNames) async {
+  Future<void> init(List<String> tableNames) async {
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
 

@@ -5,11 +5,11 @@ import 'package:universal_io/io.dart';
 
 class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
-  /// This will require the `databaseAccount` name, and database id `databaseId` in the config map
+  /// This will require the `cosmosDatabaseAccount` name, and database id `cosmosDatabaseId` in the config map
   CosmosService(Map config) {
     final httpConfig = {'httpRetries': 1};
     _http = HTTP(
-        'https://${config["databaseAccount"]}.documents.azure.com/dbs/${config["databaseId"]}/',
+        'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
         httpConfig);
     _pageSize = config['pageSize'] ?? 1000;
   }
