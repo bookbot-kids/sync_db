@@ -8,8 +8,10 @@ class ModelGenerator extends Generator {
     final values = <String>{};
     library.allElements.forEach((element) {
       final classElement = element as ClassElement;
-      var value = generateForClass(classElement);
-      values.add(value);
+      if (!classElement.isEnum) {
+        var value = generateForClass(classElement);
+        values.add(value);
+      }
     });
 
     return values.join('\n\n');
@@ -17,28 +19,53 @@ class ModelGenerator extends Generator {
 
   String generateForClass(ClassElement element) {
     final output = <String>[];
-    final map = {for (var e in element.fields) e.name: e.type};
-    final getFields = map.keys.map((e) => "'$e': $e,").join('\n');
+    var map = {for (var e in element.fields) e.name: e.type};
+    // ignore tableName getter
+    map.remove('tableName');
+    final getFields = map.keys.map((e) => "map['$e'] = $e;").join('\n');
     final setFields = map.keys.map((e) => "$e = map['$e'];").join('\n');
     output.add('// ${element.name} model generation');
     output.add('''
     class \$${element.name} extends ${element.name} {
-      @override
-      Map<String, dynamic> get map => <String, dynamic>{
-        $getFields
-      };
 
       @override
-      set map(Map<String, dynamic> map) {
-        $setFields
+      Map<String, dynamic> get map {
+        var map = super.map;
+        $getFields
+        return map;
       }
 
       @override
-      String toString() => '${element.name}';
+      set map(Map<String, dynamic> map) {
+        super.map = map;
+        $setFields
+      }
+
+      static Future<List<${element.name}>> all() async {
+        var all = await ${element.name}().database.all('${element.name}', () {
+          return ${element.name}();
+        });
+        return List<${element.name}>.from(all);
+      }
+
+      static Future<${element.name}> find(String id) async {
+        return await ${element.name}().database.find('${element.name}', id, ${element.name}());
+      }
+
+      static Query where(dynamic condition) {
+        return Query('${element.name}').where(condition, ${element.name}().database, () {
+          return ${element.name}();
+        });
+      }
+
+      @override
+      String toString() {
+        return map.toString();
+      }
     }
       ''');
 
-    print('output: ${output.join("\n")}');
+    print('output:\n=========\n ${output.join("\n")}\n=========\n');
     return output.join('\n');
   }
 }
