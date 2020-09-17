@@ -165,7 +165,7 @@ void main() {
       });
 
       var test = Test();
-      await SembastDatabase.config([]);
+      await SembastDatabase.shared.init([]);
       await test.save();
 
       print(await $Test.all());
