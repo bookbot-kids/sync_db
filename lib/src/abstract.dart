@@ -98,7 +98,7 @@ abstract class Model extends ChangeNotifier {
     }
   }
 
-  String get tableName => throw UnimplementedError();
+  String get tableName;
 
   Future<void> save({bool syncToService = true}) async =>
       await database.save(this, syncToService: syncToService);
