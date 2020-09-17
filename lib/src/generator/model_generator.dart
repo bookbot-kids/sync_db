@@ -9,7 +9,7 @@ class ModelGenerator extends Generator {
     library.allElements.forEach((element) {
       final classElement = element as ClassElement;
       if (!classElement.isEnum) {
-        var value = generateForClass(classElement);
+        var value = generateForClass(classElement, library.element);
         values.add(value);
       }
     });
@@ -17,14 +17,64 @@ class ModelGenerator extends Generator {
     return values.join('\n\n');
   }
 
-  String generateForClass(ClassElement element) {
+  String generateForClass(ClassElement element, LibraryElement libElement) {
+    var getterFields = [];
+    var setterFields = [];
+
+    for (var field in element.fields) {
+      var name = field.name;
+      var type = field.type.getDisplayString();
+
+      // Only generate field that has both getter and setter
+      if (element.lookUpGetter(name, libElement) == null ||
+          element.lookUpSetter(name, libElement) == null) {
+        continue;
+      }
+
+      ClassElement typeClass = field.type.element;
+      // working on enum
+      if (typeClass.isEnum) {
+        getterFields
+            .add("map['${name}'] = EnumToString.convertToString(${name});");
+        setterFields.add(
+            "${name} = EnumToString.fromString(${type}.values, map['${name}']);");
+        continue;
+      }
+
+      // working on List object
+      if (field.type.isDartCoreList) {
+        // find list type
+        var regex = RegExp('<[a-zA-Z0-9]*>');
+        var match = regex.firstMatch(type);
+        if (match != null) {
+          var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          // only process for custom list type
+          if (_isCustomType(listType)) {
+            var idsName = '${name}Ids';
+            getterFields
+                .add("map['$idsName'] = ${name}.map((e) => e.id).toList();");
+            setterFields.add(
+                "${name} = await \$${listType}.findByIds(map['${idsName}']);");
+            continue;
+          }
+        }
+      }
+
+      if (_isCustomType(type)) {
+        var idName = '${name}Id';
+        getterFields.add("map['$idName'] = ${name}.id;");
+        setterFields.add("${name} = await \$${type}.find(map['${idName}']);");
+      } else {
+        getterFields.add("map['${name}'] = ${name};");
+        setterFields.add("${name} = map['${name}'];");
+      }
+    }
+
+    final getFields = getterFields.join('\n');
+    final setFields = setterFields.join('\n');
+
     final output = <String>[];
-    var map = {for (var e in element.fields) e.name: e.type};
-    // ignore tableName getter
-    map.remove('tableName');
-    final getFields = map.keys.map((e) => "map['$e'] = $e;").join('\n');
-    final setFields = map.keys.map((e) => "$e = map['$e'];").join('\n');
-    output.add('// ${element.name} model generation');
+    output.add('// ${element.name} model generator');
     output.add('''
     class \$${element.name} extends ${element.name} {
 
@@ -36,8 +86,8 @@ class ModelGenerator extends Generator {
       }
 
       @override
-      set map(Map<String, dynamic> map) {
-        super.map = map;
+      Future<void> setMap(Map<String, dynamic> map) async {
+        await super.setMap(map);
         $setFields
       }
 
@@ -50,6 +100,12 @@ class ModelGenerator extends Generator {
 
       static Future<${element.name}> find(String id) async {
         return await ${element.name}().database.find('${element.name}', id, ${element.name}());
+      }
+
+      static Future<List<${element.name}>> findByIds(List ids) async {
+        if (ids == null || ids.isEmpty) return <${element.name}>[];
+        final construct = ids.map((id) => 'id = \$id');
+        return List<${element.name}>.from(await where(construct.join(' or ')).load());
       }
 
       static Query where(dynamic condition) {
@@ -67,5 +123,22 @@ class ModelGenerator extends Generator {
 
     print('output:\n=========\n ${output.join("\n")}\n=========\n');
     return output.join('\n');
+  }
+
+  bool _isPrimitiveType(String typeName) {
+    return ['int', 'String', 'bool', 'double'].contains(typeName);
+  }
+
+  bool _isCustomType(String typeName) {
+    if (_isPrimitiveType(typeName)) return false;
+
+    var listType = ['Set', 'List', 'Map', 'Future', 'Object', 'dynamic'];
+    for (var type in listType) {
+      if (typeName.startsWith(type)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
