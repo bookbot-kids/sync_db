@@ -83,7 +83,7 @@ abstract class Model extends ChangeNotifier {
     return map;
   }
 
-  set map(Map<String, dynamic> map) {
+  Future<void> setMap(Map<String, dynamic> map) async {
     id = map[idKey];
     if (map[createdKey] is int) {
       createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
@@ -98,7 +98,7 @@ abstract class Model extends ChangeNotifier {
     }
   }
 
-  String get tableName => throw UnimplementedError();
+  String get tableName;
 
   Future<void> save({bool syncToService = true}) async =>
       await database.save(this, syncToService: syncToService);

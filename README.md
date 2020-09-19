@@ -39,10 +39,6 @@ targets:
           # Only run this builder on models folder
           generate_for:
             - lib/models/*.dart
-        source_gen|combining_builder:
-          options:
-            ignore_for_file:
-            - lint_a
 
 ```
 
@@ -59,7 +55,7 @@ class TextModel extends Model {
   int count;
 }
 ```
-
+- Make sure to add `part '{model_name}.g.dart';` in the model class before running
 - Run command `flutter packages pub run build_runner build` in root project folder
 - Check the generates files `.g.dart` in `models`. The result is something like this:
 ```

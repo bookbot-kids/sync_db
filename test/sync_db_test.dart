@@ -17,7 +17,8 @@ class Category extends Model {
   Map<String, dynamic> get map => $Category(this).map;
 
   @override
-  set map(Map<String, dynamic> map) => $Category(this).map = map;
+  Future<void> setMap(Map<String, dynamic> map) async =>
+      $Category(this).map = map;
 }
 
 extension $Category on Category {
@@ -79,7 +80,7 @@ class Test extends Model {
   Map<String, dynamic> get map => $Test(this).map;
 
   @override
-  set map(Map<String, dynamic> map) => $Test(this).map = map;
+  Future<void> setMap(Map<String, dynamic> map) async => $Test(this).map = map;
 
   @override
   Database get database => SembastDatabase.shared;

@@ -111,7 +111,7 @@ class SembastDatabase extends Database {
     final store = sembast.StoreRef.main();
     final record = await store.record(id).get(_database[modelName]);
     if (record != null && record[deletedKey] == null) {
-      model.map = record;
+      await model.setMap(record);
       return model;
     }
 
@@ -142,7 +142,7 @@ class SembastDatabase extends Database {
     for (var record in records) {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();
-        model.map = record;
+        await model.setMap(record);
         if (model.deletedAt == null) {
           results.add(model);
         }
