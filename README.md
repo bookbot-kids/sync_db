@@ -18,7 +18,6 @@ dependencies:
 import 'package:sync_db/sync_db.dart';
 
 main() {
-  var sync = Sync.shared.config();
 }
 ```
 

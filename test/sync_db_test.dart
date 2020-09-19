@@ -6,21 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_io/io.dart';
 
-// class Book extends Model {
-//   String title;
-//   String content;
-//   String irregularWords;
-//   String focusWords;
-//   String styles;
-//   int level;
-//   Category category;
-//   bool fiction;
-//   bool premium;
-
-//   Series series;
-//   Layout layout;
-// }
-
 class Category extends Model {
   String image;
   String name;
@@ -85,7 +70,7 @@ class Test extends Model {
   Layout layout = Layout.fixed;
   String testString = 'Test String';
 
-  String _categoryId;
+  String categoryId;
 
   @override
   String get tableName => 'Test';
@@ -109,7 +94,7 @@ extension $Test on Test {
       'deletedAt': deletedAt,
       'testString': testString,
       'layout': layout.name,
-      'categoryId': _categoryId,
+      'categoryId': categoryId,
       'category2Id': category2.id
     };
   }
@@ -121,11 +106,11 @@ extension $Test on Test {
     deletedAt = map['deletedAt'];
     testString = map['testString'];
     layout = $Layout.fromString(map['layout']);
-    _categoryId = map['categoryId'];
+    categoryId = map['categoryId'];
     $Category.find(map['category2Id']).then((value) => category2 = value);
   }
 
-  Future<Category> get category async => $Category.find(_categoryId);
+  Future<Category> get category async => $Category.find(categoryId);
 
   static Future<List<Test>> all() async {
     var all = await Test().database.all('Test', () {
@@ -165,7 +150,7 @@ void main() {
       });
 
       var test = Test();
-      await SembastDatabase.config([]);
+      await SembastDatabase.shared.init([]);
       await test.save();
 
       print(await $Test.all());
