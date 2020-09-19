@@ -43,6 +43,9 @@ class AzureADB2CUserSession extends UserSession {
     final asyncMapped = _mappedServicePoints();
     final sharedPreference = await SharedPreferences.getInstance();
     var refreshToken = sharedPreference.getString('refreshToken');
+    if (refreshToken == null) {
+      return;
+    }
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
