@@ -110,7 +110,7 @@ class CognitoUserSession extends UserSession {
   }
 
   @override
-  set token(String token) {
+  Future<void> setToken(String token) async {
     throw UnimplementedError();
   }
 
