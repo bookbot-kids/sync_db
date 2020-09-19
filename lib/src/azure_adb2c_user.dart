@@ -9,7 +9,7 @@ class AzureADB2CUserSession extends UserSession {
   /// `azureKey` the secure code to request azure function
   /// `tablesToClearOnSignout` a list of tables to remove when signing out
   AzureADB2CUserSession(Map<String, dynamic> config) {
-    _http = HTTP(config['azureBaseUrl']);
+    _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'];
     // Start the process of getting tokens
@@ -26,12 +26,18 @@ class AzureADB2CUserSession extends UserSession {
   @override
   String role = 'guest';
 
+  /// The token is the ID Token. This is converted to a refresh token and save in preferences.
+  /// This will then start the process of getting the resource tokens.
+  /// Errors will need to be handled in the view
   @override
-  set token(String token) {
-    SharedPreferences.getInstance().then((preference) {
-      preference.setString('refreshToken', token);
-      _refreshed = refresh();
-    });
+  Future<void> setToken(String token) async {
+    final futurePreference = SharedPreferences.getInstance();
+    final response = await _http.get('/GetRefreshAndAccessToken',
+        parameters: {'code': _azureKey, 'id_token': token});
+    final preference = await futurePreference;
+    await preference.setString(
+        'refreshToken', response['token']['refresh_token']);
+    _refreshed = refresh();
   }
 
   /// Get resource tokens from Cosmos
