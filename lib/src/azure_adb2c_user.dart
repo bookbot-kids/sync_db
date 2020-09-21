@@ -65,9 +65,7 @@ class AzureADB2CUserSession extends UserSession {
       final mappedServicePoints = await asyncMapped;
       for (final permission in response['permissions']) {
         String tableName = permission['id'];
-        if (!Sync.shared.local.hasTable(tableName)) {
-          continue;
-        }
+        await Sync.shared.local.configTable(tableName);
 
         if (tableName.contains('-shared')) {
           tableName = tableName.split('-shared')[0];

@@ -26,11 +26,7 @@ class SembastDatabase extends Database {
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
       for (final tableName in tableNames) {
-        if (!shared._database.containsKey(tableName)) {
-          final dbPath = _generateDatabasePath(tableName);
-          shared._database[tableName] =
-              await databaseFactoryWeb.openDatabase(dbPath);
-        }
+        await configTable(tableName);
       }
     } else {
       // get document directory
@@ -39,13 +35,30 @@ class SembastDatabase extends Database {
 
       // Open all databases
       for (final tableName in tableNames) {
-        if (!shared._database.containsKey(tableName)) {
-          final dbPath =
-              _generateDatabasePath(tableName, dir: documentPath.path);
-          Sync.shared.logger?.d('model $tableName has path $dbPath');
-          shared._database[tableName] =
-              await databaseFactoryIo.openDatabase(dbPath);
+        await configTable(tableName, dir: documentPath.path);
+      }
+    }
+  }
+
+  /// Config a table if it doesn't
+  @override
+  Future<void> configTable(String tableName, {String dir}) async {
+    if (_database[tableName] == null) {
+      if (UniversalPlatform.isWeb) {
+        final dbPath = _generateDatabasePath(tableName);
+        shared._database[tableName] =
+            await databaseFactoryWeb.openDatabase(dbPath);
+      } else {
+        if (dir == null) {
+          final documentPath = await getApplicationSupportDirectory();
+          await documentPath.create(recursive: true);
+          dir = documentPath.path;
         }
+
+        final dbPath = _generateDatabasePath(tableName, dir: dir);
+        Sync.shared.logger?.d('model $tableName has path $dbPath');
+        shared._database[tableName] =
+            await databaseFactoryIo.openDatabase(dbPath);
       }
     }
   }
@@ -125,12 +138,6 @@ class SembastDatabase extends Database {
       {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
     return await store.record(id).get(transaction ?? _database[modelName]);
-  }
-
-  /// Check whether database table has initialized
-  @override
-  bool hasTable(String tableName) {
-    return _database[tableName] != null;
   }
 
   /// Query the table with the Query class

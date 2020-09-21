@@ -22,7 +22,7 @@ abstract class Database {
 
   Future<void> saveMap(String tableName, Map map, {dynamic transaction});
 
-  bool hasTable(String tableName);
+  Future<void> configTable(String tableName);
 
   dynamic all(String modelName, Function instantiateModel);
 
