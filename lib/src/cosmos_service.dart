@@ -25,8 +25,7 @@ class CosmosService extends Service {
   @override
   Future<void> readFromService(ServicePoint servicePoint) async {
     // query records in cosmos that have updated timestamp > given timestamp
-    final query =
-        'SELECT * FROM ${servicePoint.name} c WHERE c._ts > ${servicePoint.from}';
+    final query = 'SELECT * FROM c WHERE c._ts > ${servicePoint.from}';
     var paginationToken;
 
     // Query the document with paging
@@ -110,7 +109,7 @@ class CosmosService extends Service {
   /// If there are any network exceptions, these will bubble up to Service
   Future<Map<String, dynamic>> _queryDocuments(
       ServicePoint servicePoint, String query,
-      {List<Map<String, String>> parameters = const [{}],
+      {List<Map<String, String>> parameters = const <Map<String, String>>[],
       String paginationToken}) async {
     var headers = <String, dynamic>{
       'authorization': Uri.encodeComponent(servicePoint.token),

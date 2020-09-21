@@ -26,7 +26,7 @@ class ServicePoint extends Model {
 
   @override
   Future<void> setMap(Map<String, dynamic> map) async {
-    await setMap(map);
+    await super.setMap(map);
     name = map['name'];
     from = map['from'];
     partition = map['partition'];

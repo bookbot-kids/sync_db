@@ -64,14 +64,23 @@ class AzureADB2CUserSession extends UserSession {
       // Setup or update ServicePoints
       final mappedServicePoints = await asyncMapped;
       for (final permission in response['permissions']) {
+        String tableName = permission['id'];
+        if (!Sync.shared.local.hasTable(tableName)) {
+          continue;
+        }
+
+        if (tableName.contains('-shared')) {
+          tableName = tableName.split('-shared')[0];
+        }
+
         final servicePoint = mappedServicePoints.putIfAbsent(
-            permission['id'], () => ServicePoint(name: permission['id']));
+            tableName, () => ServicePoint(name: tableName));
+        servicePoint.id = permission['id'];
         servicePoint.partition = permission['resourcePartitionKey'].first;
         servicePoint.token = permission['_token'];
         servicePoint.access =
             $Access.fromString(permission['permissionMode'].toLowerCase());
-        // ignore: unawaited_futures
-        servicePoint.save();
+        await servicePoint.save();
       }
 
       // set role along with the resource tokens
@@ -102,7 +111,8 @@ class AzureADB2CUserSession extends UserSession {
   @override
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     await _refreshIfExpired();
-    return ServicePoint.where('name = $table').load();
+    return List<ServicePoint>.from(
+        await ServicePoint.where('name = $table').load());
   }
 
   Future<void> _refreshIfExpired() async {
