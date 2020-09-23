@@ -107,7 +107,7 @@ class SembastDatabase extends Database {
     }
   }
 
-  /// Get all records in the table
+  /// Get all records in the table. Disable stream listener if `listenable = false`
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel,
       {bool listenable = true}) async {
@@ -120,7 +120,7 @@ class SembastDatabase extends Database {
     return await query<Model>(q, listenable: listenable);
   }
 
-  /// Find model instance by id
+  /// Find model instance by id. Disable stream listener if `listenable = false`
   @override
   Future<Model> find(String modelName, String id, Model model,
       {bool listenable = true}) async {
@@ -148,7 +148,7 @@ class SembastDatabase extends Database {
     return await store.record(id).get(transaction ?? _database[modelName]);
   }
 
-  /// Query the table with the Query class
+  /// Query the table with the Query class. Disable stream listener if `listenable = false`
   /// Return the list of model
   @override
   Future<List<T>> query<T extends Model>(Query query,

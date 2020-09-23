@@ -130,14 +130,17 @@ abstract class Model extends ChangeNotifier {
     return map.toString();
   }
 
+  /// Set the stream listener for this record. It will notify when the record in db is updated.
+  /// When this happens, it will reload all the properties by `setMap`
   set stream(Stream value) {
     _subscription = value.listen((event) async {
-      var map = sembast_utils.cloneValue(event.value);
-      await setMap(map);
+      var record = sembast_utils.cloneValue(event.value);
+      await setMap(record);
       notifyListeners();
     });
   }
 
+  /// Cancel listener
   void cancel() {
     _subscription?.cancel();
   }
