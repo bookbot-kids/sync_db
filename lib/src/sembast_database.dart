@@ -117,16 +117,7 @@ class SembastDatabase extends Database {
       instantiateModel,
     );
 
-    var records = await query<Model>(q);
-    final store = sembast.StoreRef.main();
-    for (var record in records) {
-      if (listenable) {
-        record.stream =
-            store.record(record.id).onSnapshot(_database[modelName]);
-      }
-    }
-
-    return records;
+    return await query<Model>(q, listenable: listenable);
   }
 
   /// Find model instance by id
