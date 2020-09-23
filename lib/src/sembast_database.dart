@@ -35,27 +35,27 @@ class SembastDatabase extends Database {
 
       // Open all databases
       for (final tableName in tableNames) {
-        await configTable(tableName, dir: documentPath.path);
+        await configTable(tableName, path: documentPath.path);
       }
     }
   }
 
   /// Config a table if it doesn't
   @override
-  Future<void> configTable(String tableName, {String dir}) async {
+  Future<void> configTable(String tableName, {String path}) async {
     if (_database[tableName] == null) {
       if (UniversalPlatform.isWeb) {
         final dbPath = _generateDatabasePath(tableName);
         shared._database[tableName] =
             await databaseFactoryWeb.openDatabase(dbPath);
       } else {
-        if (dir == null) {
+        if (path == null) {
           final documentPath = await getApplicationSupportDirectory();
           await documentPath.create(recursive: true);
-          dir = documentPath.path;
+          path = documentPath.path;
         }
 
-        final dbPath = _generateDatabasePath(tableName, dir: dir);
+        final dbPath = _generateDatabasePath(tableName, path: path);
         Sync.shared.logger?.d('model $tableName has path $dbPath');
         shared._database[tableName] =
             await databaseFactoryIo.openDatabase(dbPath);
@@ -64,9 +64,9 @@ class SembastDatabase extends Database {
   }
 
   /// Get database file path
-  static String _generateDatabasePath(String table, {String dir}) {
+  static String _generateDatabasePath(String table, {String path}) {
     var fileName = table + '.db';
-    return dir == null ? fileName : join(dir, fileName);
+    return path == null ? fileName : join(path, fileName);
   }
 
   @override
@@ -94,14 +94,14 @@ class SembastDatabase extends Database {
       dbFactory = databaseFactoryWeb;
     } else {
       dbFactory = databaseFactoryIo;
-      var dir = await getApplicationSupportDirectory();
-      await dir.create(recursive: true);
-      dbDir = dir.path;
+      var path = await getApplicationSupportDirectory();
+      await path.create(recursive: true);
+      dbDir = path.path;
     }
 
     for (var key in data.keys) {
       var content = data[key];
-      final dbPath = _generateDatabasePath(key, dir: dbDir);
+      final dbPath = _generateDatabasePath(key, path: dbDir);
       var db = await importDatabase(content, dbFactory, dbPath);
       shared._database[key] = db;
     }
@@ -345,10 +345,10 @@ class SembastDatabase extends Database {
   /// Import data from sembast file (in text string) -> this is not supported for web
   static Future<void> importTable(String data, Model model) async {
     if (!UniversalPlatform.isWeb) {
-      final dir = await getApplicationDocumentsDirectory();
-      await dir.create(recursive: true);
+      final path = await getApplicationDocumentsDirectory();
+      await path.create(recursive: true);
       final name = model.tableName;
-      final dbPath = join(dir.path, name + '.db');
+      final dbPath = join(path.path, name + '.db');
       var file = File(dbPath);
       // delete the old database file if it exist
       if (await file.exists()) {
