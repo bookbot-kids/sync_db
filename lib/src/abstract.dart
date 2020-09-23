@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:sembast/src/utils.dart' as sembast_utils;
 
 const statusKey = '_status';
 const idKey = 'id';
@@ -24,12 +27,15 @@ abstract class Database {
 
   Future<void> configTable(String tableName);
 
-  dynamic all(String modelName, Function instantiateModel);
+  dynamic all(String modelName, Function instantiateModel,
+      {bool listenable = true});
 
-  dynamic find(String modelName, String id, Model model);
+  dynamic find(String modelName, String id, Model model,
+      {bool listenable = true});
   dynamic findMap(String modelName, String id, {dynamic transaction});
 
-  dynamic query<T>(Query query, {dynamic transaction});
+  dynamic query<T extends Model>(Query query,
+      {dynamic transaction, bool listenable = true});
 
   dynamic queryMap(Query query, {dynamic transaction});
 
@@ -64,6 +70,7 @@ abstract class Model extends ChangeNotifier {
   DateTime deletedAt;
   String id;
   DateTime updatedAt;
+  StreamSubscription _subscription;
 
   Map<String, dynamic> get map {
     var map = <String, dynamic>{};
@@ -123,5 +130,17 @@ abstract class Model extends ChangeNotifier {
   @override
   String toString() {
     return map.toString();
+  }
+
+  set stream(Stream value) {
+    _subscription = value.listen((event) async {
+      var map = sembast_utils.cloneValue(event.value);
+      await setMap(map);
+      notifyListeners();
+    });
+  }
+
+  void cancel() {
+    _subscription?.cancel();
   }
 }

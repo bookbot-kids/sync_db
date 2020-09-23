@@ -37,13 +37,14 @@ class ServicePoint extends Model {
   static Future<List<ServicePoint>> all() async {
     var all = await ServicePoint().database.all('ServicePoint', () {
       return ServicePoint();
-    });
+    }, listenable: false);
 
     return List<ServicePoint>.from(all);
   }
 
-  static Future<ServicePoint> find(String id) async =>
-      await ServicePoint().database.find('ServicePoint', id, ServicePoint());
+  static Future<ServicePoint> find(String id) async => await ServicePoint()
+      .database
+      .find('ServicePoint', id, ServicePoint(), listenable: false);
 
   static Query where(dynamic condition) {
     return Query('ServicePoint').where(condition, ServicePoint().database, () {
@@ -54,7 +55,9 @@ class ServicePoint extends Model {
   static Future<ServicePoint> searchBy(String name, {String partition}) async {
     var partitionQuery = partition != null ? ' and partition = $partition' : '';
     var list = List<ServicePoint>.from(
-        await where('name = $name${partitionQuery}').limit(1).load());
+        await where('name = $name${partitionQuery}')
+            .limit(1)
+            .load(listenable: false));
     return list.isNotEmpty ? list.first : null;
   }
 

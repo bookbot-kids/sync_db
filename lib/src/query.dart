@@ -87,8 +87,8 @@ class Query {
   }
 
   /// Loads the query results into a List
-  Future<List> load() {
-    return database.query(this);
+  Future<List> load({listenable = true}) {
+    return database.query(this, listenable: listenable);
   }
 
   /// Sets instantiateModel function and database

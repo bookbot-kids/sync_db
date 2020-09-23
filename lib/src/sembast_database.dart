@@ -109,22 +109,39 @@ class SembastDatabase extends Database {
 
   /// Get all records in the table
   @override
-  Future<List<Model>> all(String modelName, Function instantiateModel) async {
+  Future<List<Model>> all(String modelName, Function instantiateModel,
+      {bool listenable = true}) async {
     var q = Query(modelName).where(
       '$deletedKey is null',
       null,
       instantiateModel,
     );
-    return await query<Model>(q);
+
+    var records = await query<Model>(q);
+    final store = sembast.StoreRef.main();
+    for (var record in records) {
+      if (listenable) {
+        record.stream =
+            store.record(record.id).onSnapshot(_database[modelName]);
+      }
+    }
+
+    return records;
   }
 
   /// Find model instance by id
   @override
-  Future<Model> find(String modelName, String id, Model model) async {
+  Future<Model> find(String modelName, String id, Model model,
+      {bool listenable = true}) async {
     final store = sembast.StoreRef.main();
-    final record = await store.record(id).get(_database[modelName]);
+    var recordRef = await store.record(id);
+    final record = await recordRef.get(_database[modelName]);
     if (record != null && record[deletedKey] == null) {
       await model.setMap(record);
+      if (listenable) {
+        model.stream = recordRef.onSnapshot(_database[modelName]);
+      }
+
       return model;
     }
 
@@ -143,13 +160,20 @@ class SembastDatabase extends Database {
   /// Query the table with the Query class
   /// Return the list of model
   @override
-  Future<List<T>> query<T>(Query query, {dynamic transaction}) async {
+  Future<List<T>> query<T extends Model>(Query query,
+      {dynamic transaction, bool listenable = true}) async {
     var records = await queryMap(query, transaction: transaction);
     var results = <T>[];
+    final store = sembast.StoreRef.main();
     for (var record in records) {
       if (query.instantiateModel != null) {
         final model = query.instantiateModel();
         await model.setMap(record);
+        if (listenable) {
+          model.stream =
+              store.record(model.id).onSnapshot(_database[query.tableName]);
+        }
+
         if (model.deletedAt == null) {
           results.add(model);
         }

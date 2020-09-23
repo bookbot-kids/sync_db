@@ -110,7 +110,7 @@ class AzureADB2CUserSession extends UserSession {
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     await _refreshIfExpired();
     return List<ServicePoint>.from(
-        await ServicePoint.where('name = $table').load());
+        await ServicePoint.where('name = $table').load(listenable: false));
   }
 
   Future<void> _refreshIfExpired() async {
@@ -138,7 +138,8 @@ class AzureADB2CUserSession extends UserSession {
     role = 'guest';
 
     for (final table in _tablesToClearOnSignout) {
-      final servicePoints = await ServicePoint.where('name = $table').load();
+      final servicePoints =
+          await ServicePoint.where('name = $table').load(listenable: false);
       for (final servicePoint in servicePoints) {
         servicePoint.deleteLocal();
       }
