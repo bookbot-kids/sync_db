@@ -31,10 +31,7 @@ class CosmosService extends Service {
     // Query the document with paging
     // loop while we have a `paginationToken`
     do {
-      var response = {};
-      await pool.withResource(() async {
-        response = await _queryDocuments(servicePoint, query);
-      });
+      var response = await _queryDocuments(servicePoint, query);
 
       await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
@@ -44,11 +41,11 @@ class CosmosService extends Service {
         final serverTimestamp = HttpDate.parse(response['responseTimestamp'])
             .millisecondsSinceEpoch;
         if (serverTimestamp > 0) servicePoint.from = serverTimestamp;
-        await servicePoint.save();
+        await servicePoint.save(syncToService: false);
       } catch (e) {
         Sync.shared.logger?.e('Parse response Date stamp error', e);
       }
-    } while (paginationToken == null);
+    } while (paginationToken != null);
   }
 
   /// Writes created and updated records to Cosmos DB
