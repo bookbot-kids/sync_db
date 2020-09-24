@@ -115,21 +115,21 @@ class ModelGenerator extends Generator {
         $setFields
       }
 
-      static Future<List<$modelName>> all() async {
+      static Future<List<$modelName>> all({bool listenable}) async {
         var all = await $modelName().database.all('$modelName', () {
           return $modelName();
-        });
+        }, listenable: listenable);
         return List<$modelName>.from(all);
       }
 
-      static Future<$modelName> find(String id) async {
-        return await $modelName().database.find('$modelName', id, $modelName());
+      static Future<$modelName> find(String id, {bool listenable}) async {
+        return id == null ? null : await $modelName().database.find('$modelName', id, $modelName(), listenable: listenable);
       }
 
-      static Future<List<$modelName>> findByIds(List ids) async {
+      static Future<List<$modelName>> findByIds(List ids, {bool listenable}) async {
         if (ids == null || ids.isEmpty) return <$modelName>[];
         final construct = ids.map((id) => 'id = \$id');
-        return List<$modelName>.from(await where(construct.join(' or ')).load());
+        return List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
       }
 
       static Query where(dynamic condition) {

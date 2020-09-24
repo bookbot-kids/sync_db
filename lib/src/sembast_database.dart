@@ -110,7 +110,7 @@ class SembastDatabase extends Database {
   /// Get all records in the table. Disable stream listener if `listenable = false`
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel,
-      {bool listenable = true}) async {
+      {bool listenable = false}) async {
     var q = Query(modelName).where(
       '$deletedKey is null',
       null,
@@ -123,7 +123,7 @@ class SembastDatabase extends Database {
   /// Find model instance by id. Disable stream listener if `listenable = false`
   @override
   Future<Model> find(String modelName, String id, Model model,
-      {bool listenable = true}) async {
+      {bool listenable = false}) async {
     final store = sembast.StoreRef.main();
     var recordRef = await store.record(id);
     final record = await recordRef.get(_database[modelName]);
@@ -152,7 +152,7 @@ class SembastDatabase extends Database {
   /// Return the list of model
   @override
   Future<List<T>> query<T extends Model>(Query query,
-      {dynamic transaction, bool listenable = true}) async {
+      {dynamic transaction, bool listenable = false}) async {
     var records = await queryMap(query, transaction: transaction);
     var results = <T>[];
     final store = sembast.StoreRef.main();
