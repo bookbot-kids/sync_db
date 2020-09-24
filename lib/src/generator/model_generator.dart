@@ -23,7 +23,7 @@ class ModelGenerator extends Generator {
 
     for (var field in element.fields) {
       var name = field.name;
-      var type = field.type.getDisplayString();
+      var type = field.type?.getDisplayString(withNullability: false);
 
       // Only generate field that has both getter and setter
       if (element.lookUpGetter(name, libElement) == null ||
@@ -73,50 +73,69 @@ class ModelGenerator extends Generator {
     final getFields = getterFields.join('\n');
     final setFields = setterFields.join('\n');
 
+    var modelName = element.name;
     final output = <String>[];
-    output.add('// ${element.name} model generator');
+    output.add('// $modelName model generator');
     output.add('''
-    class \$${element.name} extends ${element.name} {
+    extension \$$modelName on $modelName {
 
-      @override
       Map<String, dynamic> get map {
-        var map = super.map;
+        var map = <String, dynamic>{};
+        map[idKey] = id;
+        if (createdAt != null) {
+          map[createdKey] = createdAt.millisecondsSinceEpoch;
+        }
+
+        if (updatedAt != null) {
+          map[updatedKey] = updatedAt.millisecondsSinceEpoch;
+        }
+
+        if (deletedAt != null) {
+          map[deletedKey] = deletedAt.millisecondsSinceEpoch;
+        }
+
         $getFields
         return map;
       }
 
-      @override
       Future<void> setMap(Map<String, dynamic> map) async {
-        await super.setMap(map);
+        id = map[idKey];
+        if (map[createdKey] is int) {
+          createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
+        }
+
+        if (map[updatedAt] is int) {
+          updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt]);
+        }
+
+        if (map[deletedKey] is int) {
+          deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
+        }
+
         $setFields
       }
 
-      static Future<List<${element.name}>> all() async {
-        var all = await ${element.name}().database.all('${element.name}', () {
-          return ${element.name}();
+      static Future<List<$modelName>> all() async {
+        var all = await $modelName().database.all('$modelName', () {
+          return $modelName();
         });
-        return List<${element.name}>.from(all);
+        return List<$modelName>.from(all);
       }
 
-      static Future<${element.name}> find(String id) async {
-        return await ${element.name}().database.find('${element.name}', id, ${element.name}());
+      static Future<$modelName> find(String id) async {
+        return await $modelName().database.find('$modelName', id, $modelName());
       }
 
-      static Future<List<${element.name}>> findByIds(List ids) async {
-        if (ids == null || ids.isEmpty) return <${element.name}>[];
+      static Future<List<$modelName>> findByIds(List ids) async {
+        if (ids == null || ids.isEmpty) return <$modelName>[];
         final construct = ids.map((id) => 'id = \$id');
-        return List<${element.name}>.from(await where(construct.join(' or ')).load());
+        return List<$modelName>.from(await where(construct.join(' or ')).load());
       }
 
       static Query where(dynamic condition) {
-        return Query('${element.name}').where(condition, ${element.name}().database, () {
-          return ${element.name}();
+        return Query('$modelName').where(condition, $modelName().database, () {
+          return $modelName();
         });
-      }
-
-      @override
-      String toString() {
-        return map.toString();
       }
     }
       ''');
