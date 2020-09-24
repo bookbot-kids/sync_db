@@ -21,6 +21,46 @@ class ModelGenerator extends Generator {
     var getterFields = [];
     var setterFields = [];
 
+    var parentType =
+        element.supertype?.getDisplayString(withNullability: false);
+    var getterMap;
+    var setterMap;
+    if (parentType == null || parentType == 'Model') {
+      getterMap = '''
+        var map = <String, dynamic>{};
+        map[idKey] = id;
+        if (createdAt != null) {
+          map[createdKey] = createdAt.millisecondsSinceEpoch;
+        }
+
+        if (updatedAt != null) {
+          map[updatedKey] = updatedAt.millisecondsSinceEpoch;
+        }
+
+        if (deletedAt != null) {
+          map[deletedKey] = deletedAt.millisecondsSinceEpoch;
+        }
+      ''';
+
+      setterMap = '''
+        id = map[idKey];
+        if (map[createdKey] is int) {
+          createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
+        }
+
+        if (map[updatedAt] is int) {
+          updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt]);
+        }
+
+        if (map[deletedKey] is int) {
+          deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
+        }
+      ''';
+    } else {
+      getterMap = 'var map = \$${parentType}(this).map;';
+      setterMap = 'await \$${parentType}(this).setMap(map);';
+    }
+
     for (var field in element.fields) {
       var name = field.name;
       var type = field.type?.getDisplayString(withNullability: false);
@@ -80,38 +120,13 @@ class ModelGenerator extends Generator {
     extension \$$modelName on $modelName {
 
       Map<String, dynamic> get map {
-        var map = <String, dynamic>{};
-        map[idKey] = id;
-        if (createdAt != null) {
-          map[createdKey] = createdAt.millisecondsSinceEpoch;
-        }
-
-        if (updatedAt != null) {
-          map[updatedKey] = updatedAt.millisecondsSinceEpoch;
-        }
-
-        if (deletedAt != null) {
-          map[deletedKey] = deletedAt.millisecondsSinceEpoch;
-        }
-
+        $getterMap
         $getFields
         return map;
       }
 
       Future<void> setMap(Map<String, dynamic> map) async {
-        id = map[idKey];
-        if (map[createdKey] is int) {
-          createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
-        }
-
-        if (map[updatedAt] is int) {
-          updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt]);
-        }
-
-        if (map[deletedKey] is int) {
-          deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
-        }
-
+        $setterMap
         $setFields
       }
 
