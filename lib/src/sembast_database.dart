@@ -198,7 +198,7 @@ class SembastDatabase extends Database {
       if (query.condition is String) {
         // search text with format `a matches text`
         if (query.isMatches == true) {
-          List<String> conditions = query.condition.split(' ');
+          List<String> conditions = query.condition.split(RegExp('\\s+'));
           if (conditions.length >= 3) {
             var left = conditions[0];
             var filterOperator = conditions[1];
@@ -212,7 +212,7 @@ class SembastDatabase extends Database {
           // remove spaces
           query.condition.replaceAll('  ', ' ');
           // check one filter a > b
-          List<String> conditions = query.condition.split(' ');
+          List<String> conditions = query.condition.split(RegExp('\\s+'));
           if (conditions.length == 3) {
             var filter = _buildFilter(conditions[0], conditions[1],
                 conditions[2], query.caseSensitive);

@@ -27,13 +27,15 @@ abstract class Database {
 
   Future<void> configTable(String tableName);
 
-  dynamic all(String modelName, Function instantiateModel, {bool listenable});
+  dynamic all(String modelName, Function instantiateModel,
+      {bool listenable = false});
 
-  dynamic find(String modelName, String id, Model model, {bool listenable});
+  dynamic find(String modelName, String id, Model model,
+      {bool listenable = false});
   dynamic findMap(String modelName, String id, {dynamic transaction});
 
   dynamic query<T extends Model>(Query query,
-      {dynamic transaction, bool listenable});
+      {dynamic transaction, bool listenable = false});
 
   dynamic queryMap(Query query, {dynamic transaction});
 

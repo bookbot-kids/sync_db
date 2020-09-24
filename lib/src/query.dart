@@ -87,7 +87,7 @@ class Query {
   }
 
   /// Loads the query results into a List
-  Future<List> load({bool listenable}) {
+  Future<List> load({bool listenable = false}) {
     return database.query(this, listenable: listenable);
   }
 

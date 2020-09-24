@@ -102,7 +102,7 @@ class ModelGenerator extends Generator {
 
       if (_isCustomType(type)) {
         var idName = '${name}Id';
-        getterFields.add("map['$idName'] = ${name}.id;");
+        getterFields.add("map['$idName'] = ${name}?.id;");
         setterFields.add("${name} = await \$${type}.find(map['${idName}']);");
       } else {
         getterFields.add("map['${name}'] = ${name};");
@@ -130,18 +130,18 @@ class ModelGenerator extends Generator {
         $setFields
       }
 
-      static Future<List<$modelName>> all({bool listenable}) async {
+      static Future<List<$modelName>> all({bool listenable = false}) async {
         var all = await $modelName().database.all('$modelName', () {
           return $modelName();
         }, listenable: listenable);
         return List<$modelName>.from(all);
       }
 
-      static Future<$modelName> find(String id, {bool listenable}) async {
+      static Future<$modelName> find(String id, {bool listenable = false}) async {
         return id == null ? null : await $modelName().database.find('$modelName', id, $modelName(), listenable: listenable);
       }
 
-      static Future<List<$modelName>> findByIds(List ids, {bool listenable}) async {
+      static Future<List<$modelName>> findByIds(List ids, {bool listenable = false}) async {
         if (ids == null || ids.isEmpty) return <$modelName>[];
         final construct = ids.map((id) => 'id = \$id');
         return List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
