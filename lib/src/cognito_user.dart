@@ -161,15 +161,19 @@ class CognitoUserSession extends UserSession {
     if (_cognitoUser == null || _session == null) {
       return false;
     }
+
+    var isValid = _session.isValid();
+    if (!isValid) {
+      // try to get new session in case it's expired
+      _session = await _cognitoUser.getSession();
+    }
+
     return _session.isValid();
   }
 
   /// Get existing user from session with his/her attributes
   Future<CognitoUserInfo> getCurrentUser([bool refresh = false]) async {
-    if (_cognitoUser == null || _session == null) {
-      return null;
-    }
-    if (!_session.isValid()) {
+    if (!(await _checkAuthenticated())) {
       return null;
     }
 
