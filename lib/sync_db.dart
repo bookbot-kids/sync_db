@@ -11,3 +11,4 @@ export 'src/sync_db.dart';
 export 'src/service.dart';
 export 'src/service_point.dart';
 export 'src/cognito_user.dart';
+export 'src/model.dart';
