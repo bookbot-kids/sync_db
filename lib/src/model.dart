@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
 
@@ -85,5 +86,34 @@ abstract class Model extends ChangeNotifier {
   /// Cancel listener
   void cancel() {
     _subscription?.cancel();
+  }
+
+  /// Get a file from its key
+  File file({String key = 'default'}) {
+    final paths = filePaths()[key];
+    final localPath = paths.localPath;
+    return File(localPath);
+  }
+
+  /// Get url from it's key
+  String url({String key = 'default'}) {
+    return filePaths()[key].url;
+  }
+
+  /// Upload all files in this record to storage
+  Future<void> upload() async {
+    await Sync.shared.storage.upload(filePaths().values);
+  }
+
+  /// Download all files in this record from storage
+  Future<void> download() async {
+    await Sync.shared.storage.download(filePaths().values);
+  }
+
+  /// Override this with the key, and the Paths class
+  /// e.g. {'default': Paths(localPath: '/path/123.txt',
+  /// storagePath: '/remote/path/123.txt', url: 'htts://storage.azure.com/bucket/file.txt')}
+  Map<String, Paths> filePaths() {
+    return {'default': Paths()};
   }
 }

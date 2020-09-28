@@ -9,4 +9,5 @@ class Sync {
   Service service;
   UserSession userSession;
   Logger logger;
+  Storage storage;
 }
