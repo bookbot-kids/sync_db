@@ -64,6 +64,11 @@ class CosmosService extends Service {
       if (record['partition'] != null &&
           servicePoint.partition != record['partition']) continue;
 
+      // if a record does not have partition, then use it from service point
+      if (record['partition'] == null) {
+        record['partition'] = servicePoint.partition;
+      }
+
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
         var newRecord = await _createDocument(servicePoint, record);
@@ -81,6 +86,11 @@ class CosmosService extends Service {
       // If record has a partion and it doesn't match service point partition, then skip
       if (record['partition'] != null &&
           servicePoint.partition != record['partition']) continue;
+
+      // if a record does not have partition, then use it from service point
+      if (record['partition'] == null) {
+        record['partition'] = servicePoint.partition;
+      }
 
       futures.add(pool.withResource(() async {
         final updatedRecord = await _updateDocument(servicePoint, record);
