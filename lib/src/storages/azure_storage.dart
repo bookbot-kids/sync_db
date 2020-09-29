@@ -2,56 +2,45 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart' as crypto;
-import 'package:robust_http/exceptions.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class AzureStorage extends Storage {
   AzureStorageClient _client;
-  int _maxRetry = 2;
 
   AzureStorage(Map config) : super(config) {
-    _maxRetry = config['errorRetry'] ?? 2;
     _client = AzureStorageClient.parse(config['storageConnectionString']);
   }
 
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
-    var localFile = File(transferMap.localPath);
-    if (localFile.existsSync()) {
-      // delete the existing local file
-      localFile.deleteSync();
-    }
-
-    for (var i = 1; i <= _maxRetry; i++) {
-      try {
-        var response = await _client.getBlob(transferMap.remotePath);
-        var ios = localFile.openWrite(mode: FileMode.write);
-        ios.add(await response.stream.toBytes());
-        await ios.close();
-        return;
-      } catch (e, stackTrace) {
-        Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
+    try {
+      var localFile = File(transferMap.localPath);
+      if (localFile.existsSync()) {
+        // delete the existing local file
+        localFile.deleteSync();
       }
-    }
 
-    throw RetryFailureException();
+      var response = await _client.getBlob(transferMap.remotePath);
+      var ios = localFile.openWrite(mode: FileMode.write);
+      ios.add(await response.stream.toBytes());
+      await ios.close();
+    } catch (e, stackTrace) {
+      Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
+      rethrow;
+    }
   }
 
   @override
   Future<void> writeToRemote(TransferMap transferMap) async {
-    for (var i = 1; i <= _maxRetry; i++) {
-      try {
-        var localFile = File(transferMap.localPath);
-        var bytes = Uint8List.fromList(await localFile.readAsBytes());
-        await _client.putBlob(transferMap.remotePath, bodyBytes: bytes);
-        return;
-      } catch (e, stackTrace) {
-        Sync.shared.logger?.e('Azure Storage upload error $e', e, stackTrace);
-      }
+    try {
+      var localFile = File(transferMap.localPath);
+      var bytes = Uint8List.fromList(await localFile.readAsBytes());
+      await _client.putBlob(transferMap.remotePath, bodyBytes: bytes);
+    } catch (e, stackTrace) {
+      Sync.shared.logger?.e('Azure Storage upload error $e', e, stackTrace);
+      rethrow;
     }
-
-    throw RetryFailureException();
   }
 }
 
