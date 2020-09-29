@@ -25,7 +25,7 @@ abstract class Storage {
     for (final path in paths) {
       final transfer = StorageTransfer(
           localPath: path.localPath,
-          storagePath: path.storagePath,
+          remote: path.storagePath,
           transferStatus: TransferStatus.uploading);
       await transfer.save();
 
@@ -34,7 +34,7 @@ abstract class Storage {
           await writeToRemote(File(path.localPath), path.storagePath);
           await transfer.database.deleteLocal(transfer.tableName, transfer.id);
         } else {
-          await readFromRemote(path.storagePath, File(path.localPath));
+          await readFromRemote(path.url, File(path.localPath));
           await transfer.database.deleteLocal(transfer.tableName, transfer.id);
         }
       }));
@@ -55,16 +55,14 @@ abstract class Storage {
           if (transfer.transferStatus == TransferStatus.uploading) {
             // ignore: unawaited_futures
             _pool.withResource(() async {
-              await writeToRemote(
-                  File(transfer.localPath), transfer.storagePath);
+              await writeToRemote(File(transfer.localPath), transfer.remote);
               await transfer.database
                   .deleteLocal(transfer.tableName, transfer.id);
             });
           } else {
             // ignore: unawaited_futures
             _pool.withResource(() async {
-              await readFromRemote(
-                  transfer.storagePath, File(transfer.localPath));
+              await readFromRemote(transfer.remote, File(transfer.localPath));
               await transfer.database
                   .deleteLocal(transfer.tableName, transfer.id);
             });
@@ -89,10 +87,10 @@ class Paths {
 }
 
 class StorageTransfer extends Model {
-  StorageTransfer({this.localPath, this.storagePath, this.transferStatus});
+  StorageTransfer({this.localPath, this.remote, this.transferStatus});
 
   String localPath;
-  String storagePath;
+  String remote;
   TransferStatus transferStatus;
 
   @override
@@ -102,7 +100,7 @@ class StorageTransfer extends Model {
   Map<String, dynamic> get map {
     var map = super.map;
     map['localPath'] = localPath;
-    map['storagePath'] = storagePath;
+    map['remote'] = remote;
     map['transferStatus'] = transferStatus.name;
 
     return map;
@@ -112,7 +110,7 @@ class StorageTransfer extends Model {
   Future<void> setMap(Map<String, dynamic> map) async {
     await super.setMap(map);
     localPath = map['localPath'];
-    storagePath = map['storagePath'];
+    remote = map['remote'];
     transferStatus = $TransferStatus.fromString(map['transferStatus']);
   }
 

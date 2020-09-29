@@ -88,11 +88,22 @@ abstract class Model extends ChangeNotifier {
     _subscription?.cancel();
   }
 
+  /// Get filePath from key
+  String localFilePath({String key = 'default'}) {
+    return filePaths()[key].localPath;
+  }
+
   /// Get a file from its key
-  File file({String key = 'default'}) {
-    final paths = filePaths()[key];
-    final localPath = paths.localPath;
-    return File(localPath);
+  Future<File> file({String key = 'default'}) async {
+    // Does local path exist - if not download()
+    final path = localFilePath(key: key);
+    final file = File(path);
+    if (await file.exists()) {
+      return file;
+    }
+
+    await download();
+    return File(path);
   }
 
   /// Get url from it's key
