@@ -54,6 +54,7 @@ abstract class Storage {
       for (final transfer in transfers) {
         // TODO: this will need to be double checked that the comparison is correct
         if (transfer.createdAt.isAfter(past)) {
+          // ignore: unawaited_futures
           _transfer(transfer);
         }
       }
