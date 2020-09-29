@@ -114,6 +114,6 @@ abstract class Model extends ChangeNotifier {
   /// e.g. {'default': Paths(localPath: '/path/123.txt',
   /// storagePath: '/remote/path/123.txt', url: 'htts://storage.azure.com/bucket/file.txt')}
   Map<String, Paths> filePaths() {
-    return {'default': Paths()};
+    return {};
   }
 }
