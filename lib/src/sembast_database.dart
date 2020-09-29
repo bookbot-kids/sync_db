@@ -22,6 +22,7 @@ class SembastDatabase extends Database {
   Future<void> init(List<String> tableNames) async {
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
+    tableNames.add(StorageTransfer().tableName);
 
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
