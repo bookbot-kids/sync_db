@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -23,84 +24,77 @@ abstract class Storage {
   Future<void> transfer(List<Paths> paths, TransferStatus status) async {
     var futures = <Future>[];
     for (final path in paths) {
-      final transfer = StorageTransfer(
-          localPath: path.localPath,
-          remote: path.storagePath,
-          transferStatus: TransferStatus.uploading);
+      final transfer =
+          TransferMap(paths: path, transferStatus: TransferStatus.uploading);
       await transfer.save();
 
-      futures.add(_pool.withResource(() async {
-        if (transfer.transferStatus == TransferStatus.uploading) {
-          await writeToRemote(File(path.localPath), path.storagePath);
-          await transfer.database.deleteLocal(transfer.tableName, transfer.id);
-        } else {
-          await readFromRemote(path.url, File(path.localPath));
-          await transfer.database.deleteLocal(transfer.tableName, transfer.id);
-        }
-      }));
+      futures.add(_transfer(transfer));
     }
 
     await Future.wait(futures);
-    transferUnfinished();
+    _transferUnfinished();
   }
 
-  void transferUnfinished() {
-    StorageTransfer.all().then((transfers) async {
+  Future _transfer(transfer) {
+    return _pool.withResource(() async {
+      if (transfer.transferStatus == TransferStatus.uploading) {
+        await writeToRemote(transfer);
+      } else {
+        await readFromRemote(transfer);
+      }
+      await transfer.database.deleteLocal(transfer.tableName, transfer.id);
+    });
+  }
+
+  void _transferUnfinished() {
+    TransferMap.all().then((transfers) async {
       final now = await NetworkTime.shared.now;
       final past = now.subtract(Duration(seconds: _transferTimeout));
 
       for (final transfer in transfers) {
         // TODO: this will need to be double checked that the comparison is correct
         if (transfer.createdAt.isAfter(past)) {
-          if (transfer.transferStatus == TransferStatus.uploading) {
-            // ignore: unawaited_futures
-            _pool.withResource(() async {
-              await writeToRemote(File(transfer.localPath), transfer.remote);
-              await transfer.database
-                  .deleteLocal(transfer.tableName, transfer.id);
-            });
-          } else {
-            // ignore: unawaited_futures
-            _pool.withResource(() async {
-              await readFromRemote(transfer.remote, File(transfer.localPath));
-              await transfer.database
-                  .deleteLocal(transfer.tableName, transfer.id);
-            });
-          }
+          _transfer(transfer);
         }
       }
     });
   }
 
   /// Read file from cloud storage and save to file that is passed
-  Future<void> readFromRemote(String storagePath, File file);
+  Future<void> readFromRemote(TransferMap transferMap);
 
   /// Write file to cloud storage from file
-  Future<void> writeToRemote(File file, String storagePath);
+  Future<void> writeToRemote(TransferMap transferMap);
 }
 
 class Paths {
-  Paths({this.localPath, this.storagePath, this.url});
+  Paths({this.localPath, this.remotePath, this.remoteUrl});
   String localPath;
-  String storagePath;
-  String url;
+  String remotePath;
+  String remoteUrl;
 }
 
-class StorageTransfer extends Model {
-  StorageTransfer({this.localPath, this.remote, this.transferStatus});
+class TransferMap extends Model {
+  TransferMap({Paths paths, this.transferStatus}) {
+    localPath = paths.localPath;
+    remotePath = paths.remotePath;
+    remoteUrl = paths.remoteUrl;
+  }
 
   String localPath;
-  String remote;
+  String remotePath;
+  String remoteUrl;
   TransferStatus transferStatus;
 
   @override
-  String get tableName => 'StorageTransfer';
+  String get tableName => 'TransferMap';
 
   @override
   Map<String, dynamic> get map {
     var map = super.map;
     map['localPath'] = localPath;
-    map['remote'] = remote;
+    map['remotePath'] = remotePath;
+    map['remoteUrl'] = remoteUrl;
     map['transferStatus'] = transferStatus.name;
 
     return map;
@@ -110,27 +104,25 @@ class StorageTransfer extends Model {
   Future<void> setMap(Map<String, dynamic> map) async {
     await super.setMap(map);
     localPath = map['localPath'];
-    remote = map['remote'];
+    remotePath = map['remotePath'];
+    remoteUrl = map['remoteUrl'];
     transferStatus = $TransferStatus.fromString(map['transferStatus']);
   }
 
-  static Future<List<StorageTransfer>> all() async {
-    var all = await StorageTransfer().database.all('StorageTransfer', () {
-      return StorageTransfer();
+  static Future<List<TransferMap>> all() async {
+    var all = await TransferMap().database.all('TransferMap', () {
+      return TransferMap();
     });
 
-    return List<StorageTransfer>.from(all);
+    return List<TransferMap>.from(all);
   }
 
-  static Future<StorageTransfer> find(String id) async =>
-      await StorageTransfer()
-          .database
-          .find('StorageTransfer', id, StorageTransfer());
+  static Future<TransferMap> find(String id) async =>
+      await TransferMap().database.find('TransferMap', id, TransferMap());
 
   static Query where(dynamic condition) {
-    return Query('StorageTransfer').where(condition, StorageTransfer().database,
-        () {
-      return StorageTransfer();
+    return Query('TransferMap').where(condition, TransferMap().database, () {
+      return TransferMap();
     });
   }
 }
@@ -145,7 +137,7 @@ extension $TransferStatus on TransferStatus {
 
   static final toEnum = {
     'uploading': TransferStatus.uploading,
-    'read': TransferStatus.downloading
+    'downloading': TransferStatus.downloading
   };
 
   String get name => $TransferStatus.string[this];

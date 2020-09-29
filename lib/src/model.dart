@@ -89,13 +89,12 @@ abstract class Model extends ChangeNotifier {
   }
 
   /// Get filePath from key
+  /// Does local path exist - if not download()
   String localFilePath({String key = 'default'}) {
     return filePaths()[key].localPath;
   }
 
-  /// Get a file from its key
   Future<File> file({String key = 'default'}) async {
-    // Does local path exist - if not download()
     final path = localFilePath(key: key);
     final file = File(path);
     if (await file.exists()) {
@@ -108,7 +107,7 @@ abstract class Model extends ChangeNotifier {
 
   /// Get url from it's key
   String url({String key = 'default'}) {
-    return filePaths()[key].url;
+    return filePaths()[key].remoteUrl;
   }
 
   /// Upload all files in this record to storage
@@ -123,7 +122,7 @@ abstract class Model extends ChangeNotifier {
 
   /// Override this with the key, and the Paths class
   /// e.g. {'default': Paths(localPath: '/path/123.txt',
-  /// storagePath: '/remote/path/123.txt', url: 'htts://storage.azure.com/bucket/file.txt')}
+  /// remotePath: '/remote/path/123.txt', remoteUrl: 'htts://storage.azure.com/bucket/file.txt')}
   Map<String, Paths> filePaths() {
     return {};
   }
