@@ -6,8 +6,8 @@ import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:random_string/random_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/abstract.dart';
-import 'package:sync_db/src/graphql_service.dart';
-import 'package:sync_db/src/service_point.dart';
+import 'package:sync_db/src/services/graphql_service.dart';
+import 'package:sync_db/src/services/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
 class CognitoUserSession extends UserSession {

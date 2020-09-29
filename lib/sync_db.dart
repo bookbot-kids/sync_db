@@ -1,15 +1,15 @@
 library sync_db;
 
 export 'src/abstract.dart';
-export 'src/cosmos_service.dart';
-export 'src/azure_adb2c_user.dart';
-export 'src/sembast_database.dart';
-export 'src/query.dart';
-export 'src/graphql_service.dart';
+export 'src/services/cosmos_service.dart';
+export 'src/authenticate/azure_adb2c_user.dart';
+export 'src/database/sembast_database.dart';
+export 'src/database/query.dart';
+export 'src/services/graphql_service.dart';
 export 'src/network_time.dart';
 export 'src/sync_db.dart';
-export 'src/service.dart';
-export 'src/service_point.dart';
-export 'src/cognito_user.dart';
+export 'src/services/service.dart';
+export 'src/services/service_point.dart';
+export 'src/authenticate/cognito_user.dart';
 export 'src/model.dart';
-export 'src/storage.dart';
+export 'src/storages/storage.dart';

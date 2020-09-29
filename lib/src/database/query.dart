@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart';
-import 'abstract.dart';
+import '../abstract.dart';
 
 /// Based on https://guides.rubyonrails.org/active_record_querying.html
 class Query {

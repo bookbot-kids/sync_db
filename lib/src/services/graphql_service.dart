@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:robust_http/exceptions.dart';
-import 'package:sync_db/src/cognito_user.dart';
-import '../sync_db.dart';
-import 'query.dart' as q;
+import 'package:sync_db/src/authenticate/cognito_user.dart';
+import '../../sync_db.dart';
+import '../database/query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
