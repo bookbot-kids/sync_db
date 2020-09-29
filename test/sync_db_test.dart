@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:sync_db/src/storages/azure_storage.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -156,6 +158,25 @@ void main() {
 
       print(await $Test.all());
       print(await $Test.find('85523e33-644f-4ed4-9c85-d8d0ec20fcc0'));
+    });
+
+    test('test azure storage', () async {
+      var client = AzureStorageClient.parse('storageConnection');
+      // upload
+      final file = File('test.png');
+      var bytes = Uint8List.fromList(await file.readAsBytes());
+      await client.putBlob(
+        'images/test.png',
+        bodyBytes: bytes,
+      );
+
+      // download
+      var response = await client.getBlob('images/test.png');
+      var localFile = File('test_result.png');
+      var ios = localFile.openWrite(mode: FileMode.write);
+      ios.add(await response.stream.toBytes());
+      await ios.close();
+      assert(true);
     });
   });
 }
