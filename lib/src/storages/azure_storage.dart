@@ -19,8 +19,8 @@ class AzureStorage extends Storage {
   Future<void> readFromRemote(TransferMap transferMap) async {
     var localFile = File(transferMap.localPath);
     if (localFile.existsSync()) {
-      // don't download again
-      return;
+      // delete the existing local file
+      localFile.deleteSync();
     }
 
     for (var i = 1; i <= _maxRetry; i++) {
