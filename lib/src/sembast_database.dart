@@ -22,11 +22,12 @@ class SembastDatabase extends Database {
   Future<void> init(List<String> tableNames) async {
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
+    tableNames.add(StorageTransfer().tableName);
 
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
       for (final tableName in tableNames) {
-        await configTable(tableName);
+        await initTable(tableName);
       }
     } else {
       // get document directory
@@ -35,14 +36,14 @@ class SembastDatabase extends Database {
 
       // Open all databases
       for (final tableName in tableNames) {
-        await configTable(tableName, path: documentPath.path);
+        await initTable(tableName, path: documentPath.path);
       }
     }
   }
 
   /// Config a table if it doesn't
   @override
-  Future<void> configTable(String tableName, {String path}) async {
+  Future<void> initTable(String tableName, {String path}) async {
     if (_database[tableName] == null) {
       if (UniversalPlatform.isWeb) {
         final dbPath = _generateDatabasePath(tableName);
@@ -441,7 +442,4 @@ class SembastDatabase extends Database {
         return null;
     }
   }
-
-  // Note on subscribe to changes from Sembast: https://github.com/tekartik/sembast.dart/blob/master/sembast/doc/new_api.md
-
 }
