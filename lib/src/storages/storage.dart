@@ -74,9 +74,9 @@ class Paths {
 
 class TransferMap extends Model {
   TransferMap({Paths paths, this.transferStatus}) {
-    localPath = paths.localPath;
-    remotePath = paths.remotePath;
-    remoteUrl = paths.remoteUrl;
+    localPath = paths?.localPath;
+    remotePath = paths?.remotePath;
+    remoteUrl = paths?.remoteUrl;
   }
 
   String localPath;
