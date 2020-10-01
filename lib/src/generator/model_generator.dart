@@ -65,6 +65,11 @@ class ModelGenerator extends Generator {
       var name = field.name;
       var type = field.type?.getDisplayString(withNullability: false);
 
+      // ignore private fields
+      if (name.startsWith('_')) {
+        continue;
+      }
+
       // Only generate field that has both getter and setter
       if (element.lookUpGetter(name, libElement) == null ||
           element.lookUpSetter(name, libElement) == null) {
