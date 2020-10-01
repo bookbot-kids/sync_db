@@ -112,12 +112,12 @@ abstract class Model extends ChangeNotifier {
 
   /// Upload all files in this record to storage
   Future<void> upload() async {
-    await Sync.shared.storage.upload(filePaths().values);
+    await Sync.shared.storage.upload(List<Paths>.from(filePaths().values));
   }
 
   /// Download all files in this record from storage
   Future<void> download() async {
-    await Sync.shared.storage.download(filePaths().values);
+    await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
   }
 
   /// Override this with the key, and the Paths class
