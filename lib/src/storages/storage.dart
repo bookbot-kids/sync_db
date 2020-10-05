@@ -21,8 +21,7 @@ abstract class Storage {
   Future<void> transfer(List<Paths> paths, TransferStatus status) async {
     var futures = <Future>[];
     for (final path in paths) {
-      final transfer =
-          TransferMap(paths: path, transferStatus: TransferStatus.uploading);
+      final transfer = TransferMap(paths: path, transferStatus: status);
       await transfer.save();
 
       futures.add(_transfer(transfer));
