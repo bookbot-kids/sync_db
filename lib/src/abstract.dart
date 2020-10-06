@@ -63,7 +63,21 @@ abstract class Database {
   Future<void> import(Map<String, Map> data);
 }
 
-class Notifier extends ChangeNotifier {
+class Notifier<T> extends ChangeNotifier {
+  T _value;
+  Notifier();
+
+  T get value => _value;
+
+  set value(T value) {
+    _value = value;
+    notifyListeners();
+  }
+
+  void refresh() {
+    notifyListeners();
+  }
+
   void notify() {
     notifyListeners();
   }
