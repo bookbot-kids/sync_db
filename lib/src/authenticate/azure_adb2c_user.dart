@@ -21,7 +21,7 @@ class AzureADB2CUserSession extends UserSession {
   DateTime _tokenExpiry = DateTime.utc(0);
   Future<void> _refreshed;
   List<String> _tablesToClearOnSignout;
-  Notifier signoutNotifier = Notifier();
+  Notifier signoutNotifier = Notifier(Object());
 
   @override
   String role = 'guest';

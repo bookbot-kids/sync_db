@@ -65,7 +65,7 @@ abstract class Database {
 
 class Notifier<T> extends ChangeNotifier {
   T _value;
-  Notifier();
+  Notifier(this._value);
 
   T get value => _value;
 
