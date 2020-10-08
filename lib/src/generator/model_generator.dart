@@ -109,10 +109,13 @@ class ModelGenerator extends Generator {
         var idName = '${name}Id';
         getterFields.add("map['$idName'] = ${name}?.id;");
         setterFields.add("${name} = await \$${type}.find(map['${idName}']);");
-      } else {
+      } else if (type == 'double') {
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add(
-            "${name} = (${name} is double && map['${name}'] is int)? map['${name}'].toDouble(): map['${name}'];");
+            "${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}'];");
+      } else {
+        getterFields.add("map['${name}'] = ${name};");
+        setterFields.add("${name} = map['${name}'];");
       }
     }
 
