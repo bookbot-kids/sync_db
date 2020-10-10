@@ -111,19 +111,24 @@ abstract class Service {
 
   /// On response check to see if there has been a local change in that time
   /// if there has, do not update record to synced
-  Future<void> updateRecordStatus(ServicePoint service, Map record) async {
+  Future<void> updateRecordStatus(
+      ServicePoint service, Map serverRecord) async {
     final database = Sync.shared.local;
 
     await database.runInTransaction(service.name, (transaction) async {
-      final liveRecord = await database.findMap(service.name, record[idKey],
-          transaction: transaction);
-      if (liveRecord[updatedKey] == record[updatedKey]) {
-        record[statusKey] = SyncStatus.synced.name;
-        await database.saveMap(service.name, record, transaction: transaction);
+      final localRecord = await database
+          .findMap(service.name, serverRecord[idKey], transaction: transaction);
+      if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
+        serverRecord[statusKey] = SyncStatus.synced.name;
+        await database.saveMap(service.name, serverRecord,
+            transaction: transaction);
+      } else {
+        // in case local is newer, mark it as updated and sync again next time
+        localRecord[statusKey] = SyncStatus.updated.name;
+        await database.saveMap(service.name, localRecord,
+            transaction: transaction);
       }
     });
-    // TODO: Also check if model fields are different from record map. If not, change to updated state,
-    // not synced
   }
 
   /// A function to handle connectivity checks

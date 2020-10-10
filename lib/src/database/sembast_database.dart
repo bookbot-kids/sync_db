@@ -146,7 +146,9 @@ class SembastDatabase extends Database {
   Future<dynamic> findMap(String modelName, String id,
       {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
-    return await store.record(id).get(transaction ?? _database[modelName]);
+    var result =
+        await store.record(id).get(transaction ?? _database[modelName]);
+    return sembast_utils.cloneValue(result);
   }
 
   /// Query the table with the Query class. Disable stream listener if `listenable = false`

@@ -96,24 +96,12 @@ class GraphQLService extends Service {
     for (final record in records) {
       var fields = _getFields(table);
 
-      var response = await _createDocument(table, fields, record);
-      if (response != null && response['create${table}'] != null) {
-        var serverRecord = response['create${table}'];
+      var serverRecord = await _createDocument(table, fields, record);
+      if (serverRecord != null) {
         _fixCreatedDate(serverRecord);
         await updateRecordStatus(service, serverRecord);
       } else {
-        // try to get server record after retry failure
-        response = await _getDocument(table, fields, record['id']);
-        // check if record already exists
-        if (response != null && response['get${table}'] != null) {
-          // if it does, then update its status to synced
-          var serverRecord = response['get${table}'];
-          _fixCreatedDate(serverRecord);
-          await updateRecordStatus(service, serverRecord);
-        } else {
-          // otherwise just log as error
-          Sync.shared.logger?.e('create document ${table} ${record} error');
-        }
+        Sync.shared.logger?.e('create document ${table} ${record} error');
       }
     }
 
@@ -124,9 +112,9 @@ class GraphQLService extends Service {
     records = await Sync.shared.local.queryMap(query);
     for (var record in records) {
       var fields = _getFields(table);
-      var response = await _updateDocument(table, fields, record);
-      if (response != null && response['update${table}'] != null) {
-        await updateRecordStatus(service, response['update${table}']);
+      var serverRecord = await _updateDocument(table, fields, record);
+      if (serverRecord != null) {
+        await updateRecordStatus(service, serverRecord);
       } else {
         Sync.shared.logger?.e('update document ${table} ${record} error');
       }
@@ -156,8 +144,8 @@ class GraphQLService extends Service {
   }
 
   /// Create new document and return a new document
-  Future<dynamic> _createDocument(
-      String table, String fields, Map record) async {
+  Future<dynamic> _createDocument(String table, String fields, Map record,
+      {bool callUpdateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
          mutation put${table}(\$input: Create${table}Input!) {
@@ -169,12 +157,29 @@ class GraphQLService extends Service {
 
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
-    return _mutationDocument(query, variables);
+    var client = await graphClient;
+    var options = MutationOptions(
+      documentNode: gql(query),
+      variables: variables,
+      errorPolicy: ErrorPolicy.all,
+      fetchPolicy: FetchPolicy.noCache,
+    );
+    var result = await client.mutate(options);
+    if (!result.hasException) {
+      return result.data['create${table}'];
+    } else {
+      Sync.shared.logger?.e('createDocument error [$query] [$variables] error',
+          result.exception, StackTrace.current);
+      return callUpdateOnError
+          ? (await _updateDocument(table, fields, record,
+              callCreateOnError: false))
+          : null;
+    }
   }
 
   /// Update a document and return an updated document
-  Future<dynamic> _updateDocument(
-      String table, String fields, Map record) async {
+  Future<dynamic> _updateDocument(String table, String fields, Map record,
+      {bool callCreateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
               mutation update${table}(\$input: Update${table}Input!) {
@@ -186,26 +191,25 @@ class GraphQLService extends Service {
 
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
-    return _mutationDocument(query, variables);
-  }
 
-  /// Execute mutation query like update, insert, delete and return a document
-  Future<dynamic> _mutationDocument(
-      String query, Map<String, dynamic> variables) async {
-    for (var i = 1; i <= _maxRetry; i++) {
-      var client = await graphClient;
-      var options =
-          MutationOptions(documentNode: gql(query), variables: variables);
-      var result = await client.mutate(options);
-      if (!result.hasException) {
-        return result.data;
-      } else {
-        Sync.shared.logger?.e('mutationDocument [$query] [$variables] error',
-            result.exception, StackTrace.current);
-      }
+    var client = await graphClient;
+    var options = MutationOptions(
+      documentNode: gql(query),
+      variables: variables,
+      errorPolicy: ErrorPolicy.all,
+      fetchPolicy: FetchPolicy.noCache,
+    );
+    var result = await client.mutate(options);
+    if (!result.hasException) {
+      return result.data['update${table}'];
+    } else {
+      Sync.shared.logger?.e('updateDocument error [$query] [$variables] error',
+          result.exception, StackTrace.current);
+      return callCreateOnError
+          ? (await _createDocument(table, fields, record,
+              callUpdateOnError: false))
+          : null;
     }
-
-    return null;
   }
 
   /// Query documents
