@@ -86,6 +86,7 @@ class GraphQLService extends Service {
 
   @override
   Future<void> writeToService(ServicePoint service) async {
+    var futures = <Future>[];
     final table = service.name;
     // get created records and create in appsync
     var query = q.Query(table)
@@ -96,13 +97,16 @@ class GraphQLService extends Service {
     for (final record in records) {
       var fields = _getFields(table);
 
-      var serverRecord = await _createDocument(table, fields, record);
-      if (serverRecord != null) {
-        _fixCreatedDate(serverRecord);
-        await updateRecordStatus(service, serverRecord);
-      } else {
-        Sync.shared.logger?.e('create document ${table} ${record} error');
-      }
+      // This allows multiple create records to happen at the same time with a pool limit
+      futures.add(pool.withResource(() async {
+        var serverRecord = await _createDocument(table, fields, record);
+        if (serverRecord != null) {
+          _fixCreatedDate(serverRecord);
+          await updateRecordStatus(service, serverRecord);
+        } else {
+          Sync.shared.logger?.e('create document ${table} ${record} error');
+        }
+      }));
     }
 
     // Get records that have been updated and update to appsync
@@ -112,13 +116,18 @@ class GraphQLService extends Service {
     records = await Sync.shared.local.queryMap(query);
     for (var record in records) {
       var fields = _getFields(table);
-      var serverRecord = await _updateDocument(table, fields, record);
-      if (serverRecord != null) {
-        await updateRecordStatus(service, serverRecord);
-      } else {
-        Sync.shared.logger?.e('update document ${table} ${record} error');
-      }
+
+      futures.add(pool.withResource(() async {
+        var serverRecord = await _updateDocument(table, fields, record);
+        if (serverRecord != null) {
+          await updateRecordStatus(service, serverRecord);
+        } else {
+          Sync.shared.logger?.e('update document ${table} ${record} error');
+        }
+      }));
     }
+
+    await Future.wait(futures);
   }
 
   Future<void> setup() async {
