@@ -1,20 +1,20 @@
 import 'package:intl/intl.dart';
-import 'abstract.dart';
+import '../abstract.dart';
 
 /// Based on https://guides.rubyonrails.org/active_record_querying.html
 class Query {
-  Function instantiateModel;
-  Database database;
+  Query(this.tableName);
+
+  bool caseSensitive = false;
   dynamic condition;
+  Database database;
+  String filterOperator = 'and';
+  int index;
+  Function instantiateModel;
+  bool isMatches; // is search text mode
   String ordering;
   int resultLimit;
-  int index;
   String tableName;
-  String filterOperator = 'and';
-  bool isMatches; // is search text mode
-  bool caseSensitive = false;
-
-  Query(this.tableName);
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
@@ -56,14 +56,14 @@ class Query {
   /// Sets the sort order on the query and other optionals
   Query order([String order, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
-    this.ordering = order;
+    ordering = order;
     return this;
   }
 
   /// Set the limit on the number of results
   Query limit([int limit, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
-    this.resultLimit = limit;
+    resultLimit = limit;
     return this;
   }
 
@@ -87,8 +87,8 @@ class Query {
   }
 
   /// Loads the query results into a List
-  Future<List> load() {
-    return database.query(this);
+  Future<List> load({bool listenable = false}) {
+    return database.query(this, listenable: listenable);
   }
 
   /// Sets instantiateModel function and database
@@ -103,6 +103,7 @@ class Query {
 }
 
 class QueryException implements Exception {
+  @override
   String toString() =>
       Intl.message('Query was incorrectly constructed.', name: 'queryFailure');
 }

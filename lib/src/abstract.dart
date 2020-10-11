@@ -1,105 +1,84 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'query.dart';
+import 'package:sync_db/sync_db.dart';
 
-//AzureADB2CUser user = AzureADB2CUser.shared;
-//CosmosSync sync = CosmosSync.shared;
-//Database db = SemBastDatabase.shared;
+const statusKey = '_status';
+const idKey = 'id';
+const updatedKey = 'updatedAt';
+const createdKey = 'createdAt';
+const deletedKey = 'deletedAt';
 
-abstract class BaseUser {
-  /// If access token is current (not expired), returns the access token _accessToken. Otherwises uses the refresh token to get a new access token.
-  /// Refresh token is stored in Shared Preferences.
-  Future<List<MapEntry>> resourceTokens([bool refresh = false]);
-  void signout();
+abstract class UserSession {
+  Future<void> setToken(String token);
+
+  Future<void> refresh();
+
+  Future<List<ServicePoint>> servicePoints();
+
+  Future<List<ServicePoint>> servicePointsForTable(String table);
+
   Future<bool> hasSignedIn();
-  set refreshToken(String token);
-  String get refreshToken;
-  set role(String role);
+
   String get role;
-  Future<bool> get tokenValid;
-}
 
-abstract class Sync {
-  /// Sync all tables
-  Future<void> syncAll();
-
-  /// Sync read a table
-  Future<void> syncRead(String table, dynamic permission);
-
-  /// Sync write a table
-  Future<void> syncWrite(String table, dynamic permission);
-
-  /// Sync write a record
-  Future<void> syncWriteRecord(
-      String table, Map<String, dynamic> map, bool isCreated,
-      [bool refresh]);
-
-  /// Sync read, write for one table only
-  Future<void> syncTable(String table, [bool refresh]);
-
-  /// Delete a record
-  Future<void> deleteRecord(String table, String id, [bool refreh]);
+  Future<void> signout();
 }
 
 abstract class Database {
-  void saveMap(String tableName, String id, Map map,
-      {int updatedAt, String status, dynamic transaction});
-  Future<void> save(Model model, {bool syncToCloud});
-  bool hasTable(String tableName);
-  dynamic all(String modelName, Function instantiateModel);
-  dynamic find(String modelName, String id, Model model);
-  dynamic query<T>(Query query, {dynamic transaction});
+  Future<void> save(Model model, {bool syncToService});
+
+  Future<void> saveMap(String tableName, Map map, {dynamic transaction});
+
+  Future<void> initTable(String tableName);
+
+  dynamic all(String modelName, Function instantiateModel,
+      {bool listenable = false});
+
+  dynamic find(String modelName, String id, Model model,
+      {bool listenable = false});
+
+  dynamic findMap(String modelName, String id, {dynamic transaction});
+
+  dynamic query<T extends Model>(Query query,
+      {dynamic transaction, bool listenable = false});
+
+  dynamic queryMap(Query query, {dynamic transaction});
+
+  Future<void> clearTable(String tableName);
+
   Future<void> delete(Model model);
+
   Future<void> deleteLocal(String modelName, String id);
+
   Future<void> runInTransaction(String tableName, Function action);
+
+  /// clear all data in all tables
+  Future<void> cleanDatabase();
+
+  /// Export database into json files in /export folder
+  Future<void> export(List<String> tableNames);
+
+  /// Import `data` map (table, json) into database
+  Future<void> import(Map<String, Map> data);
 }
 
-abstract class Model extends ChangeNotifier {
-  static Database database;
+class Notifier<T> extends ChangeNotifier {
+  T _value;
+  Notifier(this._value);
 
-  String id;
-  DateTime createdAt;
-  DateTime updatedAt;
-  DateTime deletedAt;
+  T get value => _value;
 
-  //Functions to override
-
-  Map<String, dynamic> export() {
-    var map = Map<String, dynamic>();
-    map["id"] = id;
-    map["createdAt"] = createdAt;
-    map["updatedAt"] = updatedAt;
-    if (deletedAt != null) {
-      map["deletedAt"] = deletedAt?.millisecondsSinceEpoch;
-    }
-
-    return map;
+  set value(T value) {
+    _value = value;
+    notifyListeners();
   }
 
-  void import(Map<String, dynamic> map) {
-    id = map["id"];
-    createdAt = map["createdAt"];
-    updatedAt = map["updatedAt"];
-
-    if (map["deletedAt"] is DateTime) {
-      deletedAt = map["deletedAt"];
-    } else if (map["deletedAt"] is int) {
-      deletedAt = DateTime.fromMillisecondsSinceEpoch(map["deletedAt"]);
-    }
+  void refresh() {
+    notifyListeners();
   }
 
-  String toString() {
-    return export().toString();
+  void notify() {
+    notifyListeners();
   }
-
-  String tableName() {
-    // This doesn't work for Flutter web.
-    if (kIsWeb) {
-      throw Exception(
-          'Must be override this method and return a string on web');
-    }
-    return runtimeType.toString();
-  }
-
-  Future<void> save();
-  Future<void> delete();
 }
