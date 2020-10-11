@@ -156,24 +156,12 @@ class SembastDatabase extends Database {
   @override
   Future<List<T>> query<T extends Model>(Query query,
       {dynamic transaction, bool listenable = false}) async {
-    // add filter deletedAt is null
-    if (query.condition is String) {
-      if (query.condition.isNotEmpty) {
-        query.condition = query.condition.trim() + ' and $deletedKey is null';
-      } else {
-        query.condition = '$deletedKey is null';
-      }
-    } else if (query.condition is Map) {
-      query.condition[deletedKey] = null;
-    } else {
-      query.condition = '$deletedKey is null';
-    }
-
+    // TODO: will add filter deletedAt is null into query
     var records = await queryMap(query, transaction: transaction);
     var results = <T>[];
     final store = sembast.StoreRef.main();
     for (var record in records) {
-      if (query.instantiateModel != null) {
+      if (query.instantiateModel != null && record[deletedKey] == null) {
         final model = query.instantiateModel();
         await model.setMap(record);
         if (listenable) {
