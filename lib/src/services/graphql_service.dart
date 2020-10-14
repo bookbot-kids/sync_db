@@ -36,7 +36,7 @@ class GraphQLService extends Service {
     final start = service.from;
 
     // ignore: unawaited_futures
-    while (true) {
+    do {
       var variables = <String, dynamic>{'nextToken': nextToken};
       var select = '''
         query list$table (\$nextToken: String) {
@@ -71,17 +71,11 @@ class GraphQLService extends Service {
 
           Sync.shared.logger?.i(
               'readFromService $table(${docs.length}) timestamp [$start - ${service.from}], nextToken is ${nextToken == null ? 'null' : 'not null'}');
-        } else {
-          break;
         }
       } else {
         break;
       }
-
-      if (nextToken == null) {
-        break;
-      }
-    }
+    } while (nextToken != null);
   }
 
   @override
@@ -226,8 +220,12 @@ class GraphQLService extends Service {
       [Map<String, dynamic> variables]) async {
     for (var i = 1; i <= _maxRetry; i++) {
       var client = await graphClient;
-      var options =
-          QueryOptions(documentNode: gql(query), variables: variables);
+      var options = QueryOptions(
+        documentNode: gql(query),
+        variables: variables,
+        errorPolicy: ErrorPolicy.all,
+        fetchPolicy: FetchPolicy.noCache,
+      );
       var result = await client.query(options);
       if (!result.hasException) {
         return result.data;
