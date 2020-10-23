@@ -401,32 +401,44 @@ class SembastDatabase extends Database {
 
   sembast.Filter _buildFilter(String left, String filterOperator, String right,
       [bool caseSensitive = false]) {
+    dynamic value;
+    right = right.trim();
+    if (int.tryParse(right) != null) {
+      value = int.parse(right);
+    } else if (double.tryParse(right) != null) {
+      value = double.parse(right);
+    } else if (right.toLowerCase() == 'true' ||
+        right.toLowerCase() == 'false') {
+      value = right.toLowerCase() == 'true';
+    } else {
+      value = right;
+    }
+
     switch (filterOperator.trim()) {
       case '<':
-        return sembast.Filter.lessThan(left.trim(), right.trim());
+        return sembast.Filter.lessThan(left.trim(), value);
       case '<=':
-        return sembast.Filter.lessThanOrEquals(left.trim(), right.trim());
+        return sembast.Filter.lessThanOrEquals(left.trim(), value);
       case '>':
-        return sembast.Filter.greaterThan(left.trim(), right.trim());
+        return sembast.Filter.greaterThan(left.trim(), value);
       case '>=':
-        return sembast.Filter.greaterThanOrEquals(left.trim(), right.trim());
+        return sembast.Filter.greaterThanOrEquals(left.trim(), value);
       case '=':
-        return sembast.Filter.equals(left.trim(), right.trim());
+        return sembast.Filter.equals(left.trim(), value);
       case '!=':
-        return sembast.Filter.notEquals(left.trim(), right.trim());
+        return sembast.Filter.notEquals(left.trim(), value);
       case 'is':
         return sembast.Filter.isNull(left.trim());
       case 'not':
         return sembast.Filter.notNull(left.trim());
       case 'matches':
         return sembast.Filter.matchesRegExp(
-            left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive));
+            left.trim(), RegExp(value, caseSensitive: caseSensitive));
       case 'contains':
-        return sembast.Filter.equals(left.trim(), right.trim(),
-            anyInList: true);
+        return sembast.Filter.equals(left.trim(), value, anyInList: true);
       case 'matchesAny':
         return sembast.Filter.matchesRegExp(
-            left.trim(), RegExp(right.trim(), caseSensitive: caseSensitive),
+            left.trim(), RegExp(value, caseSensitive: caseSensitive),
             anyInList: true);
       default:
         return null;
