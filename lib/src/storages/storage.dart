@@ -69,6 +69,11 @@ class Paths {
   String localPath;
   String remotePath;
   String remoteUrl;
+
+  @override
+  String toString() {
+    return 'localPath = $localPath\nremotePath = $remotePath\nremoteUrl = $remoteUrl';
+  }
 }
 
 class TransferMap extends Model {

@@ -4,7 +4,7 @@ import 'package:pool/pool.dart';
 
 abstract class Service {
   // Make sure there are no more than 8 server downloads at the same time
-  final pool = Pool(8, timeout: Duration(seconds: 60));
+  final pool = Pool(8);
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
 
