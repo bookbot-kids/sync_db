@@ -103,15 +103,18 @@ class ModelGenerator extends Generator {
             continue;
           } else if ('int' == listType) {
             getterFields.add("map['${name}'] = ${name};");
-            setterFields.add("${name} = List<int>.from(map['${name}']);");
+            setterFields
+                .add("${name} = List<int>.from(map['${name}'] ?? <int>[]);");
             continue;
           } else if ('String' == listType) {
             getterFields.add("map['${name}'] = ${name};");
-            setterFields.add("${name} = List<String>.from(map['${name}']);");
+            setterFields.add(
+                "${name} = List<String>.from(map['${name}'] ?? <String>[]);");
             continue;
           } else if ('double' == listType) {
             getterFields.add("map['${name}'] = ${name};");
-            setterFields.add("${name} = List<double>.from(map['${name}']);");
+            setterFields.add(
+                "${name} = List<double>.from(map['${name}'] ?? <double>[]);");
             continue;
           }
         }
