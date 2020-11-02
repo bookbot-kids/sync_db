@@ -31,7 +31,8 @@ class CosmosService extends Service {
     // Query the document with paging
     // loop while we have a `paginationToken`
     do {
-      var response = await _queryDocuments(servicePoint, query);
+      var response = await _queryDocuments(servicePoint, query,
+          paginationToken: paginationToken);
 
       await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
