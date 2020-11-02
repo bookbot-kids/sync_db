@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:sync_db/sync_db.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
 
 class AzureStorage extends Storage {
@@ -14,21 +15,24 @@ class AzureStorage extends Storage {
 
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
-    try {
-      var localFile = File(transferMap.localPath);
-      if (localFile.existsSync()) {
-        // delete the existing local file
-        localFile.deleteSync();
-      }
+    final lock = fileLock.putIfAbsent(transferMap.localPath, () => Lock());
+    await lock.synchronized(() async {
+      try {
+        var localFile = File(transferMap.localPath);
+        if (localFile.existsSync()) {
+          // delete the existing local file
+          localFile.deleteSync();
+        }
 
-      var response = await _client.getBlob(transferMap.remotePath);
-      var ios = localFile.openWrite(mode: FileMode.write);
-      ios.add(await response.stream.toBytes());
-      await ios.close();
-    } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
-      rethrow;
-    }
+        var response = await _client.getBlob(transferMap.remotePath);
+        var ios = localFile.openWrite(mode: FileMode.write);
+        ios.add(await response.stream.toBytes());
+        await ios.close();
+      } catch (e, stackTrace) {
+        Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
+        rethrow;
+      }
+    });
   }
 
   @override

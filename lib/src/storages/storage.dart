@@ -1,14 +1,20 @@
+import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
+import 'package:synchronized/synchronized.dart';
+import 'package:universal_io/io.dart';
 
-abstract class Storage {
+class Storage {
   Storage(Map config) {
     _transferTimeout = config['transferTimeout'] ?? 600;
+    _http = HTTP(null, config);
   }
 
   // Makes sure there are no more than 8 uploads/downloads at the same time
   final _pool = Pool(8);
   var _transferTimeout;
+  HTTP _http;
+  final Map<String, Lock> fileLock = {};
 
   Future<void> upload(List<Paths> paths) async {
     await transfer(paths, TransferStatus.uploading);
@@ -60,10 +66,26 @@ abstract class Storage {
   /// Read file from cloud storage and save to file that is passed
   Future<void> readFromRemote(TransferMap transferMap) async {
     // Implementation of dio download and stream write
+    final lock = fileLock.putIfAbsent(transferMap.localPath, () => Lock());
+    await lock.synchronized(() async {
+      try {
+        var localFile = File(transferMap.localPath);
+        if (localFile.existsSync()) {
+          // delete the existing local file
+          localFile.deleteSync();
+        }
+
+        await _http.download(transferMap.remoteUrl,
+            localPath: transferMap.localPath);
+      } catch (e, stackTrace) {
+        Sync.shared.logger?.e('Storage download error $e', e, stackTrace);
+        rethrow;
+      }
+    });
   }
 
   /// Write file to cloud storage from file
-  Future<void> writeToRemote(TransferMap transferMap);
+  Future<void> writeToRemote(TransferMap transferMap) async {}
 }
 
 class Paths {
