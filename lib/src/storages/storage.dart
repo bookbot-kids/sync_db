@@ -58,7 +58,9 @@ abstract class Storage {
   }
 
   /// Read file from cloud storage and save to file that is passed
-  Future<void> readFromRemote(TransferMap transferMap);
+  Future<void> readFromRemote(TransferMap transferMap) async {
+    // Implementation of dio download and stream write
+  }
 
   /// Write file to cloud storage from file
   Future<void> writeToRemote(TransferMap transferMap);
