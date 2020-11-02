@@ -93,13 +93,25 @@ class ModelGenerator extends Generator {
         var match = regex.firstMatch(type);
         if (match != null) {
           var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
-          // only process for custom list type
+          // custom list type
           if (_isCustomType(listType)) {
             var idsName = '${name}Ids';
             getterFields
                 .add("map['$idsName'] = ${name}.map((e) => e.id).toList();");
             setterFields.add(
                 "${name} = await \$${listType}.findByIds(map['${idsName}']);");
+            continue;
+          } else if ('int' == listType) {
+            getterFields.add("map['${name}'] = ${name};");
+            setterFields.add("${name} = List<int>.from(map['${name}']);");
+            continue;
+          } else if ('String' == listType) {
+            getterFields.add("map['${name}'] = ${name};");
+            setterFields.add("${name} = List<String>.from(map['${name}']);");
+            continue;
+          } else if ('double' == listType) {
+            getterFields.add("map['${name}'] = ${name};");
+            setterFields.add("${name} = List<double>.from(map['${name}']);");
             continue;
           }
         }
