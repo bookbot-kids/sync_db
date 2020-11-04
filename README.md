@@ -53,6 +53,7 @@ class TextModel extends Model {
   String id;
   bool isChecked;
   int count;
+  String $b; // ignore property - it doesn't generate property name start with $
 }
 ```
 - Make sure to add `part '{model_name}.g.dart';` in the model class before running
