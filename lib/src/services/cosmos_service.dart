@@ -37,7 +37,7 @@ class CosmosService extends Service {
       await saveLocalRecords(servicePoint, response['response']);
       paginationToken = response['paginationToken'];
       Sync.shared.logger?.i(
-          'readFromService ${servicePoint.tableName}(${response['response']?.length}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
+          'readFromService ${servicePoint.name}(${response['response']?.length}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
       // Put response timestamp in servicePoint
       try {
         final serverTimestamp = HttpDate.parse(response['responseTimestamp'])
