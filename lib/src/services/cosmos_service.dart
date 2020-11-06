@@ -25,7 +25,7 @@ class CosmosService extends Service {
   @override
   Future<void> readFromService(ServicePoint servicePoint) async {
     // query records in cosmos that have updated timestamp > given timestamp
-    final query = 'SELECT * FROM c WHERE c._ts > ${servicePoint.from}';
+    final query = 'SELECT * FROM c WHERE c.updatedAt > ${servicePoint.from}';
     var paginationToken;
 
     // Query the document with paging
