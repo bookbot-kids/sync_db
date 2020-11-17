@@ -8,12 +8,17 @@ class AzureADB2CUserSession extends UserSession {
   /// `azureBaseUrl` for Azure authentication functions
   /// `azureKey` the secure code to request azure function
   /// `tablesToClearOnSignout` a list of tables to remove when signing out
-  AzureADB2CUserSession(Map<String, dynamic> config) {
+  /// `autoRefresh` auto refresh token
+  AzureADB2CUserSession(Map<String, dynamic> config,
+      {bool autoRefresh = true}) {
     _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'];
-    // Start the process of getting tokens
-    _refreshed = refresh();
+
+    if (autoRefresh) {
+      // Start the process of getting tokens
+      _refreshed = refresh();
+    }
   }
 
   HTTP _http;
