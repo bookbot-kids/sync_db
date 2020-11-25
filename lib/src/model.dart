@@ -68,6 +68,8 @@ abstract class Model extends ChangeNotifier {
           await database.queryMap(Query(tableName), transaction: transaction);
       for (var item in list) {
         item[deletedKey] = now;
+        item[updatedKey] = now;
+        item[statusKey] = SyncStatus.updated.name;
         await database.saveMap(tableName, item, transaction: transaction);
       }
     });
