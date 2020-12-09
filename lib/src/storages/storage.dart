@@ -52,8 +52,7 @@ class Storage {
       final past = now.subtract(Duration(seconds: _transferTimeout));
 
       for (final transfer in transfers) {
-        // TODO: this will need to be double checked that the comparison is correct
-        if (transfer.createdAt.isAfter(past)) {
+        if (transfer.createdAt.isBefore(past)) {
           // ignore: unawaited_futures
           _transfer(transfer);
         }
