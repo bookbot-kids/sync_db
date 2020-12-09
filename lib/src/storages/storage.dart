@@ -7,10 +7,10 @@ class Storage {
   Storage(Map config) {
     _transferTimeout = config['transferTimeout'] ?? 600;
     _http = HTTP(null, config);
+    _pool = Pool(config['downloadPoolSize'] ?? 8);
   }
 
-  // Makes sure there are no more than 8 uploads/downloads at the same time
-  final _pool = Pool(8);
+  var _pool;
   var _transferTimeout;
   HTTP _http;
 
