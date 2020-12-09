@@ -7,7 +7,7 @@ class Storage {
   Storage(Map config) {
     _transferTimeout = config['transferTimeout'] ?? 600;
     _http = HTTP(null, config);
-    _pool = Pool(config['downloadPoolSize'] ?? 8);
+    _pool = Pool(config['storagePoolSize'] ?? 8);
   }
 
   var _pool;
