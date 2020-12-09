@@ -26,7 +26,7 @@ class Storage {
     var futures = <Future>[];
     for (final path in paths) {
       final transfer = TransferMap(paths: path, transferStatus: status);
-      await transfer.save();
+      await transfer.save(syncToService: false);
 
       futures.add(_transfer(transfer));
     }

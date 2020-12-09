@@ -101,20 +101,10 @@ class ModelGenerator extends Generator {
             setterFields.add(
                 "${name} = await \$${listType}.findByIds(map['${idsName}']);");
             continue;
-          } else if ('int' == listType) {
-            getterFields.add("map['${name}'] = ${name};");
-            setterFields
-                .add("${name} = List<int>.from(map['${name}'] ?? <int>[]);");
-            continue;
-          } else if ('String' == listType) {
+          } else if (['int', 'double', 'String', 'bool'].contains(listType)) {
             getterFields.add("map['${name}'] = ${name};");
             setterFields.add(
-                "${name} = List<String>.from(map['${name}'] ?? <String>[]);");
-            continue;
-          } else if ('double' == listType) {
-            getterFields.add("map['${name}'] = ${name};");
-            setterFields.add(
-                "${name} = List<double>.from(map['${name}'] ?? <double>[]);");
+                "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
             continue;
           }
         }
