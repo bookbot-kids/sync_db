@@ -90,12 +90,13 @@ abstract class Model extends ChangeNotifier {
     _subscription?.cancel();
   }
 
-  /// Get filePath from key
-  /// Does local path exist - if not download()
-  String localFilePath({String key = 'default'}) {
-    return filePaths()[key].localPath;
-  }
+  /// Storage managers and functions
+  /// Readme: Files are handled in groups in the record.
+  /// You can upload or download all files related to this record
+  /// If you need one file it will find this in `file` - but if it does not exist it will download
+  /// all files related to this record
 
+  /// See if file exists, otherwise download()
   Future<File> file({String key = 'default'}) async {
     final path = localFilePath(key: key);
     final file = File(path);
@@ -107,19 +108,26 @@ abstract class Model extends ChangeNotifier {
     return File(path);
   }
 
-  /// Get url from it's key
-  String url({String key = 'default'}) {
-    return filePaths()[key].remoteUrl;
-  }
-
   /// Upload all files in this record to storage
+  /// It will upload again, even if this has been uploaded before
   Future<void> upload() async {
     await Sync.shared.storage.upload(List<Paths>.from(filePaths().values));
   }
 
   /// Download all files in this record from storage
+  /// It will download again, even if this has been downloaded before
   Future<void> download() async {
     await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
+  }
+
+  /// Local filePath from key
+  String localFilePath({String key = 'default'}) {
+    return filePaths()[key].localPath;
+  }
+
+  /// URL from it's key
+  String url({String key = 'default'}) {
+    return filePaths()[key].remoteUrl;
   }
 
   /// Override this with the key, and the Paths class
