@@ -122,7 +122,7 @@ class Paths {
 }
 
 class TransferMap extends Model {
-  TransferMap({@required Paths paths, @required this.transferStatus}) {
+  TransferMap({Paths paths, this.transferStatus}) {
     localPath = paths.localPath;
     remotePath = paths.remotePath;
     remoteUrl = paths.remoteUrl;
