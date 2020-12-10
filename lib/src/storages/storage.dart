@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -91,12 +90,6 @@ class Storage {
   Future<void> readFromRemote(TransferMap transferMap) async {
     // Implementation of dio download and stream write
     try {
-      var localFile = File(transferMap.localPath);
-      if (localFile.existsSync()) {
-        // delete the existing local file
-        localFile.deleteSync();
-      }
-
       await _http.download(transferMap.remoteUrl,
           localPath: transferMap.localPath);
     } catch (e, stackTrace) {

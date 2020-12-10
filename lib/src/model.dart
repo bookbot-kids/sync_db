@@ -120,7 +120,7 @@ abstract class Model extends ChangeNotifier {
     await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
   }
 
-  static Future<void> downloadAll(List<Model> records,
+  static Future<void> downloadAll<T extends Model>(List<T> records,
       {String key = 'default'}) async {
     final futures = <Future>[];
     for (final record in records) {

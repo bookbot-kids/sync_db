@@ -16,11 +16,6 @@ class AzureStorage extends Storage {
   Future<void> readFromRemote(TransferMap transferMap) async {
     try {
       var localFile = File(transferMap.localPath);
-      if (localFile.existsSync()) {
-        // delete the existing local file
-        localFile.deleteSync();
-      }
-
       var response = await _client.getBlob(transferMap.remotePath);
       var ios = localFile.openWrite(mode: FileMode.write);
       ios.add(await response.stream.toBytes());
