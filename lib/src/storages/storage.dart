@@ -30,10 +30,10 @@ class Storage {
     var futures = <Future>[];
     for (final path in paths) {
       // Check if already in transfer
-      final existing =
-          (await TransferMap.where('localPath = ${path.localPath}').load())
-              .first;
-      if (existing != null) {
+      final transfers =
+          await TransferMap.where('localPath = ${path.localPath}').load();
+      if (transfers.isNotEmpty) {
+        final existing = transfers.first;
         final now = await NetworkTime.shared.now;
         final past = now.subtract(Duration(seconds: _transferTimeout));
         // Has not timed out so skip

@@ -120,12 +120,14 @@ abstract class Model extends ChangeNotifier {
     await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
   }
 
-  static Future<void> downloadAll(List<Model> records) async {
+  static Future<void> downloadAll(List<Model> records,
+      {String key = 'default'}) async {
+    final futures = <Future>[];
     for (final record in records) {
       // We wont be doing anything with the file, but it will download files that haven't been downloaded
-      // ignore: unawaited_futures
-      record.file();
+      futures.add(record.file(key: key));
     }
+    return Future.wait(futures);
   }
 
   /// Local filePath from key
