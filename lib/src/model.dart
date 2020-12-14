@@ -104,20 +104,28 @@ abstract class Model extends ChangeNotifier {
       return file;
     }
 
-    await download();
+    await download(key);
     return File(path);
   }
 
   /// Upload all files in this record to storage
   /// It will upload again, even if this has been uploaded before
-  Future<void> upload() async {
-    await Sync.shared.storage.upload(List<Paths>.from(filePaths().values));
+  Future<void> upload([String key]) async {
+    if (filePaths().containsKey(key)) {
+      await Sync.shared.storage.upload([filePaths()[key]]);
+    } else {
+      await Sync.shared.storage.upload(List<Paths>.from(filePaths().values));
+    }
   }
 
   /// Download all files in this record from storage
   /// It will download again, even if this has been downloaded before
-  Future<void> download() async {
-    await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
+  Future<void> download([String key]) async {
+    if (filePaths().containsKey(key)) {
+      await Sync.shared.storage.download([filePaths()[key]]);
+    } else {
+      await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
+    }
   }
 
   static Future<void> downloadAll<T extends Model>(List<T> records,

@@ -66,7 +66,10 @@ class Storage {
         // Move file from temporary path
         final finalPath =
             transfer.localPath.substring(0, transfer.localPath.length - 1);
-        await File(transfer.localPath).rename(finalPath);
+        final localFile = File(transfer.localPath);
+        if (await localFile.exists()) {
+          await File(transfer.localPath).rename(finalPath);
+        }
       }
       await transfer.database.deleteLocal(transfer.tableName, transfer.id);
     });

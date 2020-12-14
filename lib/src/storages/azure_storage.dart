@@ -17,13 +17,11 @@ class AzureStorage extends Storage {
     try {
       var localFile = File(transferMap.localPath);
       var response = await _client.getBlob(transferMap.remotePath);
-      if (response.statusCode == 200) {
-        var ios = localFile.openWrite(mode: FileMode.write);
-        ios.add(await response.stream.toBytes());
-        await ios.close();
-      } else {
-        Sync.shared.logger?.e(
-            'Download [${transferMap.remotePath}] error with status code ${response.statusCode}');
+      var ios = localFile.openWrite(mode: FileMode.write);
+      ios.add(await response.stream.toBytes());
+      await ios.close();
+      if (response.statusCode == 404) {
+        Sync.shared.logger?.e('file ${transferMap.remotePath} not exist');
       }
     } catch (e, stackTrace) {
       Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
