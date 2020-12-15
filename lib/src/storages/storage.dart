@@ -29,8 +29,9 @@ class Storage {
     var futures = <Future>[];
     for (final path in paths) {
       // Check if already in transfer
-      final transfers =
-          await TransferMap.where('localPath = ${path.localPath}').load();
+      final transfers = await TransferMap.where({
+        'localPath': path.localPath,
+      }).load();
       if (transfers.isNotEmpty) {
         final existing = transfers.first;
         final now = await NetworkTime.shared.now;
