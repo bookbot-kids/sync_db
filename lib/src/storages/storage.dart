@@ -1,3 +1,4 @@
+import 'package:connectivity/connectivity.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -15,7 +16,8 @@ class Storage {
   var _pool;
   var _transferTimeout;
   HTTP _http;
-  //var _tryAgainDelay = 1.0;
+  // Each error transfer has its own delay time, and increase everytime retry
+  final Map<String, int> _retryDelayedMap = {};
 
   Future<void> upload(List<Paths> paths) async {
     await transfer(paths, TransferStatus.uploading);
@@ -56,23 +58,52 @@ class Storage {
     await Future.wait(futures);
   }
 
-  Future _transfer(TransferMap transfer) {
+  Future _transfer(TransferMap transfer, [bool isRetrying = false]) {
     return _pool.withResource(() async {
-      //TODO: Handle transfer failure, check connectivity, if connected try _tryAgainDelay and double
-      if (transfer.transferStatus == TransferStatus.uploading) {
-        await writeToRemote(transfer);
-      } else {
-        await readFromRemote(transfer);
+      try {
+        _retryDelayedMap.putIfAbsent(transfer.id, () => 1);
+        if (transfer.transferStatus == TransferStatus.uploading) {
+          await writeToRemote(transfer);
+        } else {
+          await readFromRemote(transfer);
 
-        // Move file from temporary path
-        final finalPath =
-            transfer.localPath.substring(0, transfer.localPath.length - 1);
-        final localFile = File(transfer.localPath);
-        if (await localFile.exists()) {
-          await File(transfer.localPath).rename(finalPath);
+          // Move file from temporary path
+          final finalPath =
+              transfer.localPath.substring(0, transfer.localPath.length - 1);
+          final localFile = File(transfer.localPath);
+          if (await localFile.exists()) {
+            await File(transfer.localPath).rename(finalPath);
+          }
+        }
+        await transfer.database.deleteLocal(transfer.tableName, transfer.id);
+        _retryDelayedMap.remove(transfer.id);
+      } catch (e, stackTrace) {
+        // don't log error again on retry
+        if (!isRetrying) {
+          Sync.shared.logger?.e(
+              'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
+              e,
+              stackTrace);
+        }
+
+        // retry if there is error
+        if (await Connectivity().checkConnectivity() !=
+            ConnectivityResult.none) {
+          // increase time everytime retry
+          if (e is FileNotFoundException) {
+            _retryDelayedMap[transfer.id] *= 3;
+          } else {
+            _retryDelayedMap[transfer.id] *= 2;
+          }
+
+          // ignore: unawaited_futures
+          Future.delayed(Duration(minutes: _retryDelayedMap[transfer.id]))
+              .then((value) {
+            //Sync.shared.logger?.i('Retry transfer $transfer');
+            _transfer(transfer, true);
+          });
         }
       }
-      await transfer.database.deleteLocal(transfer.tableName, transfer.id);
     });
   }
 
@@ -96,8 +127,7 @@ class Storage {
     try {
       await _http.download(transferMap.remoteUrl,
           localPath: transferMap.localPath);
-    } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Storage download error $e', e, stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -187,4 +217,11 @@ extension $TransferStatus on TransferStatus {
   String get name => $TransferStatus.string[this];
   static TransferStatus fromString(String value) =>
       $TransferStatus.toEnum[value];
+}
+
+class FileNotFoundException implements Exception {
+  final String msg;
+  const FileNotFoundException(this.msg);
+  @override
+  String toString() => '$msg';
 }

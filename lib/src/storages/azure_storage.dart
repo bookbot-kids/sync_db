@@ -15,16 +15,19 @@ class AzureStorage extends Storage {
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
     try {
-      var localFile = File(transferMap.localPath);
       var response = await _client.getBlob(transferMap.remotePath);
-      var ios = localFile.openWrite(mode: FileMode.write);
-      ios.add(await response.stream.toBytes());
-      await ios.close();
-      if (response.statusCode == 404) {
-        Sync.shared.logger?.e('file ${transferMap.remotePath} not exist');
+      if (response.statusCode == 200) {
+        var localFile = File(transferMap.localPath);
+        var ios = localFile.openWrite(mode: FileMode.write);
+        ios.add(await response.stream.toBytes());
+        await ios.close();
+      } else if (response.statusCode == 404) {
+        throw FileNotFoundException('404 error on ${transferMap.remotePath}');
+      } else {
+        throw Exception(
+            'download file with error status code ${response.statusCode}');
       }
-    } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Azure Storage download error $e', e, stackTrace);
+    } catch (e) {
       rethrow;
     }
   }
@@ -33,6 +36,11 @@ class AzureStorage extends Storage {
   Future<void> writeToRemote(TransferMap transferMap) async {
     try {
       var localFile = File(transferMap.localPath);
+      if (!localFile.existsSync()) {
+        throw FileNotFoundException(
+            'Local file ${transferMap.localPath} does not exis');
+      }
+
       var bytes = Uint8List.fromList(await localFile.readAsBytes());
       await _client.putBlob(transferMap.remotePath, bodyBytes: bytes);
     } catch (e, stackTrace) {

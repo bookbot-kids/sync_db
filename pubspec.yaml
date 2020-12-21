@@ -16,7 +16,7 @@ dependencies:
   synchronized: ^2.2.0+2
   universal_io: ^1.0.1
   sembast_web: ^1.2.0
-  graphql_flutter: ^3.1.0
+  graphql_flutter: ^4.0.0-beta.5
   basic_utils: ^2.6.3
   ntp: ^1.0.7
   universal_platform: ^0.1.3
@@ -24,15 +24,16 @@ dependencies:
   source_gen: ^0.9.7+1
   pool: ^1.4.0
   random_string: ^2.1.0
+  connectivity: ^2.0.2
 
   robust_http:
     git:
       url: git://github.com/bookbot-kids/robust-http.git
-      ref: 0.0.6
+      ref: 0.0.7
 
 
 dev_dependencies:
-  pedantic: ^1.8.0
+  pedantic: ^1.9.2
   flutter_test:
     sdk: flutter
   build_runner: ^1.10.2

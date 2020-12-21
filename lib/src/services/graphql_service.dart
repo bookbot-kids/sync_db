@@ -20,7 +20,7 @@ class GraphQLService extends Service {
 
   GraphQLService(Map config) {
     _httpLink = HttpLink(
-      uri: config['appsyncUrl'],
+      config['appsyncUrl'],
     );
 
     _maxRetry = config['errorRetry'] ?? 2;
@@ -162,7 +162,7 @@ class GraphQLService extends Service {
     variables['input'] = Map<String, dynamic>.from(record);
     var client = await graphClient;
     var options = MutationOptions(
-      documentNode: gql(query),
+      document: gql(query),
       variables: variables,
       errorPolicy: ErrorPolicy.all,
       fetchPolicy: FetchPolicy.noCache,
@@ -197,7 +197,7 @@ class GraphQLService extends Service {
 
     var client = await graphClient;
     var options = MutationOptions(
-      documentNode: gql(query),
+      document: gql(query),
       variables: variables,
       errorPolicy: ErrorPolicy.all,
       fetchPolicy: FetchPolicy.noCache,
@@ -221,7 +221,7 @@ class GraphQLService extends Service {
     for (var i = 1; i <= _maxRetry; i++) {
       var client = await graphClient;
       var options = QueryOptions(
-        documentNode: gql(query),
+        document: gql(query),
         variables: variables,
         errorPolicy: ErrorPolicy.all,
         fetchPolicy: FetchPolicy.noCache,
@@ -245,7 +245,7 @@ class GraphQLService extends Service {
       final authLink = AuthLink(getToken: () => user.refreshToken);
       final link = authLink.concat(_httpLink);
       _graphClient = GraphQLClient(
-        cache: InMemoryCache(),
+        cache: GraphQLCache(),
         link: link,
       );
     }
