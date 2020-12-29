@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
+enum SyncOverride { none, read }
+
 abstract class Model extends ChangeNotifier {
   DateTime createdAt;
   DateTime deletedAt;
@@ -17,6 +19,7 @@ abstract class Model extends ChangeNotifier {
   }
 
   Database get database => Sync.shared.local;
+  SyncOverride get syncOverride => SyncOverride.none;
 
   Map<String, dynamic> get map {
     var map = <String, dynamic>{};
