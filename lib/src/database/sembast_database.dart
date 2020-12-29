@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:basic_utils/basic_utils.dart';
+import 'package:flutter/services.dart';
 import 'package:sembast/utils/sembast_import_export.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
@@ -19,34 +21,50 @@ class SembastDatabase extends Database {
   final Map<String, sembast.Database> _database = {};
 
   /// Opens up each table connected to each model, which is stored in a separate file.
-  Future<void> init(List<String> tableNames) async {
+  /// `dbAssetPath` the asset path to import database
+  Future<void> init(List<String> tableNames,
+      {String dbAssetPath = 'assets/db'}) async {
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
     tableNames.add(TransferMap().tableName);
 
     if (UniversalPlatform.isWeb) {
       // Open all databases for web
+      final futures = <Future>[];
       for (final tableName in tableNames) {
-        await initTable(tableName);
+        futures.add(initTable(tableName, dbAssetPath: dbAssetPath));
       }
+      await Future.wait(futures);
     } else {
       // get document directory
       final documentPath = await getApplicationSupportDirectory();
       await documentPath.create(recursive: true);
 
       // Open all databases
+      final futures = <Future>[];
       for (final tableName in tableNames) {
-        await initTable(tableName, path: documentPath.path);
+        futures.add(initTable(tableName,
+            path: documentPath.path, dbAssetPath: dbAssetPath));
       }
+
+      await Future.wait(futures);
     }
   }
 
   /// Config a table if it doesn't
   @override
-  Future<void> initTable(String tableName, {String path}) async {
+  Future<void> initTable(String tableName,
+      {String path, String dbAssetPath = 'assets/db'}) async {
     if (_database[tableName] == null) {
       if (UniversalPlatform.isWeb) {
         final dbPath = _generateDatabasePath(tableName);
+        if (StringUtils.isNotNullOrEmpty(dbAssetPath) &&
+            !File(dbPath).existsSync()) {
+          // do the import for that table when empty
+          await _import(tableName, dbPath, dbAssetPath);
+        }
+
+        Sync.shared.logger?.d('model $tableName has path $dbPath');
         shared._database[tableName] =
             await databaseFactoryWeb.openDatabase(dbPath);
       } else {
@@ -58,9 +76,35 @@ class SembastDatabase extends Database {
 
         final dbPath = _generateDatabasePath(tableName, path: path);
         Sync.shared.logger?.d('model $tableName has path $dbPath');
+        if (StringUtils.isNotNullOrEmpty(dbAssetPath) &&
+            !File(dbPath).existsSync()) {
+          // do the import for that table when empty
+          await _import(tableName, dbPath, dbAssetPath);
+        }
+
         shared._database[tableName] =
             await databaseFactoryIo.openDatabase(dbPath);
       }
+    }
+  }
+
+  /// Import snapshot data from asset if it exists
+  Future<void> _import(String table, String dest, String assetPath) async {
+    final assetContent = await _loadAsset('$assetPath/$table.db');
+    if (assetContent != null) {
+      Sync.shared.logger?.d('Copy asset $table table to path $dest');
+      final bytes = assetContent.buffer
+          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
+      await File(dest).writeAsBytes(bytes);
+    }
+  }
+
+  /// Read from asset if exist
+  Future<dynamic> _loadAsset(String path) async {
+    try {
+      return await rootBundle.load(path);
+    } catch (_) {
+      return null;
     }
   }
 
