@@ -3,6 +3,7 @@ import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
 import 'package:universal_io/io.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class Storage {
   Storage(Map config) {
@@ -87,8 +88,9 @@ class Storage {
         }
 
         // retry if there is error
-        if (await Connectivity().checkConnectivity() !=
-            ConnectivityResult.none) {
+        if (UniversalPlatform.isWindows ||
+            await Connectivity().checkConnectivity() !=
+                ConnectivityResult.none) {
           // increase time everytime retry
           if (e is FileNotFoundException) {
             _retryDelayedMap[transfer.id] *= 3;
