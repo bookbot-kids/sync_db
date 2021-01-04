@@ -11,10 +11,12 @@ class Storage {
     _transferTimeout = config['transferTimeout'] ?? 30;
     // Transfer pool size also assumes small files. Make smaller (8) if files are large
     _pool = Pool(config['storagePoolSize'] ?? 64);
+    _retryPool = Pool(config['storagePoolSize'] ?? 64);
     _http = HTTP(null, config);
   }
 
   var _pool;
+  var _retryPool;
   var _transferTimeout;
   HTTP _http;
   // Each error transfer has its own delay time, and increase everytime retry
@@ -60,7 +62,7 @@ class Storage {
   }
 
   Future _transfer(TransferMap transfer, [bool isRetrying = false]) {
-    return _pool.withResource(() async {
+    return (isRetrying ? _retryPool : _pool).withResource(() async {
       try {
         _retryDelayedMap.putIfAbsent(transfer.id, () => 1);
         if (transfer.transferStatus == TransferStatus.uploading) {
@@ -91,19 +93,19 @@ class Storage {
         if (UniversalPlatform.isWindows ||
             await Connectivity().checkConnectivity() !=
                 ConnectivityResult.none) {
-          // increase time everytime retry
-          if (e is FileNotFoundException) {
-            _retryDelayedMap[transfer.id] *= 3;
-          } else {
-            _retryDelayedMap[transfer.id] *= 2;
-          }
-
           // ignore: unawaited_futures
           Future.delayed(Duration(minutes: _retryDelayedMap[transfer.id]))
               .then((value) {
             //Sync.shared.logger?.i('Retry transfer $transfer');
             _transfer(transfer, true);
           });
+
+          // increase time on the next retry
+          if (e is FileNotFoundException) {
+            _retryDelayedMap[transfer.id] *= 5;
+          } else {
+            _retryDelayedMap[transfer.id] *= 2;
+          }
         }
       }
     });
