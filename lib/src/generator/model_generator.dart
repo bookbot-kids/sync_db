@@ -158,7 +158,16 @@ class ModelGenerator extends Generator {
       static Future<List<$modelName>> findByIds(List ids, {bool listenable = false}) async {
         if (ids == null || ids.isEmpty) return <$modelName>[];
         final construct = ids.map((id) => 'id = \$id');
-        return List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
+        final list = List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
+        final results = <$modelName>[];
+        ids.forEach((id) {
+          final item =
+              list.firstWhere((element) => element?.id == id, orElse: () => null);
+          if (item != null) {
+            results.add(item);
+          }
+        });
+        return results;
       }
 
       static Query where(dynamic condition) {
