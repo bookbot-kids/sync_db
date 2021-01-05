@@ -113,9 +113,25 @@ class Storage {
   }
 
   Future<void> resetRetryPool() async {
-    await _delayedPool.close();
+    try {
+      if (!_delayedPool.isClosed) {
+        await _delayedPool.close();
+      }
+    } catch (e) {
+      //ignore
+      Sync.shared.logger?.i('Can not close delayedPool $e');
+    }
+
+    try {
+      if (!_retryPool.isClosed) {
+        await _retryPool.close();
+      }
+    } catch (e) {
+      //ignore
+      Sync.shared.logger?.i('Can not close retryPool $e');
+    }
+
     _delayedPool = Pool(16);
-    await _retryPool.close();
     _retryPool = Pool(32);
   }
 
