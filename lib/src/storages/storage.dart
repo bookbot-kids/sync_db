@@ -63,6 +63,10 @@ class Storage {
   }
 
   Future _transfer(TransferMap transfer, [bool isRetrying = false]) {
+    if (isRetrying && _retryPool.isClosed) {
+      return Future.delayed(Duration(milliseconds: 300));
+    }
+
     return (isRetrying ? _retryPool : _pool).withResource(() async {
       try {
         _retryDelayedMap.putIfAbsent(transfer.id, () => 1);
