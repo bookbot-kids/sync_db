@@ -19,6 +19,8 @@ class Storage {
   var _retryPool;
   var _transferTimeout;
   HTTP _http;
+  final _delayedPool = Pool(16);
+
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
 
@@ -94,18 +96,18 @@ class Storage {
             await Connectivity().checkConnectivity() !=
                 ConnectivityResult.none) {
           // ignore: unawaited_futures
-          Future.delayed(Duration(minutes: _retryDelayedMap[transfer.id]))
-              .then((value) {
-            //Sync.shared.logger?.i('Retry transfer $transfer');
-            _transfer(transfer, true);
-          });
-
-          // increase time on the next retry
-          if (e is FileNotFoundException) {
-            _retryDelayedMap[transfer.id] *= 5;
-          } else {
-            _retryDelayedMap[transfer.id] *= 2;
-          }
+          _delayedPool.withResource(() async => await Future.delayed(
+                      Duration(minutes: _retryDelayedMap[transfer.id]))
+                  .then((value) {
+                Sync.shared.logger?.i('Retry transfer $transfer');
+                _transfer(transfer, true);
+                // increase time on the next retry
+                if (e is FileNotFoundException) {
+                  _retryDelayedMap[transfer.id] *= 5;
+                } else {
+                  _retryDelayedMap[transfer.id] *= 2;
+                }
+              }));
         }
       }
     });
