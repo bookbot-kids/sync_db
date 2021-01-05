@@ -112,10 +112,10 @@ class Storage {
     });
   }
 
-  Future<void> resetRetryPool() async {
+  void resetRetryPool() {
     try {
       if (!_delayedPool.isClosed) {
-        await _delayedPool.close();
+        _delayedPool.close();
       }
     } catch (e) {
       //ignore
@@ -124,7 +124,7 @@ class Storage {
 
     try {
       if (!_retryPool.isClosed) {
-        await _retryPool.close();
+        _retryPool.close();
       }
     } catch (e) {
       //ignore
