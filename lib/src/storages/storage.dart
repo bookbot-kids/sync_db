@@ -11,15 +11,14 @@ class Storage {
     _transferTimeout = config['transferTimeout'] ?? 30;
     // Transfer pool size also assumes small files. Make smaller (8) if files are large
     _pool = Pool(config['storagePoolSize'] ?? 64);
-    _retryPool = Pool(config['storagePoolSize'] ?? 64);
     _http = HTTP(null, config);
   }
 
   var _pool;
-  var _retryPool;
+  var _retryPool = Pool(32);
   var _transferTimeout;
   HTTP _http;
-  final _delayedPool = Pool(16);
+  var _delayedPool = Pool(16);
 
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
@@ -111,6 +110,13 @@ class Storage {
         }
       }
     });
+  }
+
+  Future<void> resetRetryPool() async {
+    await _delayedPool.close();
+    _delayedPool = Pool(16);
+    await _retryPool.close();
+    _retryPool = Pool(32);
   }
 
   void finishUnfinishedTransfers() {
