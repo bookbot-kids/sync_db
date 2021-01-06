@@ -365,9 +365,7 @@ class SembastDatabase extends Database {
     await store.record(model.id).put(_database[name], map);
 
     // sync to server
-    if (syncToService &&
-        (model.syncPermission == SyncPermission.user ||
-            model.syncPermission == SyncPermission.all)) {
+    if (syncToService && model.syncPermission == SyncPermission.user) {
       // ignore: unawaited_futures
       Sync.shared.service.writeTable(name);
     }

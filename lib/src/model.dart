@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
-enum SyncPermission { user, none, read, all }
+enum SyncPermission { user, read }
 
 abstract class Model extends ChangeNotifier {
   DateTime createdAt;
