@@ -344,16 +344,18 @@ class SembastDatabase extends Database {
     // Export model as map
     final map = model.map;
 
-    if (isCreated) {
-      map[statusKey] = SyncStatus.created.name;
-    } else {
-      var currentRecord = await findMap(model.tableName, model.id);
-      if (currentRecord == null ||
-          currentRecord[statusKey] == SyncStatus.created.name) {
-        // keep it as created status
+    if (syncToService && model.syncPermission == SyncPermission.user) {
+      if (isCreated) {
         map[statusKey] = SyncStatus.created.name;
       } else {
-        map[statusKey] = SyncStatus.updated.name;
+        var currentRecord = await findMap(model.tableName, model.id);
+        if (currentRecord == null ||
+            currentRecord[statusKey] == SyncStatus.created.name) {
+          // keep it as created status
+          map[statusKey] = SyncStatus.created.name;
+        } else {
+          map[statusKey] = SyncStatus.updated.name;
+        }
       }
     }
 
