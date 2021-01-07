@@ -65,8 +65,8 @@ class ModelGenerator extends Generator {
       var name = field.name;
       var type = field.type?.getDisplayString(withNullability: false);
 
-      // ignore private fields or property start with $
-      if (name.startsWith('_') || name.startsWith('\$')) {
+      // ignore static, private fields or property start with $
+      if (field.isStatic || name.startsWith('_') || name.startsWith('\$')) {
         continue;
       }
 
