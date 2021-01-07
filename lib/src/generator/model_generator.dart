@@ -82,7 +82,7 @@ class ModelGenerator extends Generator {
         getterFields
             .add("map['${name}'] = EnumToString.convertToString(${name});");
         setterFields.add(
-            "${name} = EnumToString.fromString(${type}.values, map['${name}']);");
+            "if(map['${name}'] != null) { ${name} = EnumToString.fromString(${type}.values, map['${name}']); }");
         continue;
       }
 
@@ -101,7 +101,8 @@ class ModelGenerator extends Generator {
             setterFields.add(
                 "${name} = await \$${listType}.findByIds(map['${idsName}']);");
             continue;
-          } else if (['int', 'double', 'String', 'bool'].contains(listType)) {
+          } else if (['int', 'double', 'String', 'bool', 'num']
+              .contains(listType)) {
             getterFields.add("map['${name}'] = ${name};");
             setterFields.add(
                 "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
@@ -113,14 +114,16 @@ class ModelGenerator extends Generator {
       if (_isCustomType(type)) {
         var idName = '${name}Id';
         getterFields.add("map['$idName'] = ${name}?.id;");
-        setterFields.add("${name} = await \$${type}.find(map['${idName}']);");
+        setterFields.add(
+            "if(map['${idName}'] != null) { ${name} = await \$${type}.find(map['${idName}']); }");
       } else if (type == 'double') {
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add(
-            "${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}'];");
+            "if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }");
       } else {
         getterFields.add("map['${name}'] = ${name};");
-        setterFields.add("${name} = map['${name}'];");
+        setterFields
+            .add("if(map['${name}'] != null) ${name} = map['${name}'];");
       }
     }
 
@@ -140,6 +143,7 @@ class ModelGenerator extends Generator {
       }
 
       Future<void> setMap(Map<String, dynamic> map) async {
+        if (map == null) return;
         $setterMap
         $setFields
       }
