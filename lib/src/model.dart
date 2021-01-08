@@ -4,6 +4,7 @@ import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 enum SyncPermission { user, read }
+enum AssetStatus { none, asset, local }
 
 abstract class Model extends ChangeNotifier {
   DateTime createdAt;
@@ -157,4 +158,8 @@ abstract class Model extends ChangeNotifier {
   Map<String, Paths> filePaths() {
     return {};
   }
+
+  /// For the purpose of keeping track of where the associated files are
+  /// Are they assets, local or missing?
+  Map<String, AssetStatus> get assetStatus => {};
 }
