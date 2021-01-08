@@ -163,5 +163,9 @@ abstract class Model extends ChangeNotifier {
 
   /// For the purpose of keeping track of where the associated files are
   /// Are they assets, local or missing?
-  Map<String, AssetStatus> get assetStatus => {};
+  AssetStatus assetStatus(String key) {
+    return AssetStatus.none;
+  }
+
+  void setAssetStatus(String key, AssetStatus assetStatus) {}
 }
