@@ -23,15 +23,16 @@ class Storage {
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
 
-  Future<void> upload(List<Paths> paths) async {
-    await transfer(paths, TransferStatus.uploading);
+  Future<void> upload(List<Paths> paths, {retry = false}) async {
+    await transfer(paths, TransferStatus.uploading, retry: retry);
   }
 
-  Future<void> download(List<Paths> paths) async {
-    await transfer(paths, TransferStatus.downloading);
+  Future<void> download(List<Paths> paths, {retry = false}) async {
+    await transfer(paths, TransferStatus.downloading, retry: retry);
   }
 
-  Future<void> transfer(List<Paths> paths, TransferStatus status) async {
+  Future<void> transfer(List<Paths> paths, TransferStatus status,
+      {retry = false}) async {
     var futures = <Future>[];
     for (final path in paths) {
       // Check if already in transfer
@@ -62,7 +63,8 @@ class Storage {
     await Future.wait(futures);
   }
 
-  Future _transfer(TransferMap transfer, [bool isRetrying = false]) {
+  Future _transfer(TransferMap transfer,
+      {bool retry = false, bool isRetrying = false}) {
     if (isRetrying && _retryPool.isClosed) {
       return Future.delayed(Duration(milliseconds: 300));
     }
@@ -95,15 +97,16 @@ class Storage {
         }
 
         // retry if there is error
-        if (UniversalPlatform.isWindows ||
-            await Connectivity().checkConnectivity() !=
-                ConnectivityResult.none) {
+        if (retry &&
+            (UniversalPlatform.isWindows ||
+                await Connectivity().checkConnectivity() !=
+                    ConnectivityResult.none)) {
           // ignore: unawaited_futures
           _delayedPool.withResource(() async => await Future.delayed(
                       Duration(minutes: _retryDelayedMap[transfer.id]))
                   .then((value) {
                 Sync.shared.logger?.i('Retry transfer $transfer');
-                _transfer(transfer, true);
+                _transfer(transfer, isRetrying: true, retry: true);
                 // increase time on the next retry
                 if (e is FileNotFoundException) {
                   _retryDelayedMap[transfer.id] *= 5;
