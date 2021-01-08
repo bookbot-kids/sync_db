@@ -101,43 +101,45 @@ abstract class Model extends ChangeNotifier {
   /// all files related to this record
 
   /// See if file exists, otherwise download()
-  Future<File> file({String key = 'default'}) async {
+  Future<File> file({String key = 'default', bool retry = false}) async {
     final path = localFilePath(key: key);
     final file = File(path);
     if (await file.exists()) {
       return file;
     }
 
-    await download(key);
+    await download(key, retry);
     return File(path);
   }
 
   /// Upload all files in this record to storage
   /// It will upload again, even if this has been uploaded before
-  Future<void> upload([String key]) async {
+  Future<void> upload([String key, bool retry = false]) async {
     if (filePaths().containsKey(key)) {
-      await Sync.shared.storage.upload([filePaths()[key]]);
+      await Sync.shared.storage.upload([filePaths()[key]], retry: retry);
     } else {
-      await Sync.shared.storage.upload(List<Paths>.from(filePaths().values));
+      await Sync.shared.storage
+          .upload(List<Paths>.from(filePaths().values), retry: retry);
     }
   }
 
   /// Download all files in this record from storage
   /// It will download again, even if this has been downloaded before
-  Future<void> download([String key]) async {
+  Future<void> download([String key, bool retry = false]) async {
     if (filePaths().containsKey(key)) {
-      await Sync.shared.storage.download([filePaths()[key]]);
+      await Sync.shared.storage.download([filePaths()[key]], retry: retry);
     } else {
-      await Sync.shared.storage.download(List<Paths>.from(filePaths().values));
+      await Sync.shared.storage
+          .download(List<Paths>.from(filePaths().values), retry: retry);
     }
   }
 
   static Future<void> downloadAll<T extends Model>(List<T> records,
-      {String key = 'default'}) async {
+      {String key = 'default', retry = false}) async {
     final futures = <Future>[];
     for (final record in records) {
       // We wont be doing anything with the file, but it will download files that haven't been downloaded
-      futures.add(record.file(key: key));
+      futures.add(record.file(key: key, retry: retry));
     }
     return Future.wait(futures);
   }

@@ -23,11 +23,11 @@ class Storage {
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
 
-  Future<void> upload(List<Paths> paths, {retry = false}) async {
+  Future<void> upload(List<Paths> paths, {bool retry = false}) async {
     await transfer(paths, TransferStatus.uploading, retry: retry);
   }
 
-  Future<void> download(List<Paths> paths, {retry = false}) async {
+  Future<void> download(List<Paths> paths, {bool retry = false}) async {
     await transfer(paths, TransferStatus.downloading, retry: retry);
   }
 
@@ -57,7 +57,7 @@ class Storage {
       final transfer = TransferMap(paths: path, transferStatus: status);
       await transfer.save(syncToService: false);
 
-      futures.add(_transfer(transfer));
+      futures.add(_transfer(transfer, retry: retry));
     }
 
     await Future.wait(futures);
@@ -96,24 +96,27 @@ class Storage {
               stackTrace);
         }
 
-        // retry if there is error
-        if (retry &&
-            (UniversalPlatform.isWindows ||
-                await Connectivity().checkConnectivity() !=
-                    ConnectivityResult.none)) {
-          // ignore: unawaited_futures
-          _delayedPool.withResource(() async => await Future.delayed(
-                      Duration(minutes: _retryDelayedMap[transfer.id]))
-                  .then((value) {
-                Sync.shared.logger?.i('Retry transfer $transfer');
-                _transfer(transfer, isRetrying: true, retry: true);
-                // increase time on the next retry
-                if (e is FileNotFoundException) {
-                  _retryDelayedMap[transfer.id] *= 5;
-                } else {
-                  _retryDelayedMap[transfer.id] *= 2;
-                }
-              }));
+        if (retry) {
+          // retry if there is error
+          if (UniversalPlatform.isWindows ||
+              await Connectivity().checkConnectivity() !=
+                  ConnectivityResult.none) {
+            // ignore: unawaited_futures
+            _delayedPool.withResource(() async => await Future.delayed(
+                        Duration(minutes: _retryDelayedMap[transfer.id]))
+                    .then((value) {
+                  Sync.shared.logger?.i('Retry transfer $transfer');
+                  _transfer(transfer, isRetrying: true, retry: true);
+                  // increase time on the next retry
+                  if (e is FileNotFoundException) {
+                    _retryDelayedMap[transfer.id] *= 5;
+                  } else {
+                    _retryDelayedMap[transfer.id] *= 2;
+                  }
+                }));
+          }
+        } else {
+          rethrow;
         }
       }
     });
