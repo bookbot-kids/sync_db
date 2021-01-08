@@ -135,7 +135,7 @@ abstract class Model extends ChangeNotifier {
   }
 
   static Future<void> downloadAll<T extends Model>(List<T> records,
-      {String key = 'default', retry = false}) async {
+      {String key = 'default', retry = true}) async {
     final futures = <Future>[];
     for (final record in records) {
       // We wont be doing anything with the file, but it will download files that haven't been downloaded
