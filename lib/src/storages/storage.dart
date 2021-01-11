@@ -183,7 +183,7 @@ class Paths {
 
   @override
   String toString() {
-    return 'localPath = $localPath\nassetPath = assetPath$remotePath = $remotePath\nremoteUrl = $remoteUrl';
+    return 'localPath = $localPath\nassetPath = $assetPath remotePath = $remotePath\nremoteUrl = $remoteUrl';
   }
 }
 
