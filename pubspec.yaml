@@ -10,12 +10,12 @@ dependencies:
   path: ^1.7.0
   path_provider: ^1.6.18
   uuid: ^2.2.2
-  sembast: ^2.4.7+7
+  sembast: ^2.4.8+1
   jaguar_jwt: ^2.1.6
-  shared_preferences: ^0.5.12
+  shared_preferences: ^0.5.12+4
   synchronized: ^2.2.0+2
   universal_io: ^1.0.1
-  sembast_web: ^1.2.0
+  sembast_web: ^1.2.0+1
   graphql_flutter: ^4.0.0-beta.5
   basic_utils: ^2.6.3
   ntp: ^1.0.7

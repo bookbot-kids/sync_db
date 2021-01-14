@@ -1,8 +1,5 @@
-import 'dart:convert';
-
 import 'package:basic_utils/basic_utils.dart';
 import 'package:flutter/services.dart';
-import 'package:sembast/utils/sembast_import_export.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -88,6 +85,14 @@ class SembastDatabase extends Database {
     }
   }
 
+  Future<sembast.Database> _getDatabse(String tableName) async {
+    if (_database[tableName] == null) {
+      await initTable(tableName);
+    }
+
+    return _database[tableName];
+  }
+
   /// Import snapshot data from asset if it exists
   Future<void> _import(String table, String dest, String assetPath) async {
     final assetContent = await _loadAsset('$assetPath/$table.db');
@@ -114,44 +119,6 @@ class SembastDatabase extends Database {
     return path == null ? fileName : join(path, fileName);
   }
 
-  @override
-  Future<void> export(List<String> tableNames) async {
-    final docDir = await getApplicationSupportDirectory();
-    var exportDir = Directory(join(docDir.path, 'export'));
-    if (!exportDir.existsSync()) {
-      exportDir.createSync(recursive: true);
-    }
-
-    for (final name in tableNames) {
-      var content = await exportDatabase(shared._database[name]);
-      var json = jsonEncode(content);
-      final dbPath = join(exportDir.path, name + '.db');
-      await File(dbPath).writeAsString(json);
-      Sync.shared.logger?.i('export $name into $dbPath');
-    }
-  }
-
-  @override
-  Future<void> import(Map<String, Map> data) async {
-    var dbFactory;
-    String dbDir;
-    if (UniversalPlatform.isWeb) {
-      dbFactory = databaseFactoryWeb;
-    } else {
-      dbFactory = databaseFactoryIo;
-      var path = await getApplicationSupportDirectory();
-      await path.create(recursive: true);
-      dbDir = path.path;
-    }
-
-    for (var key in data.keys) {
-      var content = data[key];
-      final dbPath = _generateDatabasePath(key, path: dbDir);
-      var db = await importDatabase(content, dbFactory, dbPath);
-      shared._database[key] = db;
-    }
-  }
-
   /// Get all records in the table. Disable stream listener if `listenable = false`
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel,
@@ -171,11 +138,11 @@ class SembastDatabase extends Database {
       {bool listenable = false}) async {
     final store = sembast.StoreRef.main();
     var recordRef = await store.record(id);
-    final record = await recordRef.get(_database[modelName]);
+    final record = await recordRef.get(await _getDatabse(modelName));
     if (record != null && record[deletedKey] == null) {
       await model.setMap(sembast_utils.cloneValue(record));
       if (listenable) {
-        model.stream = recordRef.onSnapshot(_database[modelName]);
+        model.stream = recordRef.onSnapshot(await _getDatabse(modelName));
       }
 
       return model;
@@ -191,7 +158,7 @@ class SembastDatabase extends Database {
       {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
     var result =
-        await store.record(id).get(transaction ?? _database[modelName]);
+        await store.record(id).get(transaction ?? await _getDatabse(modelName));
     return sembast_utils.cloneValue(result);
   }
 
@@ -209,8 +176,9 @@ class SembastDatabase extends Database {
         final model = query.instantiateModel();
         await model.setMap(record);
         if (listenable) {
-          model.stream =
-              store.record(model.id).onSnapshot(_database[query.tableName]);
+          model.stream = store
+              .record(model.id)
+              .onSnapshot(await _getDatabse(query.tableName));
         }
 
         results.add(model);
@@ -313,7 +281,7 @@ class SembastDatabase extends Database {
       finder.limit = query.resultLimit;
     }
 
-    final db = _database[query.tableName];
+    final db = await _getDatabse(query.tableName);
     var records = await store.find(transaction ?? db, finder: finder);
     for (var record in records) {
       var value = sembast_utils.cloneValue(record.value);
@@ -325,7 +293,7 @@ class SembastDatabase extends Database {
 
   @override
   Future<void> runInTransaction(String tableName, Function action) async {
-    final db = _database[tableName];
+    final db = await _getDatabse(tableName);
     await db.transaction((transaction) async {
       await action(transaction);
     });
@@ -364,7 +332,7 @@ class SembastDatabase extends Database {
     final store = sembast.StoreRef.main();
 
     // Store and then start the sync
-    await store.record(model.id).put(_database[name], map);
+    await store.record(model.id).put(await _getDatabse(name), map);
 
     // sync to server
     if (syncToService && model.syncPermission == SyncPermission.user) {
@@ -387,7 +355,7 @@ class SembastDatabase extends Database {
     final store = sembast.StoreRef<String, dynamic>.main();
     await store
         .record(map[idKey])
-        .put(transaction ?? _database[tableName], map);
+        .put(transaction ?? await _getDatabse(tableName), map);
   }
 
   /// Import data from sembast file (in text string) -> this is not supported for web
@@ -410,7 +378,7 @@ class SembastDatabase extends Database {
 
   @override
   Future<void> clearTable(String tableName) async {
-    var db = _database[tableName];
+    var db = await _getDatabse(tableName);
     final store = sembast.StoreRef.main();
     await store.delete(db, finder: sembast.Finder());
   }
@@ -418,7 +386,7 @@ class SembastDatabase extends Database {
   @override
   Future<void> cleanDatabase() async {
     for (var tableName in _database.keys) {
-      var db = _database[tableName];
+      var db = await _getDatabse(tableName);
       final store = sembast.StoreRef.main();
       await store.delete(db, finder: sembast.Finder());
       await store.drop(db);
@@ -440,8 +408,8 @@ class SembastDatabase extends Database {
   @override
   Future<void> deleteLocal(String modelName, String id) async {
     final store = sembast.StoreRef.main();
-    if (await store.record(id).exists(_database[modelName])) {
-      await store.record(id).delete(_database[modelName]);
+    if (await store.record(id).exists(await _getDatabse(modelName))) {
+      await store.record(id).delete(await _getDatabse(modelName));
     }
   }
 

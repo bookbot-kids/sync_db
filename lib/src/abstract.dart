@@ -55,12 +55,6 @@ abstract class Database {
 
   /// clear all data in all tables
   Future<void> cleanDatabase();
-
-  /// Export database into json files in /export folder
-  Future<void> export(List<String> tableNames);
-
-  /// Import `data` map (table, json) into database
-  Future<void> import(Map<String, Map> data);
 }
 
 class Notifier<T> extends ChangeNotifier {
