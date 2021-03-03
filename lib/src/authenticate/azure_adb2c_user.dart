@@ -142,7 +142,8 @@ class AzureADB2CUserSession extends UserSession {
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
       for (final servicePoint in servicePoints) {
-        servicePoint.deleteLocal();
+        await servicePoint.database
+            .deleteLocal(servicePoint.tableName, servicePoint.id);
       }
       await Sync.shared.local.clearTable(table);
     }
