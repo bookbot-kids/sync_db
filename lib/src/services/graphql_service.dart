@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:basic_utils/basic_utils.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:sync_db/src/authenticate/cognito_user.dart';
+import 'package:sync_db/src/utils/string_utils.dart';
 import '../../sync_db.dart';
 import '../database/query.dart' as q;
 
