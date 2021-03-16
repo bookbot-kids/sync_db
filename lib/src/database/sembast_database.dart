@@ -337,7 +337,7 @@ class SembastDatabase extends Database {
     // sync to server
     if (syncToService && model.syncPermission == SyncPermission.user) {
       // ignore: unawaited_futures
-      Sync.shared.service.writeTable(name);
+      Sync.shared.service?.writeTable(name);
     }
   }
 
