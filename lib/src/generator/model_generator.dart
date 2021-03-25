@@ -2,13 +2,15 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
 
+T cast<T>(x) => x is T ? x : null;
+
 class ModelGenerator extends Generator {
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
     final values = <String>{};
     library.allElements.forEach((element) {
-      final classElement = element as ClassElement;
-      if (!classElement.isEnum) {
+      final classElement = cast<ClassElement>(element);
+      if (classElement != null && !classElement.isEnum) {
         var value = generateForClass(classElement, library.element);
         values.add(value);
       }
