@@ -96,11 +96,12 @@ abstract class Service {
         transientRecords = {for (var record in records) record[idKey]: record};
       }
 
-      // Check all records can be saved - don't save over records that have been updated locally
+      // Check all records can be saved - don't save over records that have been updated locally (unless read only)
       for (final record in records) {
         final existingRecord = transientRecords[record[idKey]];
         if (existingRecord == null ||
-            record[updatedKey] > existingRecord[updatedKey]) {
+            record[updatedKey] > existingRecord[updatedKey] ||
+            service.access == Access.read) {
           record[statusKey] = SyncStatus.synced.name;
           await database.saveMap(service.name, record,
               transaction: transaction);
