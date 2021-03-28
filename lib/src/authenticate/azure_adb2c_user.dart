@@ -40,8 +40,11 @@ class AzureADB2CUserSession extends UserSession {
     final response = await _http.get('/GetRefreshAndAccessToken',
         parameters: {'code': _azureKey, 'id_token': token});
     final preference = await futurePreference;
-    await preference.setString(
-        'refreshToken', response['token']['refresh_token']);
+    if (response['token']['refresh_token'] != null) {
+      await preference.setString(
+          'refreshToken', response['token']['refresh_token']);
+    }
+
     _refreshed = refresh();
   }
 
