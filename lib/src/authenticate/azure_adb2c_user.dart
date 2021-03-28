@@ -88,8 +88,10 @@ class AzureADB2CUserSession extends UserSession {
       refreshToken = (response['refreshToken'] != null)
           ? response['refreshToken']
           : refreshToken;
-      // ignore: unawaited_futures
-      sharedPreference.setString('refreshToken', refreshToken);
+      if (refreshToken != null) {
+        // ignore: unawaited_futures
+        sharedPreference.setString('refreshToken', refreshToken);
+      }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
       if (e.response.statusCode == 401) {
