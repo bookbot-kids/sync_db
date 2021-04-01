@@ -51,7 +51,7 @@ class ModelGenerator extends Generator {
         }
 
         if (map[updatedAt] is int) {
-          updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedAt]);
+          updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedKey]);
         }
 
         if (map[deletedKey] is int) {
