@@ -46,7 +46,7 @@ abstract class Model extends ChangeNotifier {
       createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
     }
 
-    if (map[updatedAt] is int) {
+    if (map[updatedKey] is int) {
       updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedKey]);
     }
 
