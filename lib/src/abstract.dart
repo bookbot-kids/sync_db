@@ -10,7 +10,7 @@ const createdKey = 'createdAt';
 const deletedKey = 'deletedAt';
 
 abstract class UserSession {
-  Future<void> setToken(String token);
+  Future<void> setToken(String token, {bool waitingRefresh = false});
 
   Future<void> refresh();
 

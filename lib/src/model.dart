@@ -60,9 +60,15 @@ abstract class Model extends ChangeNotifier {
   Future<void> save({bool syncToService = true}) async =>
       await database.save(this, syncToService: syncToService);
 
+  /// delete and sync record
   Future<void> delete() async {
     deletedAt = await NetworkTime.shared.now;
     await save();
+  }
+
+  /// delete local record
+  Future<void> deleteLocal() async {
+    await database.deleteLocal(tableName, id);
   }
 
   Future<void> deleteAll() async {

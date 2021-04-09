@@ -14,7 +14,7 @@ class AzureADB2CUserSession extends UserSession {
     _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'];
-
+    futurePreference = SharedPreferences.getInstance();
     if (autoRefresh) {
       // Start the process of getting tokens
       _refreshed = refresh();
@@ -27,6 +27,7 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> _refreshed;
   List<String> _tablesToClearOnSignout;
   Notifier signoutNotifier = Notifier(Object());
+  Future<SharedPreferences> futurePreference;
 
   @override
   String role = 'guest';
@@ -35,8 +36,7 @@ class AzureADB2CUserSession extends UserSession {
   /// This will then start the process of getting the resource tokens.
   /// Errors will need to be handled in the view
   @override
-  Future<void> setToken(String token) async {
-    final futurePreference = SharedPreferences.getInstance();
+  Future<void> setToken(String token, {bool waitingRefresh = false}) async {
     final response = await _http.get('/GetRefreshAndAccessToken',
         parameters: {'code': _azureKey, 'id_token': token});
     final preference = await futurePreference;
@@ -46,6 +46,9 @@ class AzureADB2CUserSession extends UserSession {
     }
 
     _refreshed = refresh();
+    if (waitingRefresh) {
+      await _refreshed;
+    }
   }
 
   /// Get resource tokens from Cosmos
@@ -55,8 +58,11 @@ class AzureADB2CUserSession extends UserSession {
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
-    final sharedPreference = await SharedPreferences.getInstance();
+    final sharedPreference = await futurePreference;
     var refreshToken = sharedPreference.getString('refreshToken');
+    if (sharedPreference.containsKey('user_role')) {
+      role = sharedPreference.getString('user_role');
+    }
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
@@ -88,6 +94,7 @@ class AzureADB2CUserSession extends UserSession {
 
       // set role along with the resource tokens
       role = response['group'];
+      await sharedPreference.setString('user_role', role);
       refreshToken = (response['refreshToken'] != null)
           ? response['refreshToken']
           : refreshToken;
@@ -131,7 +138,7 @@ class AzureADB2CUserSession extends UserSession {
 
   @override
   Future<bool> hasSignedIn() async {
-    final preferences = await SharedPreferences.getInstance();
+    final preferences = await futurePreference;
     return preferences.getString('refreshToken') != null;
   }
 
@@ -139,8 +146,9 @@ class AzureADB2CUserSession extends UserSession {
   /// and clear certain ServicePoints and databases
   @override
   Future<void> signout() async {
-    final preferences = await SharedPreferences.getInstance();
+    final preferences = await futurePreference;
     await preferences.remove('refresh_token');
+    await preferences.remove('user_role');
     _tokenExpiry = DateTime.utc(0);
     role = 'guest';
 
