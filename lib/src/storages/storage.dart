@@ -1,4 +1,5 @@
 import 'package:connectivity/connectivity.dart';
+import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -90,10 +91,22 @@ class Storage {
       } catch (e, stackTrace) {
         // don't log error again on retry
         if (!isRetrying) {
-          Sync.shared.logger?.e(
-              'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
-              e,
-              stackTrace);
+          if (e is UnexpectedResponseException) {
+            Sync.shared.logger?.e(
+                ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
+                e,
+                stackTrace);
+          } else if (e is UnknownException) {
+            Sync.shared.logger?.e(
+                ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error ${e.devDescription}',
+                e,
+                stackTrace);
+          } else {
+            Sync.shared.logger?.e(
+                'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
+                e,
+                stackTrace);
+          }
         }
 
         if (retry) {

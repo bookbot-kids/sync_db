@@ -167,12 +167,15 @@ class CosmosService extends Service {
 
       return await _http.post('colls/${servicePoint.name}/docs', data: record);
     } on UnexpectedResponseException catch (e, stackTrace) {
-      if (e.response.statusCode == 409) {
+      if (e.statusCode == 409) {
         // Strange that this has happened. Record is already created. Log it and try an update.
-        Sync.shared.logger?.e('Create Cosmos document failed.', e, stackTrace);
+        Sync.shared.logger?.e(
+            'Create Cosmos document failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            e,
+            stackTrace);
         return await _updateDocument(servicePoint, record);
       } else {
-        throw UnexpectedResponseException(e);
+        rethrow;
       }
     }
   }
@@ -195,12 +198,15 @@ class CosmosService extends Service {
       return await _http.put('colls/${servicePoint.name}/docs/${record['id']}',
           data: record);
     } on UnexpectedResponseException catch (e, stackTrace) {
-      if (e.response.statusCode == 409) {
+      if (e.statusCode == 409) {
         // Strange that this has happened. Record does not exist. Log it and try an update
-        Sync.shared.logger?.e('Update Cosmos document failed.', e, stackTrace);
+        Sync.shared.logger?.e(
+            'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            e,
+            stackTrace);
         return await _createDocument(servicePoint, record);
       } else {
-        throw UnexpectedResponseException(e);
+        rethrow;
       }
     }
   }

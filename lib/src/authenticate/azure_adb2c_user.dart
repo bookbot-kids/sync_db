@@ -104,12 +104,15 @@ class AzureADB2CUserSession extends UserSession {
       }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
-      if (e.response.statusCode == 401) {
+      if (e.statusCode == 401) {
         // token is expired -> sign out user
         await signout();
       } else {
-        Sync.shared.logger?.e('Resource tokens error', e, stackTrace);
-        throw UnexpectedResponseException(e);
+        Sync.shared.logger?.e(
+            'Resource tokens error ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            e,
+            stackTrace);
+        rethrow;
       }
     }
   }
