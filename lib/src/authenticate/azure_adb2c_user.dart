@@ -150,7 +150,7 @@ class AzureADB2CUserSession extends UserSession {
   @override
   Future<void> signout() async {
     final preferences = await futurePreference;
-    await preferences.remove('refresh_token');
+    await preferences.remove('refreshToken');
     await preferences.remove('user_role');
     _tokenExpiry = DateTime.utc(0);
     role = 'guest';
