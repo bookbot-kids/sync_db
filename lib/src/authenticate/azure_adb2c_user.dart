@@ -14,7 +14,6 @@ class AzureADB2CUserSession extends UserSession {
     _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'];
-    futurePreference = SharedPreferences.getInstance();
     if (autoRefresh) {
       // Start the process of getting tokens
       _refreshed = refresh();
@@ -27,7 +26,6 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> _refreshed;
   List<String> _tablesToClearOnSignout;
   Notifier signoutNotifier = Notifier(Object());
-  Future<SharedPreferences> futurePreference;
 
   @override
   String role = 'guest';
@@ -39,7 +37,7 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> setToken(String token, {bool waitingRefresh = false}) async {
     final response = await _http.get('/GetRefreshAndAccessToken',
         parameters: {'code': _azureKey, 'id_token': token});
-    final preference = await futurePreference;
+    final preference = await SharedPreferences.getInstance();
     if (response['token']['refresh_token'] != null) {
       await preference.setString(
           'refreshToken', response['token']['refresh_token']);
@@ -58,7 +56,7 @@ class AzureADB2CUserSession extends UserSession {
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
-    final sharedPreference = await futurePreference;
+    final sharedPreference = await SharedPreferences.getInstance();
     var refreshToken = sharedPreference.getString('refreshToken');
     if (sharedPreference.containsKey('user_role')) {
       role = sharedPreference.getString('user_role');
@@ -141,7 +139,7 @@ class AzureADB2CUserSession extends UserSession {
 
   @override
   Future<bool> hasSignedIn() async {
-    final preferences = await futurePreference;
+    final preferences = await SharedPreferences.getInstance();
     return preferences.getString('refreshToken') != null;
   }
 
@@ -149,7 +147,7 @@ class AzureADB2CUserSession extends UserSession {
   /// and clear certain ServicePoints and databases
   @override
   Future<void> signout() async {
-    final preferences = await futurePreference;
+    final preferences = await SharedPreferences.getInstance();
     await preferences.remove('refreshToken');
     await preferences.remove('user_role');
     _tokenExpiry = DateTime.utc(0);
