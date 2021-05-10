@@ -13,7 +13,7 @@ class AzureADB2CUserSession extends UserSession {
       {bool autoRefresh = true}) {
     _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
-    _tablesToClearOnSignout = config['tablesToClearOnSignout'];
+    _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     if (autoRefresh) {
       // Start the process of getting tokens
       _refreshed = refresh();
@@ -152,6 +152,8 @@ class AzureADB2CUserSession extends UserSession {
     await preferences.remove('user_role');
     _tokenExpiry = DateTime.utc(0);
     role = 'guest';
+    // refresh share preference
+    await preferences.reload();
 
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
