@@ -7,6 +7,7 @@ class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `cosmosDatabaseAccount` name, and database id `cosmosDatabaseId` in the config map
   CosmosService(Map config) {
+    _cosmosRetries = config['cosmosRetries'] ?? 3;
     final httpConfig = {'httpRetries': 1};
     _http = HTTP(
         'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
@@ -16,6 +17,7 @@ class CosmosService extends Service {
 
   HTTP _http;
   int _pageSize;
+  int _cosmosRetries = 3;
 
   final _apiVersion = '2018-12-31';
 
@@ -155,29 +157,48 @@ class CosmosService extends Service {
 
     // remove underscore fields
     excludePrivateFields(record);
+    _http.headers = {
+      'x-ms-date': now,
+      'authorization': Uri.encodeComponent(servicePoint.token),
+      'content-type': 'application/json',
+      'x-ms-version': _apiVersion,
+      'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
+    };
 
-    try {
-      _http.headers = {
-        'x-ms-date': now,
-        'authorization': Uri.encodeComponent(servicePoint.token),
-        'content-type': 'application/json',
-        'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
-      };
-
-      return await _http.post('colls/${servicePoint.name}/docs', data: record);
-    } on UnexpectedResponseException catch (e, stackTrace) {
-      if (e.statusCode == 409) {
-        // Strange that this has happened. Record is already created. Log it and try an update.
+    Exception exception;
+    for (var i = 0; i < _cosmosRetries; i++) {
+      try {
+        return await _http.post('colls/${servicePoint.name}/docs',
+            data: record);
+      } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
-            'Create Cosmos document failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            'Create cosmos document $record failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
             e,
             stackTrace);
-        return await _updateDocument(servicePoint, record);
-      } else {
-        rethrow;
+        if (e.statusCode == 409) {
+          // Strange that this has happened. Record is already created. Log it and try an update.
+          return await _updateDocument(servicePoint, record);
+        } else {
+          rethrow;
+        }
+      } on UnknownException catch (e, stackTrace) {
+        exception = e;
+        // retry if there is an exception
+        Sync.shared.logger?.e(
+            'Create cosmos $record document failed ${e.devDescription}',
+            e,
+            stackTrace);
+      } on Exception catch (e, stackTrace) {
+        exception = e;
+        Sync.shared.logger?.e(
+            'Create cosmos $record document failed without reason',
+            e,
+            stackTrace);
       }
     }
+
+    throw exception ??
+        Exception('Create cosmos $record document failed without reason');
   }
 
   /// Cosmos api to update document
@@ -186,29 +207,49 @@ class CosmosService extends Service {
 
     // we don't want to save local private fields
     excludePrivateFields(record);
+    _http.headers = {
+      'x-ms-date': now,
+      'authorization': Uri.encodeComponent(servicePoint.token),
+      'content-type': 'application/json',
+      'x-ms-version': _apiVersion,
+      'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
+    };
 
-    try {
-      _http.headers = {
-        'x-ms-date': now,
-        'authorization': Uri.encodeComponent(servicePoint.token),
-        'content-type': 'application/json',
-        'x-ms-version': _apiVersion,
-        'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
-      };
-      return await _http.put('colls/${servicePoint.name}/docs/${record['id']}',
-          data: record);
-    } on UnexpectedResponseException catch (e, stackTrace) {
-      if (e.statusCode == 409) {
-        // Strange that this has happened. Record does not exist. Log it and try an update
+    Exception exception;
+    for (var i = 0; i < _cosmosRetries; i++) {
+      try {
+        return await _http.put(
+            'colls/${servicePoint.name}/docs/${record['id']}',
+            data: record);
+      } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
             e,
             stackTrace);
-        return await _createDocument(servicePoint, record);
-      } else {
-        rethrow;
+        if (e.statusCode == 409) {
+          // Strange that this has happened. Record does not exist. Log it and try an update
+          return await _createDocument(servicePoint, record);
+        } else {
+          rethrow;
+        }
+      } on UnknownException catch (e, stackTrace) {
+        exception = e;
+        // retry if there is an exception
+        Sync.shared.logger?.e(
+            'Update cosmos $record document failed ${e.devDescription}',
+            e,
+            stackTrace);
+      } on Exception catch (e, stackTrace) {
+        exception = e;
+        Sync.shared.logger?.e(
+            'Update cosmos $record document failed without reason',
+            e,
+            stackTrace);
       }
     }
+
+    throw exception ??
+        Exception('Update cosmos $record document failed without reason');
   }
 
   /// Add parameter in list of map for cosmos query
