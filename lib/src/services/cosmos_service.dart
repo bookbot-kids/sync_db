@@ -153,21 +153,20 @@ class CosmosService extends Service {
   /// Cosmos api to create document
   Future<Map<String, dynamic>> _createDocument(
       ServicePoint servicePoint, Map record) async {
-    var now = HttpDate.format(await NetworkTime.shared.now);
-
     // remove underscore fields
     excludePrivateFields(record);
-    _http.headers = {
-      'x-ms-date': now,
-      'authorization': Uri.encodeComponent(servicePoint.token),
-      'content-type': 'application/json',
-      'x-ms-version': _apiVersion,
-      'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
-    };
 
     Exception exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
+        var now = HttpDate.format(await NetworkTime.shared.now);
+        _http.headers = {
+          'x-ms-date': now,
+          'authorization': Uri.encodeComponent(servicePoint.token),
+          'content-type': 'application/json',
+          'x-ms-version': _apiVersion,
+          'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
+        };
         return await _http.post('colls/${servicePoint.name}/docs',
             data: record);
       } on UnexpectedResponseException catch (e, stackTrace) {
@@ -203,21 +202,20 @@ class CosmosService extends Service {
 
   /// Cosmos api to update document
   Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record) async {
-    var now = HttpDate.format(await NetworkTime.shared.now);
-
     // we don't want to save local private fields
     excludePrivateFields(record);
-    _http.headers = {
-      'x-ms-date': now,
-      'authorization': Uri.encodeComponent(servicePoint.token),
-      'content-type': 'application/json',
-      'x-ms-version': _apiVersion,
-      'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
-    };
 
     Exception exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
+        var now = HttpDate.format(await NetworkTime.shared.now);
+        _http.headers = {
+          'x-ms-date': now,
+          'authorization': Uri.encodeComponent(servicePoint.token),
+          'content-type': 'application/json',
+          'x-ms-version': _apiVersion,
+          'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
+        };
         return await _http.put(
             'colls/${servicePoint.name}/docs/${record['id']}',
             data: record);
