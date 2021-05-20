@@ -35,13 +35,15 @@ class Storage {
   Future<void> transfer(List<Paths> paths, TransferStatus status,
       {retry = false}) async {
     var futures = <Future>[];
+    final transferMaps = await TransferMap.all();
     for (final path in paths) {
       // Check if already in transfer
-      final transfers = await TransferMap.where({
-        'localPath': path.localPath,
-      }).load();
-      if (transfers.isNotEmpty) {
-        final existing = transfers.first;
+      final existing = transferMaps.firstWhere(
+          (element) =>
+              element.localPath == path.localPath ||
+              element.localPath == path.localPath + '~',
+          orElse: () => null);
+      if (existing != null) {
         final now = await NetworkTime.shared.now;
         final past = now.subtract(Duration(seconds: _transferTimeout));
         // Has not timed out so skip
