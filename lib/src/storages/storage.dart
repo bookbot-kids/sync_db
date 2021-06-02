@@ -190,15 +190,22 @@ class Storage {
 }
 
 class Paths {
-  Paths({this.localPath, this.assetPath, this.remotePath, this.remoteUrl});
+  Paths({
+    this.localPath,
+    this.assetPath,
+    this.remotePath,
+    this.remoteUrl,
+    this.ondemandPath,
+  });
   String localPath;
   String assetPath;
   String remotePath;
   String remoteUrl;
+  String ondemandPath;
 
   @override
   String toString() {
-    return 'localPath = $localPath\nassetPath = $assetPath remotePath = $remotePath\nremoteUrl = $remoteUrl';
+    return 'localPath = $localPath\nassetPath = $assetPath remotePath = $remotePath\nremoteUrl = $remoteUrl\nondemandPath = $ondemandPath';
   }
 }
 
