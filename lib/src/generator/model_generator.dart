@@ -105,7 +105,7 @@ class ModelGenerator extends Generator {
             continue;
           } else if (['int', 'double', 'String', 'bool', 'num']
               .contains(listType)) {
-            getterFields.add("map['${name}'] = ${name};");
+            getterFields.add("map['${name}'] = ${name}.toList();");
             setterFields.add(
                 "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
             continue;
