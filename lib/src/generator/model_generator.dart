@@ -113,6 +113,31 @@ class ModelGenerator extends Generator {
         }
       }
 
+      // working on Set object
+      if (field.type.isDartCoreSet) {
+        // find set type
+        var regex = RegExp('<[a-zA-Z0-9]*>');
+        var match = regex.firstMatch(type);
+        if (match != null) {
+          var setType = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          // custom set type
+          if (_isCustomType(setType)) {
+            var idsName = '${name}Ids';
+            getterFields
+                .add("map['$idsName'] = ${name}.map((e) => e.id).toList();");
+            setterFields.add(
+                "${name} = Set<$setType>.from(await \$${setType}.findByIds(map['${idsName}']));");
+            continue;
+          } else if (['int', 'double', 'String', 'bool', 'num']
+              .contains(setType)) {
+            getterFields.add("map['${name}'] = ${name};");
+            setterFields.add(
+                "${name} = Set<$setType>.from(map['${name}'] ?? <$setType>[]);");
+            continue;
+          }
+        }
+      }
+
       if (_isCustomType(type)) {
         var idName = '${name}Id';
         getterFields.add("map['$idName'] = ${name}?.id;");
