@@ -4,7 +4,14 @@ import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 enum SyncPermission { user, read }
-enum AssetStatus { none, asset, native, local, ondemand }
+enum AssetStatus {
+  none,
+  asset, // flutter asset
+  native, // native platform asset
+  local, // local file asset
+  ondemand, // on-demand resource asset. Can access on native
+  deferred, // deferred components. Unlike on-demand assets, it can access on flutter side after download
+}
 
 abstract class Model extends ChangeNotifier {
   DateTime createdAt;
