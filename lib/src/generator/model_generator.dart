@@ -5,6 +5,8 @@ import 'package:build/build.dart';
 T cast<T>(x) => x is T ? x : null;
 
 class ModelGenerator extends Generator {
+  static final primitiveTypes = ['int', 'double', 'String', 'bool', 'num'];
+
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
     final values = <String>{};
@@ -103,8 +105,7 @@ class ModelGenerator extends Generator {
             setterFields.add(
                 "${name} = await \$${listType}.findByIds(map['${idsName}']);");
             continue;
-          } else if (['int', 'double', 'String', 'bool', 'num']
-              .contains(listType)) {
+          } else if (primitiveTypes.contains(listType)) {
             getterFields.add("map['${name}'] = ${name};");
             setterFields.add(
                 "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
@@ -128,11 +129,41 @@ class ModelGenerator extends Generator {
             setterFields.add(
                 "${name} = Set<$setType>.from(await \$${setType}.findByIds(map['${idsName}']));");
             continue;
-          } else if (['int', 'double', 'String', 'bool', 'num']
-              .contains(setType)) {
+          } else if (primitiveTypes.contains(setType)) {
             getterFields.add("map['${name}'] = ${name}.toList();");
             setterFields.add(
                 "${name} = Set<$setType>.from(map['${name}'] ?? <$setType>[]);");
+            continue;
+          }
+        }
+      }
+
+      // working on Map object
+      if (field.type.isDartCoreMap) {
+        // find map type
+        final regex = RegExp('<[a-zA-Z0-9, ]*>');
+        var match = regex.firstMatch(type.replaceFirst('Map', ''));
+        if (match != null) {
+          var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          final types = listType.split(',');
+          final type1 = types[0].trim();
+          final type2 = types[1].trim();
+          // custom map type, atm only support Enum as key
+          if (_isCustomType(type1)) {
+            getterFields.add('''
+              map['$name'] = $name?.map((key, value) =>
+                    MapEntry<String, dynamic>(EnumToString.convertToString(key), value)) ?? {};
+              ''');
+            setterFields.add('''
+              map['$name']?.forEach((key, value) {
+                  $name[EnumToString.fromString($type1.values, key)] = value;
+              });
+            ''');
+            continue;
+          } else if (primitiveTypes.contains(listType)) {
+            getterFields.add("map['${name}'] = ${name};");
+            setterFields.add(
+                "${name} = Map<$type1,$type2>.from(map['${name}'] ?? <$type1,$type2>{});");
             continue;
           }
         }
