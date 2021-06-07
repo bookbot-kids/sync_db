@@ -38,7 +38,7 @@ class AzureStorage extends Storage {
       var localFile = File(transferMap.localPath);
       if (!localFile.existsSync()) {
         throw FileNotFoundException(
-            'Local file ${transferMap.localPath} does not exis');
+            'Local file ${transferMap.localPath} does not exist');
       }
 
       var bytes = Uint8List.fromList(await localFile.readAsBytes());

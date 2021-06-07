@@ -8,18 +8,25 @@ import 'package:universal_platform/universal_platform.dart';
 
 class Storage {
   Storage(Map config) {
+    _config = config;
     // Timeout is tuned for small files, set another timeout if larger files are transferred
     _transferTimeout = config['transferTimeout'] ?? 30;
     // Transfer pool size also assumes small files. Make smaller (8) if files are large
     _pool = Pool(config['storagePoolSize'] ?? 64);
     _http = HTTP(null, config);
+    // start retry time in minute
+    _initRetryTime = config['initRetryTime'] ?? 1;
+    _retryPool = Pool(config['retryPoolSize'] ?? 8);
+    _delayedPool = Pool(config['delayPoolSize'] ?? 8);
   }
 
   var _pool;
-  var _retryPool = Pool(32);
+  var _retryPool = Pool(8);
   var _transferTimeout;
   HTTP _http;
-  var _delayedPool = Pool(16);
+  var _delayedPool = Pool(8);
+  var _initRetryTime = 1;
+  Map _config;
 
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
@@ -69,12 +76,12 @@ class Storage {
   Future _transfer(TransferMap transfer,
       {bool retry = false, bool isRetrying = false}) {
     if (isRetrying && _retryPool.isClosed) {
-      return Future.delayed(Duration(milliseconds: 300));
+      return Future.delayed(Duration(milliseconds: 500));
     }
 
     return (isRetrying ? _retryPool : _pool).withResource(() async {
       try {
-        _retryDelayedMap.putIfAbsent(transfer.id, () => 1);
+        _retryDelayedMap.putIfAbsent(transfer.id, () => _initRetryTime);
         if (transfer.transferStatus == TransferStatus.uploading) {
           await writeToRemote(transfer);
         } else {
@@ -156,8 +163,8 @@ class Storage {
       Sync.shared.logger?.i('Can not close retryPool $e');
     }
 
-    _delayedPool = Pool(16);
-    _retryPool = Pool(32);
+    _retryPool = Pool(_config['retryPoolSize'] ?? 8);
+    _delayedPool = Pool(_config['delayPoolSize'] ?? 8);
   }
 
   void finishUnfinishedTransfers() {
