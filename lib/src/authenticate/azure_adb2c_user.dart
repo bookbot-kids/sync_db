@@ -26,9 +26,14 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> _refreshed;
   List<String> _tablesToClearOnSignout;
   Notifier signoutNotifier = Notifier(Object());
+  static const _defaultRole = 'guest';
+  static const _refreshTokenKey = 'refreshToken';
+  static const _storageUriKey = 'storageUri';
+  static const _userRoleKey = 'userRole';
+  SharedPreferences _sharePref;
 
   @override
-  String role = 'guest';
+  String role = _defaultRole;
 
   /// The token is the ID Token. This is converted to a refresh token and save in preferences.
   /// This will then start the process of getting the resource tokens.
@@ -37,10 +42,9 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> setToken(String token, {bool waitingRefresh = false}) async {
     final response = await _http.get('/GetRefreshAndAccessToken',
         parameters: {'code': _azureKey, 'id_token': token});
-    final preference = await SharedPreferences.getInstance();
     if (response['token']['refresh_token'] != null) {
-      await preference.setString(
-          'refreshToken', response['token']['refresh_token']);
+      await (await _sharePrefInstance)
+          .setString(_refreshTokenKey, response['token']['refresh_token']);
     }
 
     _refreshed = refresh();
@@ -56,11 +60,9 @@ class AzureADB2CUserSession extends UserSession {
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
-    final sharedPreference = await SharedPreferences.getInstance();
-    var refreshToken = sharedPreference.getString('refreshToken');
-    if (sharedPreference.containsKey('user_role')) {
-      role = sharedPreference.getString('user_role');
-    }
+    final prefs = await _sharePrefInstance;
+    var refreshToken = prefs.getString(_refreshTokenKey);
+    role = prefs.getString(_userRoleKey) ?? _defaultRole;
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
@@ -92,13 +94,13 @@ class AzureADB2CUserSession extends UserSession {
 
       // set role along with the resource tokens
       role = response['group'];
-      await sharedPreference.setString('user_role', role);
+      await prefs.setString(_userRoleKey, role);
       refreshToken = (response['refreshToken'] != null)
           ? response['refreshToken']
           : refreshToken;
       if (refreshToken != null) {
         // ignore: unawaited_futures
-        sharedPreference.setString('refreshToken', refreshToken);
+        prefs.setString(_refreshTokenKey, refreshToken);
       }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
@@ -128,6 +130,7 @@ class AzureADB2CUserSession extends UserSession {
         await ServicePoint.where('name = $table').load());
   }
 
+  // check to refresh the refresh token
   Future<void> _refreshIfExpired() async {
     await _refreshed;
     final now = await NetworkTime.shared.now;
@@ -139,21 +142,21 @@ class AzureADB2CUserSession extends UserSession {
 
   @override
   Future<bool> hasSignedIn() async {
-    final preferences = await SharedPreferences.getInstance();
-    return preferences.getString('refreshToken') != null;
+    return (await _sharePrefInstance).getString(_refreshTokenKey) != null;
   }
 
   /// Sign out user, remove the refresh token from shared preferences
   /// and clear certain ServicePoints and databases
   @override
   Future<void> signout() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.remove('refreshToken');
-    await preferences.remove('user_role');
+    final pref = await _sharePrefInstance;
+    await pref.remove(_refreshTokenKey);
+    await pref.remove(_userRoleKey);
+    await pref.remove(_storageUriKey);
     _tokenExpiry = DateTime.utc(0);
     role = 'guest';
     // refresh share preference
-    await preferences.reload();
+    await pref.reload();
 
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
@@ -168,6 +171,12 @@ class AzureADB2CUserSession extends UserSession {
     signoutNotifier.notify();
   }
 
+  @override
+  Future<String> get storageToken async {
+    await _refreshStorageIfExpired();
+    return (await _sharePrefInstance).getString(_storageUriKey);
+  }
+
   Future<Map<String, ServicePoint>> _mappedServicePoints() async {
     final servicePoints = await ServicePoint.all();
     final map = <String, ServicePoint>{};
@@ -175,5 +184,54 @@ class AzureADB2CUserSession extends UserSession {
       map[servicePoint.name] = servicePoint;
     }
     return map;
+  }
+
+  /// Check the storage token (in this case is sas uri) is null or expired
+  /// If it is, then get the new one from server
+  Future<void> _refreshStorageIfExpired() async {
+    await _refreshIfExpired();
+    final storageUri =
+        (await _sharePrefInstance).getString(_storageUriKey) ?? '';
+    if (storageUri.isEmpty || Uri.tryParse(storageUri) == null) {
+      await _refreshStorageToken();
+    } else {
+      // parse date from uri
+      final uri = Uri.parse(storageUri);
+
+      // then check for expiration
+      final expired = uri.queryParameters['se'];
+      final expiredDate = DateTime.parse(expired);
+      final now = await NetworkTime.shared.now;
+      // The token is expired in 24 hours, but we just check 23 hours because of uploading time
+      if (now.isAfter(expiredDate.add(Duration(hours: -1)))) {
+        await _refreshStorageToken();
+      }
+    }
+  }
+
+  /// Get new token (sas uri) from server. It's valid in 24 hours
+  Future<void> _refreshStorageToken() async {
+    final prefs = await _sharePrefInstance;
+    var refreshToken = prefs.getString(_refreshTokenKey);
+    if (refreshToken != null) {
+      try {
+        final response = await _http.get('/GetStorageToken', parameters: {
+          'refresh_token': refreshToken ?? '',
+          'code': _azureKey
+        });
+        final uri = response['uri'];
+        await prefs.setString(_storageUriKey, uri);
+      } catch (e, stackTrace) {
+        Sync.shared.logger?.e('Storage token error $e', e, stackTrace);
+        rethrow;
+      }
+    } else {
+      Sync.shared.logger?.i('refresh token is null');
+    }
+  }
+
+  Future<SharedPreferences> get _sharePrefInstance async {
+    _sharePref ??= await SharedPreferences.getInstance();
+    return _sharePref;
   }
 }

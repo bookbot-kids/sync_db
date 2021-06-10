@@ -161,7 +161,8 @@ void main() {
     });
 
     test('test azure storage', () async {
-      var client = AzureStorageClient.parse('storageConnection');
+      final config = {'storageConnection': ''};
+      var client = AzureStorageTrustedClient(config);
       // upload
       final file = File('test.png');
       var bytes = Uint8List.fromList(await file.readAsBytes());
