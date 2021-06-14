@@ -46,8 +46,8 @@ class AzureStorage extends Storage {
 /// Azure Storage Client with full permission to storage account, using REST api
 /// https://docs.microsoft.com/en-us/rest/api/storageservices/
 class AzureStorageTrustedClient extends Storage {
-  Map<String, String> config;
-  Uint8List accountKey;
+  Map<String, String> _config;
+  Uint8List _accountKey;
 
   static final String DefaultEndpointsProtocol = 'DefaultEndpointsProtocol';
   static final String EndpointSuffix = 'EndpointSuffix';
@@ -66,8 +66,8 @@ class AzureStorageTrustedClient extends Storage {
         var val = item.substring(i + 1);
         m[key] = val;
       }
-      config = m;
-      accountKey = base64Decode(config[AccountKey]);
+      _config = m;
+      _accountKey = base64Decode(_config[AccountKey]);
     } catch (e) {
       throw Exception('Parse error.');
     }
@@ -112,14 +112,14 @@ class AzureStorageTrustedClient extends Storage {
 
   @override
   String toString() {
-    return config.toString();
+    return _config.toString();
   }
 
   /// build uri from connection string
   Uri _uri({String path = '/', Map<String, String> queryParameters}) {
-    var scheme = config[DefaultEndpointsProtocol] ?? 'https';
-    var suffix = config[EndpointSuffix] ?? 'core.windows.net';
-    var name = config[AccountName];
+    var scheme = _config[DefaultEndpointsProtocol] ?? 'https';
+    var suffix = _config[EndpointSuffix] ?? 'core.windows.net';
+    var name = _config[AccountName];
     return Uri(
         scheme: scheme,
         host: '${name}.blob.${suffix}',
@@ -162,11 +162,11 @@ class AzureStorageTrustedClient extends Storage {
     var ran = request.headers['Range'] ?? '';
     var chs = _canonicalHeaders(request.headers);
     var crs = _canonicalResources(request.url.queryParameters);
-    var name = config[AccountName];
+    var name = _config[AccountName];
     var path = request.url.path;
     var sig =
         '${request.method}\n${ce}\n${cl}\n${cz}\n${cm}\n${ct}\n${dt}\n${ims}\n${imt}\n${inm}\n${ius}\n${ran}\n${chs}/${name}${path}${crs}';
-    var mac = crypto.Hmac(crypto.sha256, accountKey);
+    var mac = crypto.Hmac(crypto.sha256, _accountKey);
     var digest = base64Encode(mac.convert(utf8.encode(sig)).bytes);
     var auth = 'SharedKey ${name}:${digest}';
     request.headers['Authorization'] = auth;
