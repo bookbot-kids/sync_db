@@ -2,20 +2,81 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class AzureStorage extends Storage {
-  AzureStorageClient _client;
+  AzureStorageTrustedClient _trustedClient;
+  AzureStorageUntrustedClient _untrustedClient;
+  bool _isTrusted = false;
 
+  /// If there is `storageConnectionString` in config, then it means this is trusted client with full permission on storage
+  /// Otherwise it's untrusted client with few limited permission (using SAS for upload & public url for download)
   AzureStorage(Map config) : super(config) {
-    _client = AzureStorageClient.parse(config['storageConnectionString']);
+    _isTrusted = config['storageConnectionString'] != null;
+    if (_isTrusted) {
+      _trustedClient = AzureStorageTrustedClient(config);
+    } else {
+      _untrustedClient = AzureStorageUntrustedClient(config);
+    }
+  }
+
+  @override
+  Future<void> readFromRemote(TransferMap transferMap) async {
+    // delegate to client storage
+    if (_isTrusted) {
+      await _trustedClient.readFromRemote(transferMap);
+    } else {
+      await _untrustedClient.readFromRemote(transferMap);
+    }
+  }
+
+  @override
+  Future<void> writeToRemote(TransferMap transferMap) async {
+    // delegate to client storage
+    if (_isTrusted) {
+      await _trustedClient.writeToRemote(transferMap);
+    } else {
+      await _untrustedClient.writeToRemote(transferMap);
+    }
+  }
+}
+
+/// Azure Storage Client with full permission to storage account, using REST api
+/// https://docs.microsoft.com/en-us/rest/api/storageservices/
+class AzureStorageTrustedClient extends Storage {
+  Map<String, String> config;
+  Uint8List accountKey;
+
+  static final String DefaultEndpointsProtocol = 'DefaultEndpointsProtocol';
+  static final String EndpointSuffix = 'EndpointSuffix';
+  static final String AccountName = 'AccountName';
+  static final String AccountKey = 'AccountKey';
+
+  /// Initialize with connection string.
+  AzureStorageTrustedClient(Map config) : super(config) {
+    final connection = config['storageConnectionString'];
+    try {
+      var m = <String, String>{};
+      var items = connection.split(';');
+      for (var item in items) {
+        var i = item.indexOf('=');
+        var key = item.substring(0, i);
+        var val = item.substring(i + 1);
+        m[key] = val;
+      }
+      config = m;
+      accountKey = base64Decode(config[AccountKey]);
+    } catch (e) {
+      throw Exception('Parse error.');
+    }
   }
 
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
     try {
-      var response = await _client.getBlob(transferMap.remotePath);
+      var response = await getBlob(transferMap.remotePath);
       if (response.statusCode == 200) {
         var localFile = File(transferMap.localPath);
         var ios = localFile.openWrite(mode: FileMode.write);
@@ -42,52 +103,10 @@ class AzureStorage extends Storage {
       }
 
       var bytes = Uint8List.fromList(await localFile.readAsBytes());
-      await _client.putBlob(transferMap.remotePath, bodyBytes: bytes);
+      await putBlob(transferMap.remotePath, bodyBytes: bytes);
     } catch (e, stackTrace) {
       Sync.shared.logger?.e('Azure Storage upload error $e', e, stackTrace);
       rethrow;
-    }
-  }
-}
-
-enum BlobType {
-  BlockBlob,
-  AppendBlob,
-}
-
-/// Azure Storage Exception
-class AzureStorageException implements Exception {
-  final String message;
-  final int statusCode;
-  final Map<String, String> headers;
-  AzureStorageException(this.message, this.statusCode, this.headers);
-}
-
-/// Azure Storage Client
-class AzureStorageClient {
-  Map<String, String> config;
-  Uint8List accountKey;
-
-  static final String DefaultEndpointsProtocol = 'DefaultEndpointsProtocol';
-  static final String EndpointSuffix = 'EndpointSuffix';
-  static final String AccountName = 'AccountName';
-  static final String AccountKey = 'AccountKey';
-
-  /// Initialize with connection string.
-  AzureStorageClient.parse(String connectionString) {
-    try {
-      var m = <String, String>{};
-      var items = connectionString.split(';');
-      for (var item in items) {
-        var i = item.indexOf('=');
-        var key = item.substring(0, i);
-        var val = item.substring(i + 1);
-        m[key] = val;
-      }
-      config = m;
-      accountKey = base64Decode(config[AccountKey]);
-    } catch (e) {
-      throw Exception('Parse error.');
     }
   }
 
@@ -96,7 +115,8 @@ class AzureStorageClient {
     return config.toString();
   }
 
-  Uri uri({String path = '/', Map<String, String> queryParameters}) {
+  /// build uri from connection string
+  Uri _uri({String path = '/', Map<String, String> queryParameters}) {
     var scheme = config[DefaultEndpointsProtocol] ?? 'https';
     var suffix = config[EndpointSuffix] ?? 'core.windows.net';
     var name = config[AccountName];
@@ -125,6 +145,7 @@ class AzureStorageClient {
     return keys.map((i) => '\n${i}:${items[i]}').join();
   }
 
+  /// sign request
   void sign(http.Request request) {
     request.headers['x-ms-date'] = HttpDate.format(DateTime.now());
     request.headers['x-ms-version'] = '2016-05-31';
@@ -154,7 +175,7 @@ class AzureStorageClient {
 
   /// Get Blob.
   Future<http.StreamedResponse> getBlob(String path) async {
-    var request = http.Request('GET', uri(path: path));
+    var request = http.Request('GET', _uri(path: path));
     sign(request);
     return request.send();
   }
@@ -167,7 +188,7 @@ class AzureStorageClient {
       Uint8List bodyBytes,
       String contentType,
       BlobType type = BlobType.BlockBlob}) async {
-    var request = http.Request('PUT', uri(path: path));
+    var request = http.Request('PUT', _uri(path: path));
     request.headers['x-ms-blob-type'] =
         type.toString() == 'BlobType.AppendBlob' ? 'AppendBlob' : 'BlockBlob';
     if (contentType != null) {
@@ -202,7 +223,7 @@ class AzureStorageClient {
   Future<void> appendBlock(String path,
       {String body, Uint8List bodyBytes}) async {
     var request = http.Request(
-        'PUT', uri(path: path, queryParameters: {'comp': 'appendblock'}));
+        'PUT', _uri(path: path, queryParameters: {'comp': 'appendblock'}));
     if (bodyBytes != null) {
       request.bodyBytes = bodyBytes;
     } else if (body != null) {
@@ -218,4 +239,55 @@ class AzureStorageClient {
     var message = await res.stream.bytesToString();
     throw AzureStorageException(message, res.statusCode, res.headers);
   }
+}
+
+/// Azure storage client with limit access.
+/// For download, it requires full public url of the file
+/// For upload, it uses SAS url from server api with format: https://{storageAccount}.blob.core.windows.net/{container}/{blob_path}?signature
+class AzureStorageUntrustedClient extends Storage {
+  HTTP http;
+  AzureStorageUntrustedClient(Map config) : super(config) {
+    http = HTTP(null, config);
+  }
+  @override
+  Future<void> writeToRemote(TransferMap transferMap) async {
+    if (await Sync.shared.userSession.hasSignedIn() != true) {
+      Sync.shared.logger?.i('Guest user does not have upload permission');
+      return;
+    }
+
+    final sasUri = await Sync.shared.userSession.storageToken;
+    if (sasUri?.isNotEmpty != true) {
+      throw Exception('sas uri must not be null');
+    }
+
+    final uri = Uri.parse(sasUri);
+    final query = uri.query; // include signature
+    final domain = sasUri.replaceFirst('?$query', '');
+    final uploadPath = '$domain/${transferMap.remotePath}?$query';
+    var localFile = File(transferMap.localPath);
+    http.headers = {
+      'x-ms-blob-type': 'BlockBlob',
+      HttpHeaders.contentLengthHeader: localFile.lengthSync(),
+    };
+
+    // upload file by stream
+    await http.put(
+      uploadPath,
+      data: localFile.openRead(),
+    );
+  }
+}
+
+enum BlobType {
+  BlockBlob,
+  AppendBlob,
+}
+
+/// Azure Storage Exception
+class AzureStorageException implements Exception {
+  final String message;
+  final int statusCode;
+  final Map<String, String> headers;
+  AzureStorageException(this.message, this.statusCode, this.headers);
 }

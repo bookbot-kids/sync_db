@@ -10,19 +10,28 @@ const createdKey = 'createdAt';
 const deletedKey = 'deletedAt';
 
 abstract class UserSession {
+  /// set login token. In azure b2c, it's id token
   Future<void> setToken(String token, {bool waitingRefresh = false});
 
+  /// Get new token
   Future<void> refresh();
 
+  /// provide list of table with read/write permission
   Future<List<ServicePoint>> servicePoints();
 
+  /// provide permission for a table
   Future<List<ServicePoint>> servicePointsForTable(String table);
 
   Future<bool> hasSignedIn();
 
+  /// user role
   String get role;
 
+  /// sign out user & clear all private keys
   Future<void> signout();
+
+  /// provide storage token to upload/download file
+  Future<String> get storageToken;
 }
 
 abstract class Database {

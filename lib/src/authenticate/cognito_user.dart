@@ -316,6 +316,9 @@ class CognitoUserSession extends UserSession {
 
     return user;
   }
+
+  @override
+  Future<String> get storageToken => throw UnimplementedError();
 }
 
 class CognitoUserInfo {
