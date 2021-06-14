@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:ntp/ntp.dart';
 import 'package:universal_platform/universal_platform.dart';
 
@@ -39,6 +40,25 @@ class NetworkTime {
     }
 
     return DateTime.now().toLocal().add(Duration(milliseconds: offsetValue));
+  }
+
+  /// Get current datetime base on server offset
+  DateTime get timeNow {
+    if (UniversalPlatform.isWeb) {
+      // not support for web yet
+      return DateTime.now();
+    }
+
+    if (_offset == null) {
+      return DateTime.now();
+    }
+
+    return DateTime.now().toLocal().add(Duration(milliseconds: _offset));
+  }
+
+  @visibleForTesting
+  void setOffsetForTesting(int offset) {
+    _offset = offset;
   }
 
   /// Reset the offset
