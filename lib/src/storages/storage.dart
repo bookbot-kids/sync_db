@@ -1,6 +1,7 @@
 import 'package:connectivity/connectivity.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
+import 'package:sync_db/src/utils/file_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
 import 'package:universal_io/io.dart';
@@ -92,7 +93,7 @@ class Storage {
               transfer.localPath.substring(0, transfer.localPath.length - 1);
           final localFile = File(transfer.localPath);
           if (await localFile.exists()) {
-            await File(transfer.localPath).rename(finalPath);
+            await FileUtils.moveFile(transfer.localPath, finalPath);
           }
         }
         await transfer.database.deleteLocal(transfer.tableName, transfer.id);
