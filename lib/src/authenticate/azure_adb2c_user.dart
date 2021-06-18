@@ -61,6 +61,12 @@ class AzureADB2CUserSession extends UserSession {
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
     final prefs = await _sharePrefInstance;
+    // migrate data from old keys
+    if (!prefs.containsKey(_userRoleKey) &&
+        prefs.getString('user_role') != null) {
+      await prefs.setString(_userRoleKey, prefs.getString('user_role'));
+    }
+
     var refreshToken = prefs.getString(_refreshTokenKey);
     role = prefs.getString(_userRoleKey) ?? _defaultRole;
 
