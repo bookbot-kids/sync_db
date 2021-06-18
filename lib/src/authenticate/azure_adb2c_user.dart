@@ -14,6 +14,17 @@ class AzureADB2CUserSession extends UserSession {
     _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
+    // try to load role first
+    _sharePrefInstance.then((prefs) {
+      if (!prefs.containsKey(_userRoleKey) &&
+          prefs.getString('user_role') != null) {
+        prefs.setString(_userRoleKey, prefs.getString('user_role'));
+        role = prefs.getString('user_role');
+      } else {
+        role = prefs.getString(_userRoleKey) ?? _defaultRole;
+      }
+    });
+
     if (autoRefresh) {
       // Start the process of getting tokens
       _refreshed = refresh();
