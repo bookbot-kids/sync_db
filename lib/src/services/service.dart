@@ -83,6 +83,7 @@ abstract class Service {
 
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
+    if (records.isEmpty) return;
     final database = Sync.shared.local;
     //var lastTimestamp = DateTime.utc(0);
 
