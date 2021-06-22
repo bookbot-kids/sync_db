@@ -93,8 +93,11 @@ abstract class Service {
       if (service.access == Access.all) {
         final query =
             Query(service.name).where({statusKey: SyncStatus.updated.name});
-        var records = await database.queryMap(query, transaction: transaction);
-        transientRecords = {for (var record in records) record[idKey]: record};
+        final recentUpdatedRecords =
+            await database.queryMap(query, transaction: transaction);
+        transientRecords = {
+          for (var record in recentUpdatedRecords) record[idKey]: record
+        };
       }
 
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
