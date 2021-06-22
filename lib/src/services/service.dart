@@ -27,7 +27,10 @@ abstract class Service {
 
     var futures = <Future>[];
     for (final servicePoint in servicePoints) {
-      futures.add(readServicePoint(servicePoint));
+      //futures.add(readServicePoint(servicePoint));
+      // Test to see if this makes sync more manageable for lower performance devices
+      // TODO: depending on device if slower do this, otherwise add to futures
+      await readServicePoint(servicePoint);
       futures.add(writeServicePoint(servicePoint));
     }
     await Future.wait(futures);
