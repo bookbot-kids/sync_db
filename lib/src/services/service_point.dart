@@ -11,6 +11,9 @@ class ServicePoint extends Model {
   String token;
 
   @override
+  SyncPermission get syncPermission => SyncPermission.read;
+
+  @override
   Map<String, dynamic> get map {
     var map = super.map;
     map['name'] = name;

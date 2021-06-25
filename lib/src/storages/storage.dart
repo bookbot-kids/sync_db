@@ -233,6 +233,9 @@ class TransferMap extends Model {
   String get tableName => 'TransferMap';
 
   @override
+  SyncPermission get syncPermission => SyncPermission.read;
+
+  @override
   Map<String, dynamic> get map {
     var map = super.map;
     map['localPath'] = localPath;

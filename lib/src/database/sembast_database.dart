@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:sync_db/src/utils/string_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,70 +14,102 @@ import 'package:sembast/src/utils.dart' as sembast_utils;
 class SembastDatabase extends Database {
   SembastDatabase._privateConstructor();
   static SembastDatabase shared = SembastDatabase._privateConstructor();
+  static final appVersionKey = 'app_version';
 
   final Map<String, sembast.Database> _database = {};
 
   /// Opens up each table connected to each model, which is stored in a separate file.
   /// `dbAssetPath` the asset path to import database
+  /// `version` is the app version, it needs to be changed when update app to copy snapshot
   Future<void> init(List<String> tableNames,
-      {String dbAssetPath = 'assets/db'}) async {
+      {String dbAssetPath = 'assets/db',
+      String version,
+      List<String> manifest}) async {
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
     tableNames.add(TransferMap().tableName);
 
-    if (UniversalPlatform.isWeb) {
-      // Open all databases for web
-      final futures = <Future>[];
-      for (final tableName in tableNames) {
-        futures.add(initTable(tableName, dbAssetPath: dbAssetPath));
-      }
-      await Future.wait(futures);
-    } else {
+    var dir;
+    if (!UniversalPlatform.isWeb) {
       // get document directory
       final documentPath = await getApplicationSupportDirectory();
       await documentPath.create(recursive: true);
+      dir = documentPath.path;
+    }
 
-      // Open all databases
+    await _copySnapshotIfNeeded(dir, dbAssetPath, version, manifest);
+
+    // Open all databases
+    final futures = <Future>[];
+    for (final tableName in tableNames) {
+      futures.add(initTable(tableName, dir: dir));
+    }
+
+    await Future.wait(futures);
+  }
+
+  /// Copy snapshot files from assets to application folder whenever app version is changed
+  Future<void> _copySnapshotIfNeeded(String databaseDir, String dbAssetPath,
+      String version, List<String> manifest) async {
+    if (dbAssetPath?.isNotEmpty != true ||
+        version?.isNotEmpty != true ||
+        manifest?.isNotEmpty != true) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final oldVersion = prefs.getString(appVersionKey);
+    if (oldVersion != version) {
+      // do copy from asset
       final futures = <Future>[];
-      for (final tableName in tableNames) {
-        futures.add(initTable(tableName,
-            path: documentPath.path, dbAssetPath: dbAssetPath));
+      for (final asset in manifest) {
+        if (asset.startsWith(dbAssetPath)) {
+          final fileName = basename(asset);
+          final targetPath =
+              databaseDir == null ? fileName : join(databaseDir, fileName);
+          futures.add(_copySnapshotTable(asset, targetPath));
+        }
       }
 
       await Future.wait(futures);
+      await prefs.setString(appVersionKey, version);
+    }
+  }
+
+  Future<void> _copySnapshotTable(String assetPath, String targetPath) async {
+    try {
+      final assetContent = await rootBundle.load(assetPath);
+      final targetFile = File(targetPath);
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+      final bytes = assetContent.buffer
+          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
+      await targetFile.writeAsBytes(bytes);
+    } catch (e, stacktrace) {
+      Sync.shared.logger
+          ?.e('Copy snapshot $assetPath failed $e', e, stacktrace);
     }
   }
 
   /// Config a table if it doesn't
   @override
-  Future<void> initTable(String tableName,
-      {String path, String dbAssetPath = 'assets/db'}) async {
+  Future<void> initTable(String tableName, {String dir}) async {
     if (_database[tableName] == null) {
       if (UniversalPlatform.isWeb) {
         final dbPath = _generateDatabasePath(tableName);
-        if (StringUtils.isNotNullOrEmpty(dbAssetPath) &&
-            !File(dbPath).existsSync()) {
-          // do the import for that table when empty
-          await _import(tableName, dbPath, dbAssetPath);
-        }
-
         Sync.shared.logger?.d('model $tableName has path $dbPath');
         shared._database[tableName] =
             await databaseFactoryWeb.openDatabase(dbPath);
       } else {
-        if (path == null) {
+        if (dir == null) {
           final documentPath = await getApplicationSupportDirectory();
           await documentPath.create(recursive: true);
-          path = documentPath.path;
+          dir = documentPath.path;
         }
 
-        final dbPath = _generateDatabasePath(tableName, path: path);
+        final dbPath = _generateDatabasePath(tableName, dir: dir);
         Sync.shared.logger?.d('model $tableName has path $dbPath');
-        if (StringUtils.isNotNullOrEmpty(dbAssetPath) &&
-            !File(dbPath).existsSync()) {
-          // do the import for that table when empty
-          await _import(tableName, dbPath, dbAssetPath);
-        }
 
         shared._database[tableName] =
             await databaseFactoryIo.openDatabase(dbPath);
@@ -93,30 +125,10 @@ class SembastDatabase extends Database {
     return _database[tableName];
   }
 
-  /// Import snapshot data from asset if it exists
-  Future<void> _import(String table, String dest, String assetPath) async {
-    final assetContent = await _loadAsset('$assetPath/$table.db');
-    if (assetContent != null) {
-      Sync.shared.logger?.d('Copy asset $table table to path $dest');
-      final bytes = assetContent.buffer
-          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
-      await File(dest).writeAsBytes(bytes);
-    }
-  }
-
-  /// Read from asset if exist
-  Future<dynamic> _loadAsset(String path) async {
-    try {
-      return await rootBundle.load(path);
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Get database file path
-  static String _generateDatabasePath(String table, {String path}) {
+  static String _generateDatabasePath(String table, {String dir}) {
     var fileName = table + '.db';
-    return path == null ? fileName : join(path, fileName);
+    return dir == null ? fileName : join(dir, fileName);
   }
 
   /// Get all records in the table. Disable stream listener if `listenable = false`
