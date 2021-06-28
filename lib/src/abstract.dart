@@ -76,6 +76,11 @@ class Notifier<T> extends ChangeNotifier {
     _value = value;
     notifyListeners();
   }
+  
+  // Only update value without call [notifyListeners]
+  void updateValue(T value) {
+    _value = value;
+  }
 
   void refresh() {
     notifyListeners();
