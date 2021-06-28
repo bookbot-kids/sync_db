@@ -29,6 +29,11 @@ class Storage {
   var _initRetryTime = 1;
   Map _config;
 
+  ///
+  /// Manage all file in memory to prevent re-download.
+  ///
+  final _transferrings = <String, TransferMap>{};
+
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String, int> _retryDelayedMap = {};
 
@@ -44,13 +49,14 @@ class Storage {
       {retry = false}) async {
     var futures = <Future>[];
     final transferMaps = await TransferMap.all();
+    transferMaps.forEach((element) {
+      _transferrings[element.localPath] = element;
+    });
+
     for (final path in paths) {
       // Check if already in transfer
-      final existing = transferMaps.firstWhere(
-          (element) =>
-              element.localPath == path.localPath ||
-              element.localPath == path.localPath + '~',
-          orElse: () => null);
+      var existing = _transferrings[path.localPath] ??=
+          _transferrings[path.localPath + '~'];
       if (existing != null) {
         final now = await NetworkTime.shared.now;
         final past = now.subtract(Duration(seconds: _transferTimeout));
@@ -67,6 +73,7 @@ class Storage {
 
       final transfer = TransferMap(paths: path, transferStatus: status);
       await transfer.save(syncToService: false);
+      _transferrings[path.localPath] = transfer;
 
       futures.add(_transfer(transfer, retry: retry));
     }
@@ -97,6 +104,7 @@ class Storage {
           }
         }
         await transfer.database.deleteLocal(transfer.tableName, transfer.id);
+        _transferrings.remove(transfer.localPath);
         _retryDelayedMap.remove(transfer.id);
       } catch (e, stackTrace) {
         // don't log error again on retry
