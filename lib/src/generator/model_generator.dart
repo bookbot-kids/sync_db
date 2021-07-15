@@ -144,8 +144,8 @@ class ModelGenerator extends Generator {
         final regex = RegExp('<[a-zA-Z0-9, ]*>');
         var match = regex.firstMatch(type.replaceFirst('Map', ''));
         if (match != null) {
-          var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
-          final types = listType.split(',');
+          var mapTypes = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          final types = mapTypes.split(',');
           final type1 = types[0].trim();
           final type2 = types[1].trim();
           // custom map type, atm only support Enum as key
@@ -160,7 +160,7 @@ class ModelGenerator extends Generator {
               });
             ''');
             continue;
-          } else if (primitiveTypes.contains(listType)) {
+          } else if (primitiveTypes.contains(type1)) {
             getterFields.add("map['${name}'] = ${name};");
             setterFields.add(
                 "${name} = Map<$type1,$type2>.from(map['${name}'] ?? <$type1,$type2>{});");
