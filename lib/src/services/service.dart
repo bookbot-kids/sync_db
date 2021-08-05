@@ -23,7 +23,10 @@ abstract class Service {
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
     // TODO: manage exceptions here
     // If authentication error - log it - it's not supposed to happen
-    // Connectivity - do a connectivity check each minute. If can connect to google, but not our servers - log this
+    // Connectivity - once connectivity is lost, do a connectivity check each minute.
+    // If it is flagged as having no connectivity - do not allow it to start another network process
+    // Once connectivity is returned restart the sync here, and for storage
+    // If can connect to google, but not our servers - log this
 
     var futures = <Future>[];
     for (final servicePoint in servicePoints) {
