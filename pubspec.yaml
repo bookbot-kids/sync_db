@@ -24,6 +24,7 @@ dependencies:
   pool: ^1.5.0
   random_string: ^2.1.0
   connectivity: 3.0.3
+  queue: ^3.1.0
 
   robust_http:
     git:

@@ -13,6 +13,8 @@ abstract class UserSession {
   /// set login token. In azure b2c, it's id token
   Future<void> setToken(String token, {bool waitingRefresh = false});
 
+  Future<String> get token;
+
   /// Get new token
   Future<void> refresh();
 
@@ -76,7 +78,7 @@ class Notifier<T> extends ChangeNotifier {
     _value = value;
     notifyListeners();
   }
-  
+
   // Only update value without call [notifyListeners]
   void updateValue(T value) {
     _value = value;

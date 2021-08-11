@@ -319,6 +319,10 @@ class CognitoUserSession extends UserSession {
 
   @override
   Future<String> get storageToken => throw UnimplementedError();
+
+  @override
+  // TODO: implement token
+  Future<String> get token => throw UnimplementedError();
 }
 
 class CognitoUserInfo {

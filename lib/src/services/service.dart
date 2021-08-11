@@ -1,3 +1,4 @@
+import 'package:queue/queue.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:pool/pool.dart';
@@ -7,11 +8,33 @@ abstract class Service {
   final pool = Pool(8, timeout: Duration(seconds: 60));
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
+  Queue _syncQueue;
+
+  Service(Map config) {
+    _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
+  }
 
   /// Sync everything
-  Future<void> sync() async {
+  Future<void> sync({bool syncDelegate = true}) async {
     var servicePoints = await Sync.shared.userSession.servicePoints();
     await _syncServicePoints(servicePoints);
+    if (syncDelegate) {
+      await syncDelegates();
+    }
+  }
+
+  // Sync external data from delegates
+  Future<void> syncDelegates() async {
+    for (final delegate in Sync.shared.delegates) {
+      final token = await Sync.shared.userSession.token;
+      final records = await delegate.syncRead(token);
+      // create a fake service point with read only permission to save records
+      final servicePoint = ServicePoint(
+        name: delegate.tableName,
+        access: Access.read,
+      );
+      await saveLocalRecords(servicePoint, records);
+    }
   }
 
   /// Sync a table to service
@@ -28,12 +51,14 @@ abstract class Service {
     // Once connectivity is returned restart the sync here, and for storage
     // If can connect to google, but not our servers - log this
 
-    var futures = <Future>[];
     for (final servicePoint in servicePoints) {
-      futures.add(readServicePoint(servicePoint));
-      futures.add(writeServicePoint(servicePoint));
+      // ignore: unawaited_futures
+      _syncQueue.add(() => readServicePoint(servicePoint));
+      // ignore: unawaited_futures
+      _syncQueue.add(() => writeServicePoint(servicePoint));
     }
-    await Future.wait(futures);
+
+    await _syncQueue.onComplete;
   }
 
   /// Write created or updated records in this table

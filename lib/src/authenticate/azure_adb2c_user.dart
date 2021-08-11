@@ -11,7 +11,11 @@ class AzureADB2CUserSession extends UserSession {
   /// `autoRefresh` auto refresh token
   AzureADB2CUserSession(Map<String, dynamic> config,
       {bool autoRefresh = true}) {
-    _http = HTTP(config['azureBaseUrl'], {'httpRetries': 1});
+    _http = HTTP(config['azureBaseUrl'], {
+      'httpRetries': 1,
+      'connectTimeout': config['connectTimeout'],
+      'receiveTimeout': config['receiveTimeout'],
+    });
     _azureKey = config['azureKey'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     // try to load role first
@@ -251,4 +255,8 @@ class AzureADB2CUserSession extends UserSession {
     _sharePref ??= await SharedPreferences.getInstance();
     return _sharePref;
   }
+
+  @override
+  Future<String> get token async =>
+      (await _sharePrefInstance).getString(_refreshTokenKey);
 }

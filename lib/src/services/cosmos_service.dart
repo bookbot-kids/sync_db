@@ -6,7 +6,7 @@ import 'package:universal_io/io.dart';
 class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `cosmosDatabaseAccount` name, and database id `cosmosDatabaseId` in the config map
-  CosmosService(Map config) {
+  CosmosService(Map config) : super(config) {
     _cosmosRetries = config['cosmosRetries'] ?? 3;
     final httpConfig = {'httpRetries': 1};
     _http = HTTP(
