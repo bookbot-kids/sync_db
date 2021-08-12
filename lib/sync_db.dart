@@ -14,3 +14,4 @@ export 'src/authenticate/cognito_user.dart';
 export 'src/model.dart';
 export 'src/storages/storage.dart';
 export 'src/storages/azure_storage.dart';
+export 'src/generator/model_annotation.dart';
