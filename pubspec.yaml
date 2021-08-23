@@ -37,3 +37,5 @@ dev_dependencies:
 
 dependency_overrides:
   path_provider: ^2.0.2
+  http: ^0.13.3
+  http_parser: ^4.0.0
