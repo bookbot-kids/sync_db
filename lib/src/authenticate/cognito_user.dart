@@ -215,6 +215,30 @@ class CognitoUserSession extends UserSession {
     return result;
   }
 
+  Future<CognitoUserInfo> signInOrSignUpPassword(String email, String password,
+      {Function signupCallback}) async {
+    CognitoUserInfo result;
+    try {
+      result = await signUp(email, password, email);
+      if (signupCallback != null) {
+        signupCallback();
+      }
+
+      result = await loginPassword(email, password);
+      isNewUser = true;
+    } on CognitoClientException catch (e) {
+      if (e.code == 'UsernameExistsException') {
+        // sign in
+        result = await login(email);
+        isNewUser = false;
+      } else {
+        rethrow;
+      }
+    }
+
+    return result;
+  }
+
   Future<String> refreshRole() async {
     await refresh();
     var newRole = role;
@@ -240,7 +264,8 @@ class CognitoUserSession extends UserSession {
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
     final authDetails = AuthenticationDetails(
-        username: email, authParameters: [], validationData: {});
+        username: email,
+        authParameters: [], validationData: {});
 
     try {
       _session = await _cognitoUser.initiateAuth(authDetails);
@@ -264,9 +289,9 @@ class CognitoUserSession extends UserSession {
 
     final authDetails = AuthenticationDetails(
         username: email,
+        password: password,
         authParameters: [],
-        validationData: {},
-        password: password);
+        validationData: {});
 
     try {
       _session = await _cognitoUser.authenticateUser(authDetails);
