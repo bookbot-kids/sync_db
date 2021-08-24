@@ -229,7 +229,7 @@ class CognitoUserSession extends UserSession {
     } on CognitoClientException catch (e) {
       if (e.code == 'UsernameExistsException') {
         // sign in
-        result = await login(email);
+        result = await loginPassword(email, password);
         isNewUser = false;
       } else {
         rethrow;
