@@ -285,7 +285,6 @@ class CognitoUserSession extends UserSession {
   Future<CognitoUserInfo> loginPassword(String email, String password) async {
     email = email.toLowerCase();
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
-    _cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
 
     final authDetails = AuthenticationDetails(
         username: email,
