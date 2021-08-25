@@ -293,7 +293,7 @@ class CognitoUserSession extends UserSession {
         validationData: {});
 
     try {
-      _session = await _cognitoUser.authenticateUser(authDetails);
+      _session = await _cognitoUser.initiateAuth(authDetails);
     } on CognitoUserCustomChallengeException catch (e) {
       // custom challenage
       print('custom challenage $e');
