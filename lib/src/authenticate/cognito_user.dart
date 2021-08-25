@@ -290,7 +290,10 @@ class CognitoUserSession extends UserSession {
     final authDetails = AuthenticationDetails(
         username: email,
         password: password,
-        authParameters: [],
+        authParameters: [
+          if (customAuth) AttributeArg(name: 'SRP_A', value: password),
+          if (customAuth) AttributeArg(name: 'CHALLENGE_NAME', value: 'SRP_A')
+        ],
         validationData: {});
 
     try {
