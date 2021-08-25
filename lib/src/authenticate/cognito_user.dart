@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
+import 'package:amazon_cognito_identity_dart_2/src/authentication_helper.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:random_string/random_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -264,8 +265,7 @@ class CognitoUserSession extends UserSession {
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
     final authDetails = AuthenticationDetails(
-        username: email,
-        authParameters: [], validationData: {});
+        username: email, authParameters: [], validationData: {});
 
     try {
       _session = await _cognitoUser.initiateAuth(authDetails);
@@ -283,15 +283,20 @@ class CognitoUserSession extends UserSession {
 
   /// Login user with email and password
   Future<CognitoUserInfo> loginPassword(String email, String password,
-  {bool customAuth = false }) async {
+      {bool customAuth = false}) async {
     email = email.toLowerCase();
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
+    final authenticationHelper = AuthenticationHelper(
+      _userPool.getUserPoolId().split('_')[1],
+    );
+    final srpA = authenticationHelper.getLargeAValue();
     final authDetails = AuthenticationDetails(
         username: email,
         password: password,
         authParameters: [
-          if (customAuth) AttributeArg(name: 'SRP_A', value: password),
+          if (customAuth)
+            AttributeArg(name: 'SRP_A', value: srpA.toRadixString(16)),
           if (customAuth) AttributeArg(name: 'CHALLENGE_NAME', value: 'SRP_A')
         ],
         validationData: {});
