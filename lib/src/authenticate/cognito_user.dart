@@ -224,12 +224,12 @@ class CognitoUserSession extends UserSession {
         signupCallback();
       }
 
-      result = await loginPassword(email, password);
+      result = await loginPassword(email, password, customAuth: true);
       isNewUser = true;
     } on CognitoClientException catch (e) {
       if (e.code == 'UsernameExistsException') {
         // sign in
-        result = await loginPassword(email, password);
+        result = await loginPassword(email, password, customAuth: true);
         isNewUser = false;
       } else {
         rethrow;
