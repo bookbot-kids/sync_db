@@ -265,7 +265,8 @@ class CognitoUserSession extends UserSession {
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
     final authDetails = AuthenticationDetails(
-        username: email, authParameters: [], validationData: {});
+        username: email,
+        authParameters: [], validationData: {});
 
     try {
       _session = await _cognitoUser.initiateAuth(authDetails);
@@ -283,31 +284,18 @@ class CognitoUserSession extends UserSession {
 
   /// Login user with email and password
   Future<CognitoUserInfo> loginPassword(String email, String password,
-      {bool customAuth = false}) async {
+  {bool customAuth = false }) async {
     email = email.toLowerCase();
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
-    final authenticationHelper = AuthenticationHelper(
-      _userPool.getUserPoolId().split('_')[1],
-    );
-    final srpA = authenticationHelper.getLargeAValue();
     final authDetails = AuthenticationDetails(
         username: email,
         password: password,
-        authParameters: [
-          if (customAuth)
-            AttributeArg(name: 'SRP_A', value: srpA.toRadixString(16)),
-          if (customAuth) AttributeArg(name: 'CHALLENGE_NAME', value: 'SRP_A')
-        ],
-        validationData: {});
+        authParameters: [], validationData: {});
 
     try {
-      if (customAuth) {
-        _session = await _cognitoUser.initiateAuth(authDetails);
-      } else {
-        _cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
-        _session = await _cognitoUser.authenticateUser(authDetails);
-      }
+      _cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
+      _session = await _cognitoUser.authenticateUser(authDetails);
     } on CognitoUserCustomChallengeException catch (e) {
       // custom challenage
       print('custom challenage $e');
