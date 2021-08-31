@@ -21,33 +21,43 @@ class CosmosService extends Service {
 
   final _apiVersion = '2018-12-31';
 
+  static const _cosmosLastUpdatedKey = '_ts';
+
   /// Get records from online service and send to _saveLocalRecords
   /// When accessing a web service will use the _pool to limit accesses at the same time
   /// Save the response timestamp to ServicePoint.from
   @override
   Future<void> readFromService(ServicePoint servicePoint) async {
     // query records in cosmos that have updated timestamp > given timestamp
-    final query = 'SELECT * FROM c WHERE c.updatedAt > ${servicePoint.from}';
+    final query =
+        'SELECT * FROM c WHERE c.updatedAt > ${servicePoint.from} ORDER BY c.updatedAt ASC';
     var paginationToken;
 
     // Query the document with paging
     // loop while we have a `paginationToken`
     do {
-      var response = await _queryDocuments(servicePoint, query,
+      final response = await _queryDocuments(servicePoint, query,
           paginationToken: paginationToken);
+      final docs = response['response'] ?? [];
 
-      await saveLocalRecords(servicePoint, response['response']);
+      await saveLocalRecords(servicePoint, docs);
       paginationToken = response['paginationToken'];
       Sync.shared.logger?.i(
           'readFromService ${servicePoint.name}(${response['response']?.length}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
-      // Put response timestamp in servicePoint
-      try {
-        final serverTimestamp = HttpDate.parse(response['responseTimestamp'])
-            .millisecondsSinceEpoch;
-        if (serverTimestamp > 0) servicePoint.from = serverTimestamp;
+      if (docs.isNotEmpty) {
+        var lastTimestamp = 0;
+        if (docs.last[updatedKey] is int) {
+          lastTimestamp = docs.last[updatedKey];
+        } else if (docs.last[_cosmosLastUpdatedKey] is int) {
+          // some table don't have the updatedAt key, then we use _ts
+          lastTimestamp = docs.last[_cosmosLastUpdatedKey];
+        }
+
+        Sync.shared.logger?.i(
+            'readFromService ${servicePoint.name} lastTimestamp $lastTimestamp');
+
+        if (lastTimestamp > 0) servicePoint.from = lastTimestamp;
         await servicePoint.save(syncToService: false);
-      } catch (e) {
-        Sync.shared.logger?.e('Parse response Date stamp error', e);
       }
     } while (paginationToken != null);
   }
