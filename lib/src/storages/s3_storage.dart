@@ -1,12 +1,11 @@
-import 'package:path/path.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
-class S3Storage extends Storage {
+class S3StorageUntrustedClient extends Storage {
   HTTP http;
 
-  S3Storage(Map config) : super(config) {
+  S3StorageUntrustedClient(Map config) : super(config) {
     http = HTTP(config['s3UploadRemoteUrl'], config);
   }
 
@@ -17,10 +16,10 @@ class S3Storage extends Storage {
       return;
     }
     // upload file by stream
-    await uploadFileToS3Bucket(transferMap.localPath, transferMap.remotePath);
+    await _uploadFileToS3Bucket(transferMap.localPath, transferMap.remotePath);
   }
 
-  Future<dynamic> uploadFileToS3Bucket(
+  Future<dynamic> _uploadFileToS3Bucket(
       String localPath, String remotePath) async {
     var localFile = File(localPath);
     if (localFile.existsSync()) {
