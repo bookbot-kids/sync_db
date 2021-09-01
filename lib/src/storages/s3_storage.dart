@@ -19,12 +19,11 @@ class S3StorageUntrustedClient extends Storage {
     await _uploadFileToS3Bucket(transferMap.localPath, transferMap.remotePath);
   }
 
-  Future<dynamic> _uploadFileToS3Bucket(
+  Future<void> _uploadFileToS3Bucket(
       String localPath, String remotePath) async {
     var localFile = File(localPath);
     if (localFile.existsSync()) {
-      return await http.put('/$remotePath', data: localFile.openRead());
+      await http.put('/$remotePath', data: localFile.openRead());
     }
-    return null;
   }
 }
