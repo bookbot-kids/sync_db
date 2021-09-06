@@ -1,11 +1,16 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
+import 'package:analyzer/dart/element/type.dart';
+
+import 'model_annotation.dart';
 
 T cast<T>(x) => x is T ? x : null;
 
 class ModelGenerator extends Generator {
   static final primitiveTypes = ['int', 'double', 'String', 'bool', 'num'];
+  static final _propertyTypeChecker =
+      const TypeChecker.fromRuntime(ModelProperty);
 
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
@@ -67,7 +72,6 @@ class ModelGenerator extends Generator {
 
     for (var field in element.fields) {
       var name = field.name;
-      var type = field.type?.getDisplayString(withNullability: false);
 
       // ignore static, private fields or property start with $
       if (field.isStatic || name.startsWith('_') || name.startsWith('\$')) {
@@ -80,9 +84,42 @@ class ModelGenerator extends Generator {
         continue;
       }
 
+      var type = field.type.element.displayName;
+      var isEnumParam = false;
+      if (_propertyTypeChecker.hasAnnotationOfExact(field,
+          throwOnUnresolved: false)) {
+        final name = _propertyTypeChecker
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            .getField('name')
+            ?.toStringValue();
+        type = _propertyTypeChecker
+                .firstAnnotationOfExact(field, throwOnUnresolved: false)
+                .getField('type')
+                ?.toStringValue() ??
+            field.type.element.displayName;
+        isEnumParam = _propertyTypeChecker
+                .firstAnnotationOfExact(field, throwOnUnresolved: false)
+                .getField('isEnumParam')
+                ?.toBoolValue() ??
+            false;
+        print('annotation name $name, type $type');
+      } else {
+        // try to get generic type if property does not have annotation
+        final genericTypes = _getGenericTypes(field.type);
+        if (genericTypes.isNotEmpty && field.type.isDartCoreList) {
+          type = 'List<${genericTypes.first.type}>';
+        } else if (genericTypes.isNotEmpty && field.type.isDartCoreSet) {
+          type = 'Set<${genericTypes.first.type}>';
+        } else if (genericTypes.length > 1 && field.type.isDartCoreMap) {
+          type =
+              'Map<${genericTypes.elementAt(0).type}, ${genericTypes.elementAt(1).type}>';
+        }
+      }
+
       ClassElement typeClass = field.type.element;
       // working on enum
       if (typeClass.isEnum) {
+        final type = typeClass.displayName;
         getterFields
             .add("map['${name}'] = EnumToString.convertToString(${name});");
         setterFields.add(
@@ -97,8 +134,15 @@ class ModelGenerator extends Generator {
         var match = regex.firstMatch(type);
         if (match != null) {
           var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
-          // custom list type
-          if (_isCustomType(listType)) {
+          // enum list
+          if (isEnumParam) {
+            getterFields
+                .add("map['${name}'] = EnumToString.toList(${name} ?? []);");
+            setterFields.add(
+                "${name} = EnumToString.fromList(${listType}.values, map['${name}'] ?? []);");
+            continue;
+          } else if (_isCustomType(listType)) {
+            // custom list type
             var idsName = '${name}Ids';
             getterFields
                 .add("map['$idsName'] = ${name}.map((e) => e.id).toList();");
@@ -121,8 +165,14 @@ class ModelGenerator extends Generator {
         var match = regex.firstMatch(type);
         if (match != null) {
           var setType = match.group(0).replaceAll('<', '').replaceAll('>', '');
-          // custom set type
-          if (_isCustomType(setType)) {
+          if (isEnumParam) {
+            getterFields.add(
+                "map['${name}'] = EnumToString.toList(${name}?.toList() ?? []);");
+            setterFields.add(
+                "${name} = EnumToString.fromList(${setType}.values, map['${name}'] ?? []).toSet();");
+            continue;
+          } else if (_isCustomType(setType)) {
+            // custom set type
             var idsName = '${name}Ids';
             getterFields
                 .add("map['$idsName'] = ${name}.map((e) => e.id).toList();");
@@ -259,5 +309,26 @@ class ModelGenerator extends Generator {
     }
 
     return true;
+  }
+
+  Iterable<DartType> _getGenericTypes(DartType type) {
+    return type is ParameterizedType ? type.typeArguments : const [];
+  }
+}
+
+extension $DartType on DartType {
+  String get type {
+    if (isDartCoreBool) return 'bool';
+    if (isDartCoreInt) return 'int';
+    if (isDartCoreDouble) return 'double';
+    if (isDartCoreList) return 'List';
+    if (isDartCoreMap) return 'Map';
+    if (isDartCoreNum) return 'num';
+    if (isDartCoreSet) return 'Set';
+    if (isDartCoreString) return 'String';
+    if (isDynamic) return 'dynamic';
+    if (isVoid) return 'bool';
+    if (isDartCoreIterable) return 'Iterable';
+    return name;
   }
 }

@@ -19,6 +19,7 @@ class Storage {
     _initRetryTime = config['initRetryTime'] ?? 1;
     _retryPool = Pool(config['retryPoolSize'] ?? 8);
     _delayedPool = Pool(config['delayPoolSize'] ?? 8);
+    _retryWhenNotFound = config['retryWhenNotFound'] ?? true;
   }
 
   var _pool;
@@ -28,6 +29,9 @@ class Storage {
   var _delayedPool = Pool(8);
   var _initRetryTime = 1;
   Map _config;
+
+  /// Whether to retry when the path is 404
+  var _retryWhenNotFound = true;
 
   ///
   /// Manage all file in memory to prevent re-download.
@@ -127,27 +131,30 @@ class Storage {
           }
         }
 
-        if (retry) {
-          // retry if there is error
-          if (UniversalPlatform.isWindows ||
-              await Connectivity().checkConnectivity() !=
-                  ConnectivityResult.none) {
-            // ignore: unawaited_futures
-            _delayedPool.withResource(() async => await Future.delayed(
-                        Duration(minutes: _retryDelayedMap[transfer.id]))
-                    .then((value) {
-                  Sync.shared.logger?.i('Retry transfer $transfer');
-                  _transfer(transfer, isRetrying: true, retry: true);
-                  // increase time on the next retry
-                  if (e is FileNotFoundException) {
-                    _retryDelayedMap[transfer.id] *= 5;
-                  } else {
-                    _retryDelayedMap[transfer.id] *= 2;
-                  }
-                }));
-          }
-        } else {
+        final isNotFoundError = e is FileNotFoundException ||
+            (e is UnexpectedResponseException && e.statusCode == 404);
+
+        if ((isNotFoundError && !_retryWhenNotFound) || !retry) {
           rethrow;
+        }
+
+        // retry if there is error
+        if (UniversalPlatform.isWindows ||
+            await Connectivity().checkConnectivity() !=
+                ConnectivityResult.none) {
+          // ignore: unawaited_futures
+          _delayedPool.withResource(() async => await Future.delayed(
+                      Duration(minutes: _retryDelayedMap[transfer.id]))
+                  .then((value) {
+                Sync.shared.logger?.i('Retry transfer $transfer');
+                _transfer(transfer, isRetrying: true, retry: true);
+                // increase time on the next retry
+                if (isNotFoundError) {
+                  _retryDelayedMap[transfer.id] *= 5;
+                } else {
+                  _retryDelayedMap[transfer.id] *= 2;
+                }
+              }));
         }
       }
     });
