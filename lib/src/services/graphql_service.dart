@@ -18,7 +18,7 @@ class GraphQLService extends Service {
   /// Max error retry
   int _maxRetry = 2;
 
-  GraphQLService(Map config) {
+  GraphQLService(Map config) : super(config) {
     _httpLink = HttpLink(
       config['appsyncUrl'],
     );

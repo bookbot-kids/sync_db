@@ -1,3 +1,4 @@
+import 'package:sync_db/src/services/sync_delegate.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:logger/logger.dart';
 
@@ -10,4 +11,5 @@ class Sync {
   UserSession userSession;
   Logger logger;
   Storage storage;
+  List<SyncDelegate> delegates = [];
 }
