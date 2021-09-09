@@ -11,7 +11,6 @@ import 'package:sync_db/src/services/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
 class CognitoUserSession extends UserSession {
-
   CognitoUserSession(SharedPreferences prefs, GraphQLService service,
       String clientId, String poolId) {
     _clientId = clientId;
@@ -150,6 +149,8 @@ class CognitoUserSession extends UserSession {
     userRole = role;
   }
 
+  String get email => _userInfo?.email;
+
   /// Initiate user session from local storage if present
   Future<bool> initialize() async {
     _userPool = cognito.CognitoUserPool(_awsUserPoolId, _clientId);
@@ -173,9 +174,9 @@ class CognitoUserSession extends UserSession {
     if (!isValid) {
       // try to get new session in case it's expired
       _session = await _cognitoUser.getSession();
+      return _session.isValid();
     }
-
-    return _session.isValid();
+    return true;
   }
 
   /// Get existing user from session with his/her attributes
@@ -256,7 +257,6 @@ class CognitoUserSession extends UserSession {
     return result;
   }
 
-
   Future<String> refreshRole() async {
     await refresh();
     await _resetSyncTime(role);
@@ -281,8 +281,7 @@ class CognitoUserSession extends UserSession {
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
 
     final authDetails = AuthenticationDetails(
-        username: email,
-        authParameters: [], validationData: {});
+        username: email, authParameters: [], validationData: {});
 
     try {
       _session = await _cognitoUser.initiateAuth(authDetails);
@@ -300,14 +299,15 @@ class CognitoUserSession extends UserSession {
 
   /// Login user with email and password
   Future<CognitoUserInfo> loginPassword(String email, String password,
-      {bool passAuth = false }) async {
+      {bool passAuth = false}) async {
     email = email.toLowerCase();
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
     if (passAuth) _cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
     final authDetails = AuthenticationDetails(
         username: email,
         password: password,
-        authParameters: [], validationData: {});
+        authParameters: [],
+        validationData: {});
 
     try {
       _session = await _cognitoUser.authenticateUser(authDetails);
@@ -324,15 +324,15 @@ class CognitoUserSession extends UserSession {
   }
 
   /// Sign up user
-  Future<CognitoUserInfo> signUp(String email, String password,
-      String name) async {
+  Future<CognitoUserInfo> signUp(
+      String email, String password, String name) async {
     email = email.toLowerCase();
     CognitoUserPoolData data;
     final userAttributes = [
       AttributeArg(name: 'name', value: name),
     ];
     data =
-    await _userPool.signUp(email, password, userAttributes: userAttributes);
+        await _userPool.signUp(email, password, userAttributes: userAttributes);
     isNewUser = true;
     return CognitoUserInfo(
         email: email, name: name, confirmed: data.userConfirmed);
@@ -342,8 +342,25 @@ class CognitoUserSession extends UserSession {
     _cognitoUser?.resendConfirmationCode();
   }
 
-  Future<CognitoUserInfo> answerOTPCustomChallenge(String email,
-      String answer) async {
+  Future<bool> changePassword(String oldPassword, String newPassword) {
+    return _cognitoUser?.changePassword(oldPassword, newPassword);
+  }
+
+  Future forgotPassword(String email) async {
+    email = email.toLowerCase();
+    if (!(await hasSignedIn())) {
+      _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+    }
+    return _cognitoUser.forgotPassword();
+  }
+
+  Future<bool> confirmForgotPassword(
+      String confirmationCode, String newPassword) async {
+    return _cognitoUser.confirmPassword(confirmationCode, newPassword);
+  }
+
+  Future<CognitoUserInfo> answerOTPCustomChallenge(
+      String email, String answer) async {
     _session = await _cognitoUser.sendCustomChallengeAnswer(answer);
 
     if (!_session.isValid()) {
