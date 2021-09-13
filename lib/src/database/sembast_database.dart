@@ -362,7 +362,7 @@ class SembastDatabase extends Database {
 
     final now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     map.putIfAbsent(createdKey, () => now);
-    map[updatedKey] = now;
+    map.putIfAbsent(updatedKey, () => now);
 
     final store = sembast.StoreRef<String, dynamic>.main();
     await store
