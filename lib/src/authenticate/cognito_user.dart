@@ -10,13 +10,19 @@ import 'package:sync_db/src/services/graphql_service.dart';
 import 'package:sync_db/src/services/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
 
-class CognitoUserSession extends UserSession {
+import 'cognito_auth_session.dart';
+
+enum AuthenticationType { password, passcode }
+
+class CognitoUserSession implements UserSession, CognitoAuthSession {
   CognitoUserSession(SharedPreferences prefs, GraphQLService service,
-      String clientId, String poolId) {
+      String clientId, String poolId,
+      {AuthenticationType type = AuthenticationType.password}) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
     _prefs = prefs;
+    _type = type;
   }
 
   bool isNewUser = true;
@@ -30,6 +36,7 @@ class CognitoUserSession extends UserSession {
   CognitoUserInfo _userInfo;
   cognito.CognitoUserPool _userPool;
   String userRole;
+  AuthenticationType _type;
 
   @override
   String get role {
@@ -188,73 +195,24 @@ class CognitoUserSession extends UserSession {
     if (_userInfo != null && !refresh) {
       return _userInfo;
     }
+    var attributes;
+    try {
+      attributes = await _cognitoUser.getUserAttributes();
+    } on CognitoClientException catch (e) {
+      if (e.code == 'UserNotFoundException') {
+        await _prefs.clear();
+        await signout();
+        _cognitoUser = null;
+        _session = null;
+      }
+    }
 
-    final attributes = await _cognitoUser.getUserAttributes();
     if (attributes == null) {
       return null;
     }
     _userInfo = CognitoUserInfo.fromUserAttributes(attributes);
     _userInfo.hasAccess = true;
     return _userInfo;
-  }
-
-  Future<CognitoUserInfo> signInOrSignUp(String email,
-      {Function signupCallback}) async {
-    CognitoUserInfo result;
-    try {
-      var password = randomString(20);
-      result = await signUp(email, password, email);
-      if (signupCallback != null) {
-        signupCallback();
-      }
-
-      result = await login(email);
-      isNewUser = true;
-    } on CognitoClientException catch (e) {
-      if (e.code == 'UsernameExistsException') {
-        // sign in
-        result = await login(email);
-        isNewUser = false;
-      } else {
-        rethrow;
-      }
-    }
-
-    return result;
-  }
-
-  Future<CognitoUserInfo> signInOrSignUpPassword(String email, String password,
-      {Function signupCallback}) async {
-    CognitoUserInfo result;
-    try {
-      result = await signUp(email, password, email);
-      if (signupCallback != null) {
-        signupCallback();
-      }
-      if (result.confirmed) {
-        await loginPassword(email, password);
-      }
-      isNewUser = true;
-    } on CognitoClientException catch (e) {
-      if (e.code == 'UsernameExistsException') {
-        // sign in
-        try {
-          result = await loginPassword(email, password);
-          isNewUser = false;
-        } on CognitoClientException catch (e) {
-          if (e.code == 'UserNotConfirmedException') {
-            await sendNewConfirm(email);
-            result = CognitoUserInfo(email: email, confirmed: false);
-            isNewUser = true;
-          } else {
-            rethrow;
-          }
-        }
-      } else {
-        rethrow;
-      }
-    }
-    return result;
   }
 
   Future<String> refreshRole() async {
@@ -275,30 +233,9 @@ class CognitoUserSession extends UserSession {
     }
   }
 
-  /// Login user
-  Future<CognitoUserInfo> login(String email) async {
-    email = email.toLowerCase();
-    _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
-
-    final authDetails = AuthenticationDetails(
-        username: email, authParameters: [], validationData: {});
-
-    try {
-      _session = await _cognitoUser.initiateAuth(authDetails);
-    } on CognitoUserCustomChallengeException catch (e) {
-      // custom challenage
-      print('custom challenage $e');
-    } on CognitoClientException {
-      rethrow;
-    } on Exception {
-      rethrow;
-    }
-
-    return CognitoUserInfo(email: email);
-  }
-
   /// Login user with email and password
-  Future<CognitoUserInfo> loginPassword(String email, String password,
+  @override
+  Future<CognitoUserInfo> login(String email, String password,
       {bool passAuth = false}) async {
     email = email.toLowerCase();
     _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
@@ -308,44 +245,21 @@ class CognitoUserSession extends UserSession {
         password: password,
         authParameters: [],
         validationData: {});
-
-    try {
-      _session = await _cognitoUser.authenticateUser(authDetails);
-    } on CognitoUserCustomChallengeException catch (e) {
-      // custom challenage
-      print('custom challenage $e');
-    } on CognitoClientException {
-      rethrow;
-    } on Exception {
-      rethrow;
-    }
-
+    _session = await _cognitoUser.authenticateUser(authDetails);
     return CognitoUserInfo(email: email, confirmed: true);
   }
 
-  /// Sign up user
-  Future<CognitoUserInfo> signUp(
-      String email, String password, String name) async {
-    email = email.toLowerCase();
-    CognitoUserPoolData data;
-    final userAttributes = [
-      AttributeArg(name: 'name', value: name),
-    ];
-    data =
-        await _userPool.signUp(email, password, userAttributes: userAttributes);
-    isNewUser = true;
-    return CognitoUserInfo(
-        email: email, name: name, confirmed: data.userConfirmed);
-  }
-
+  @override
   Future<void> sendNewConfirm(String email) async {
     _cognitoUser?.resendConfirmationCode();
   }
 
+  @override
   Future<bool> changePassword(String oldPassword, String newPassword) {
     return _cognitoUser?.changePassword(oldPassword, newPassword);
   }
 
+  @override
   Future forgotPassword(String email) async {
     email = email.toLowerCase();
     if (!(await hasSignedIn())) {
@@ -354,14 +268,16 @@ class CognitoUserSession extends UserSession {
     return _cognitoUser.forgotPassword();
   }
 
-  Future<bool> confirmForgotPassword(
-      String confirmationCode, String newPassword) async {
+  @override
+  Future<bool> confirmForgotPassword(String confirmationCode,
+      String newPassword) async {
     return _cognitoUser.confirmPassword(confirmationCode, newPassword);
   }
 
-  Future<CognitoUserInfo> answerOTPCustomChallenge(
-      String email, String answer) async {
-    _session = await _cognitoUser.sendCustomChallengeAnswer(answer);
+  @override
+  Future<CognitoUserInfo> confirmEmailPasscode(String email,
+      String passcode) async {
+    _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
 
     if (!_session.isValid()) {
       return null;
@@ -380,6 +296,109 @@ class CognitoUserSession extends UserSession {
 
   @override
   Future<String> get token => throw UnimplementedError();
+
+  @override
+  Future<CognitoUserInfo> signInOrSignUp(String email,
+      {String password, Function signUpSuccess}) {
+    if (_type == AuthenticationType.password) {
+      return _submitEmailPasswordAuth(
+          email, password, signUpSuccess: signUpSuccess);
+    } else {
+      return _submitCustomChallengeAuth(email, signUpSuccess: signUpSuccess);
+    }
+  }
+
+  Future<CognitoUserInfo> _submitCustomChallengeAuth(String email,
+      {Function signUpSuccess}) async {
+    CognitoUserInfo result;
+    try {
+      var password = randomString(20);
+      result = await _signUp(email, password, email);
+      signUpSuccess?.call();
+      result = await _submitCustomAuth(email);
+      isNewUser = true;
+    } on CognitoClientException catch (e) {
+      if (e.code == 'UsernameExistsException') {
+        // sign in
+        result = await _submitCustomAuth(email);
+        isNewUser = false;
+      } else {
+        rethrow;
+      }
+    }
+    return result;
+  }
+
+
+  Future<CognitoUserInfo> _submitEmailPasswordAuth(String email,
+      String password,
+      {Function signUpSuccess}) async {
+    CognitoUserInfo result;
+    try {
+      result = await _signUp(email, password, email);
+      signUpSuccess?.call();
+      if (result.confirmed) {
+        await login(email, password);
+      }
+      isNewUser = true;
+    } on CognitoClientException catch (e) {
+      if (e.code == 'UsernameExistsException') {
+        // sign in
+        try {
+          result = await login(email, password);
+          isNewUser = false;
+        } on CognitoClientException catch (e) {
+          if (e.code == 'UserNotConfirmedException') {
+            await sendNewConfirm(email);
+            result = CognitoUserInfo(email: email, confirmed: false);
+            isNewUser = true;
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        rethrow;
+      }
+    }
+    return result;
+  }
+
+  /// Sign up user
+  Future<CognitoUserInfo> _signUp(String email, String password,
+      String name) async {
+    email = email.toLowerCase();
+    CognitoUserPoolData data;
+    final userAttributes = [
+      AttributeArg(name: 'name', value: name),
+    ];
+    data =
+    await _userPool.signUp(email, password, userAttributes: userAttributes);
+    isNewUser = true;
+    return CognitoUserInfo(
+        email: email, name: name, confirmed: data.userConfirmed);
+  }
+
+
+  /// Login user with custom authentication flow
+  Future<CognitoUserInfo> _submitCustomAuth(String email) async {
+    email = email.toLowerCase();
+    _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+
+    final authDetails = AuthenticationDetails(
+        username: email, authParameters: [], validationData: {});
+
+    try {
+      _session = await _cognitoUser.initiateAuth(authDetails);
+    } on CognitoUserCustomChallengeException catch (e) {
+      // custom challenage
+      print('custom challenage $e');
+    } on CognitoClientException {
+      rethrow;
+    } on Exception {
+      rethrow;
+    }
+    return CognitoUserInfo(email: email);
+  }
 }
 
 class CognitoUserInfo {
