@@ -23,6 +23,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     _service = service;
     _prefs = prefs;
     _type = type;
+    _userRole = prefs.getString(userRoleKey);
   }
 
   bool isNewUser = true;
@@ -35,19 +36,21 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   cognito.CognitoUserSession _session;
   CognitoUserInfo _userInfo;
   cognito.CognitoUserPool _userPool;
-  String userRole;
+  String _userRole;
   AuthenticationType _type;
+
+  String get userRoleKey => '${_clientId}-userRole';
 
   @override
   String get role {
-    userRole ??= _getUserRoleInToken();
-    return userRole;
+    _userRole ??= _getUserRoleInToken();
+    return _userRole;
   }
 
   @override
   Future<void> refresh() async {
     _session = await _cognitoUser.getSession();
-    userRole = _getUserRoleInToken() ?? userRole;
+    _userRole = _getUserRoleInToken() ?? _userRole;
   }
 
   String _getUserRoleInToken() {
@@ -59,11 +62,13 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     final decoded = B64urlEncRfc7515.decodeUtf8(payload);
     Map data = jsonDecode(decoded);
     // get cognito group name
+    var role;
     if (data.containsKey('cognito:groups')) {
       var lst = data['cognito:groups'];
-      return lst.isNotEmpty ? lst.first : null;
+      role = lst.isNotEmpty ? lst.first : null;
     }
-    return null;
+    if (role != null) _prefs.setString(userRoleKey, role);
+    return role;
   }
 
   @override
@@ -115,8 +120,9 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   Future<void> signout() async {
     if (_cognitoUser != null) {
       await _cognitoUser.signOut();
+      await _cognitoUser.storage.clear();
     }
-    userRole = null;
+    _userRole = null;
     await Sync.shared.local.cleanDatabase();
   }
 
@@ -153,7 +159,8 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   String get id => _userInfo?.id;
 
   set role(String role) {
-    userRole = role;
+    _userRole = role;
+    _prefs.setString(userRoleKey, role);
   }
 
   String get email => _userInfo?.email;
