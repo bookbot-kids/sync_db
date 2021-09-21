@@ -303,7 +303,7 @@ class ModelGenerator extends Generator {
   }
 
   bool _isPrimitiveType(String typeName) {
-    return ['int', 'String', 'bool', 'double'].contains(typeName);
+    return ['int', 'String', 'bool', 'double', 'DateTime'].contains(typeName);
   }
 
   bool _isCustomType(String typeName) {
