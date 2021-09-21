@@ -234,7 +234,7 @@ class ModelGenerator extends Generator {
         // DateTime
         getterFields.add("map['${name}'] = ${name}?.millisecondsSinceEpoch;");
         setterFields.add(
-            "if(map['${name}'] is int) { DateTime.fromMillisecondsSinceEpoch(map['$name']); }");
+            "if(map['${name}'] is int) { ${name} = DateTime.fromMillisecondsSinceEpoch(map['$name']); }");
       } else {
         // the rest types
         getterFields.add("map['${name}'] = ${name};");
