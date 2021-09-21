@@ -220,15 +220,23 @@ class ModelGenerator extends Generator {
       }
 
       if (_isCustomType(type)) {
+        // custom class
         var idName = '${name}Id';
         getterFields.add("map['$idName'] = ${name}?.id;");
         setterFields.add(
             "if(map['${idName}'] != null) { ${name} = await \$${type}.find(map['${idName}']); }");
       } else if (type == 'double') {
+        //double
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add(
             "if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }");
+      } else if (type == 'DateTime') {
+        // DateTime
+        getterFields.add("map['${name}'] = ${name}?.millisecondsSinceEpoch;");
+        setterFields.add(
+            "if(map['${name}'] is int) { DateTime.fromMillisecondsSinceEpoch(map['$name']); }");
       } else {
+        // the rest types
         getterFields.add("map['${name}'] = ${name};");
         setterFields
             .add("if(map['${name}'] != null) ${name} = map['${name}'];");
