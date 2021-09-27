@@ -62,6 +62,10 @@ class AzureADB2CUserSession extends UserSession {
           .setString(_refreshTokenKey, response['token']['refresh_token']);
     }
 
+    // reset expiration
+    _tokenExpiry = DateTime.utc(0);
+
+    // get new token
     _refreshed = refresh();
     if (waitingRefresh) {
       await _refreshed;
@@ -97,11 +101,11 @@ class AzureADB2CUserSession extends UserSession {
       final mappedServicePoints = await asyncMapped;
       for (final permission in response['permissions']) {
         String tableName = permission['id'];
-        await Sync.shared.local.initTable(tableName);
-
         if (tableName.contains('-shared')) {
           tableName = tableName.split('-shared')[0];
         }
+
+        await Sync.shared.local.initTable(tableName);
 
         final servicePoint = mappedServicePoints.putIfAbsent(
             tableName, () => ServicePoint(name: tableName));
