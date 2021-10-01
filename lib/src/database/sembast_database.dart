@@ -397,16 +397,24 @@ class SembastDatabase extends Database {
 
   @override
   Future<void> cleanDatabase() async {
-    for (var tableName in _database.keys) {
+    final servicePoints = await ServicePoint.all();
+    final tablesToClear = <String>{};
+    tablesToClear.addAll(_database.keys);
+    tablesToClear.addAll(servicePoints.map((e) => e.name));
+    for (var tableName in tablesToClear) {
       var db = await _getDatabse(tableName);
-      final store = sembast.StoreRef.main();
-      await store.delete(db, finder: sembast.Finder());
-      await store.drop(db);
       await db.close();
-    }
+      if (UniversalPlatform.isWeb) {
+        await databaseFactoryWeb.deleteDatabase(db.path);
+      } else {
+        await databaseFactoryIo.deleteDatabase(db.path);
+      }
 
-    _database.clear();
-    shared = SembastDatabase._privateConstructor();
+      _database.remove(tableName);
+      Sync.shared.logger?.i('Cleared table $tableName');
+      // reopen
+      await _getDatabse(tableName);
+    }
   }
 
   /// Delete by setting deletedAt and sync
