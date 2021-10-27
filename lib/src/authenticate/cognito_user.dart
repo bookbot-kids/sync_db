@@ -17,13 +17,15 @@ enum AuthenticationType { password, passcode }
 class CognitoUserSession implements UserSession, CognitoAuthSession {
   CognitoUserSession(SharedPreferences prefs, GraphQLService service,
       String clientId, String poolId,
-      {AuthenticationType type = AuthenticationType.password}) {
+      {AuthenticationType type = AuthenticationType.password,
+      List<String> tablesToClearOnSignOut}) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
     _prefs = prefs;
     _type = type;
     _userRole = prefs.getString(userRoleKey);
+    _tablesToClearOnSignOut = tablesToClearOnSignOut ?? <String>[];
   }
 
   bool isNewUser = true;
@@ -38,6 +40,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   cognito.CognitoUserPool _userPool;
   String _userRole;
   AuthenticationType _type;
+  List<String> _tablesToClearOnSignOut;
 
   String get userRoleKey => '${_clientId}-userRole';
 
@@ -61,8 +64,8 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     final clockDriftKey = '${_cognitoUser.keyPrefix}.clockDrift';
     final clockDrift =
         int.tryParse(await _cognitoUser.storage.getItem(clockDriftKey)) ?? 0;
-    await _cognitoUser.storage.setItem(
-        clockDriftKey, '${clockDrift - Duration.secondsPerHour * 2}');
+    await _cognitoUser.storage
+        .setItem(clockDriftKey, '${clockDrift - Duration.secondsPerHour * 2}');
   }
 
   String _getUserRoleInToken() {
@@ -135,21 +138,19 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
       await _cognitoUser.storage.clear();
     }
     _userRole = null;
-    await _clearWritableTables();
+    for (final table in _tablesToClearOnSignOut) {
+      final servicePoints = await ServicePoint.where('name = $table').load();
+      for (final servicePoint in servicePoints) {
+        await servicePoint.database
+            .deleteLocal(servicePoint.tableName, servicePoint.id);
+      }
+      await Sync.shared.local.clearTable(table);
+    }
   }
 
   @override
   Future<void> setToken(String token, {bool waitingRefresh = false}) async {
     throw UnimplementedError();
-  }
-
-  Future<void> _clearWritableTables() async {
-    var tasks = <Future>[];
-    tasks.add(Sync.shared.local.clearTable('UserProperty'));
-    tasks.add(Sync.shared.local.clearTable('Delayed'));
-    tasks.add(Sync.shared.local.clearTable('Box'));
-    tasks.add(Sync.shared.local.clearTable('Progress'));
-    await Future.wait(tasks);
   }
 
   Access _createAccess(String table, String roleName) {
