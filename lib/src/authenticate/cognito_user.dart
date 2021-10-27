@@ -17,13 +17,15 @@ enum AuthenticationType { password, passcode }
 class CognitoUserSession implements UserSession, CognitoAuthSession {
   CognitoUserSession(SharedPreferences prefs, GraphQLService service,
       String clientId, String poolId,
-      {AuthenticationType type = AuthenticationType.password}) {
+      {AuthenticationType type = AuthenticationType.password,
+      List<String> tablesToClearOnSignOut}) {
     _clientId = clientId;
     _awsUserPoolId = poolId;
     _service = service;
     _prefs = prefs;
     _type = type;
     _userRole = prefs.getString(userRoleKey);
+    _tablesToClearOnSignOut = tablesToClearOnSignOut ?? <String>[];
   }
 
   bool isNewUser = true;
@@ -38,6 +40,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   cognito.CognitoUserPool _userPool;
   String _userRole;
   AuthenticationType _type;
+  List<String> _tablesToClearOnSignOut;
 
   String get userRoleKey => '${_clientId}-userRole';
 
@@ -48,9 +51,21 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<void> refresh() async {
+  Future<void> refresh({bool forceRefreshToken = false}) async {
+    if (forceRefreshToken) {
+      await _invalidateToken();
+    }
     _session = await _cognitoUser.getSession();
     _userRole = _getUserRoleInToken() ?? _userRole;
+  }
+
+  Future<void> _invalidateToken() async {
+    await _cognitoUser.getSignInUserSession()?.invalidateToken();
+    final clockDriftKey = '${_cognitoUser.keyPrefix}.clockDrift';
+    final clockDrift =
+        int.tryParse(await _cognitoUser.storage.getItem(clockDriftKey)) ?? 0;
+    await _cognitoUser.storage
+        .setItem(clockDriftKey, '${clockDrift - Duration.secondsPerHour * 2}');
   }
 
   String _getUserRoleInToken() {
@@ -123,7 +138,14 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
       await _cognitoUser.storage.clear();
     }
     _userRole = null;
-    await Sync.shared.local.cleanDatabase();
+    for (final table in _tablesToClearOnSignOut) {
+      final servicePoints = await ServicePoint.where('name = $table').load();
+      for (final servicePoint in servicePoints) {
+        await servicePoint.database
+            .deleteLocal(servicePoint.tableName, servicePoint.id);
+      }
+      await Sync.shared.local.clearTable(table);
+    }
   }
 
   @override
@@ -222,8 +244,8 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return _userInfo;
   }
 
-  Future<String> refreshRole() async {
-    await refresh();
+  Future<String> refreshRole({bool forceRefreshToken = false}) async {
+    await refresh(forceRefreshToken: forceRefreshToken);
     await _resetSyncTime(role);
     return role;
   }
@@ -276,14 +298,14 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<bool> confirmForgotPassword(String confirmationCode,
-      String newPassword) async {
+  Future<bool> confirmForgotPassword(
+      String confirmationCode, String newPassword) async {
     return _cognitoUser.confirmPassword(confirmationCode, newPassword);
   }
 
   @override
-  Future<CognitoUserInfo> confirmEmailPasscode(String email,
-      String passcode) async {
+  Future<CognitoUserInfo> confirmEmailPasscode(
+      String email, String passcode) async {
     _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
 
     if (!_session.isValid()) {
@@ -308,8 +330,8 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   Future<CognitoUserInfo> signInOrSignUp(String email,
       {String password, Function signUpSuccess}) {
     if (_type == AuthenticationType.password) {
-      return _submitEmailPasswordAuth(
-          email, password, signUpSuccess: signUpSuccess);
+      return _submitEmailPasswordAuth(email, password,
+          signUpSuccess: signUpSuccess);
     } else {
       return _submitCustomChallengeAuth(email, signUpSuccess: signUpSuccess);
     }
@@ -336,9 +358,8 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return result;
   }
 
-
-  Future<CognitoUserInfo> _submitEmailPasswordAuth(String email,
-      String password,
+  Future<CognitoUserInfo> _submitEmailPasswordAuth(
+      String email, String password,
       {Function signUpSuccess}) async {
     CognitoUserInfo result;
     try {
@@ -371,20 +392,19 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   /// Sign up user
-  Future<CognitoUserInfo> _signUp(String email, String password,
-      String name) async {
+  Future<CognitoUserInfo> _signUp(
+      String email, String password, String name) async {
     email = email.toLowerCase();
     CognitoUserPoolData data;
     final userAttributes = [
       AttributeArg(name: 'name', value: name),
     ];
     data =
-    await _userPool.signUp(email, password, userAttributes: userAttributes);
+        await _userPool.signUp(email, password, userAttributes: userAttributes);
     isNewUser = true;
     return CognitoUserInfo(
         email: email, name: name, confirmed: data.userConfirmed);
   }
-
 
   /// Login user with custom authentication flow
   Future<CognitoUserInfo> _submitCustomAuth(String email) async {

@@ -16,7 +16,7 @@ abstract class UserSession {
   Future<String> get token;
 
   /// Get new token
-  Future<void> refresh();
+  Future<void> refresh({bool forceRefreshToken = false});
 
   /// provide list of table with read/write permission
   Future<List<ServicePoint>> servicePoints();

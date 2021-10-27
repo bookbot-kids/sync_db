@@ -75,7 +75,7 @@ class AzureADB2CUserSession extends UserSession {
   /// Get resource tokens from Cosmos
   /// If there is no refresh token, guest resource tokens are returned
   @override
-  Future<void> refresh() async {
+  Future<void> refresh({bool forceRefreshToken = false}) async {
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
