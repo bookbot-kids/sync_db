@@ -74,7 +74,7 @@ abstract class Service {
             await readServicePoint(servicePoint);
             await writeServicePoint(servicePoint);
           } catch (e) {
-            if (!await _hasConnection()) {
+            if (!await connectivity()) {
               Sync.shared.logger?.i('There is no connection, start timer');
               _isNetworkFailure = true;
               _startConnectivityTimer(() {
@@ -103,7 +103,7 @@ abstract class Service {
 
     _isStartingConnectionTimer = true;
     _connectivityTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
-      _isNetworkFailure = !await _hasConnection();
+      _isNetworkFailure = !await connectivity();
       Sync.shared.logger?.i('Timer checking, connection is $_isNetworkFailure');
       // stop timer if there is connection
       if (!_isNetworkFailure) {
@@ -120,35 +120,31 @@ abstract class Service {
     _isStartingConnectionTimer = false;
   }
 
-  /// Detect connection by checking wifi/mobile status and connect to test site
-  Future<bool> _hasConnection() async {
-    if (!await hasConnection) return false;
-    try {
-      final _http = HTTP(null, {
-        'connectTimeout': 10000, // timeout in 10 seconds
-        'receiveTimeout': 10000,
-      });
-      final response =
-          await _http.head(_testConnectionUrl, includeHttpResponse: true);
-      if (response.statusCode != 200) {
-        return false;
-      }
-    } catch (e) {
-      return false;
-    }
-
-    return true;
-  }
-
   /// Write created or updated records in this table
   Future<void> writeTable(String table) async {
-    // TODO: manage connectivity & authentication exceptions here
     final servicePoints =
         await Sync.shared.userSession.servicePointsForTable(table);
     var futures = <Future>[];
     Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
-      futures.add(writeServicePoint(servicePoint));
+      futures.add(Future.sync(() async {
+        if (!_isNetworkFailure) {
+          try {
+            await writeServicePoint(servicePoint);
+          } catch (e) {
+            if (!await connectivity()) {
+              Sync.shared.logger?.i('There is no connection, start timer');
+              _isNetworkFailure = true;
+              _startConnectivityTimer(() {
+                // restart the function
+                writeTable(table);
+              });
+            }
+
+            rethrow;
+          }
+        }
+      }));
     }
     await Future.wait(futures);
   }
@@ -244,7 +240,25 @@ abstract class Service {
   }
 
   /// A function to handle connectivity checks
-  Future<bool> connectivity() {}
+  /// Detect connection by checking wifi/mobile status and connect to test site
+  Future<bool> connectivity() async {
+    if (!await hasConnection) return false;
+    try {
+      final _http = HTTP(null, {
+        'connectTimeout': 10000, // timeout in 10 seconds
+        'receiveTimeout': 10000,
+      });
+      final response =
+          await _http.head(_testConnectionUrl, includeHttpResponse: true);
+      if (response.statusCode != 200) {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+
+    return true;
+  }
 
   /// Remove private fields before saving to cosmos
   void excludePrivateFields(Map map) {
