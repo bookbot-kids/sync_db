@@ -1,7 +1,17 @@
+import 'dart:async';
+
+import 'package:connectivity/connectivity.dart';
 import 'package:queue/queue.dart';
+import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:pool/pool.dart';
+import 'package:universal_platform/universal_platform.dart';
+
+/// Check if there is any connection (not work for windows)
+Future<bool> get hasConnection async =>
+    UniversalPlatform.isWindows ||
+    await Connectivity().checkConnectivity() != ConnectivityResult.none;
 
 abstract class Service {
   // Make sure there are no more than 8 server downloads at the same time
@@ -9,9 +19,15 @@ abstract class Service {
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
   Queue _syncQueue;
+  Timer _connectivityTimer;
+  var _isNetworkFailure = false;
+  var _isStartingConnectionTimer = false;
+  String _testConnectionUrl = '';
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
+    _testConnectionUrl =
+        config['testConnectionUrl'] ?? 'https://www.google.com';
   }
 
   /// Sync everything
@@ -50,15 +66,78 @@ abstract class Service {
     // If it is flagged as having no connectivity - do not allow it to start another network process
     // Once connectivity is returned restart the sync here, and for storage
     // If can connect to google, but not our servers - log this
-
     for (final servicePoint in servicePoints) {
       // ignore: unawaited_futures
-      _syncQueue.add(() => readServicePoint(servicePoint));
-      // ignore: unawaited_futures
-      _syncQueue.add(() => writeServicePoint(servicePoint));
+      _syncQueue.add(() async {
+        if (!_isNetworkFailure) {
+          try {
+            await readServicePoint(servicePoint);
+            await writeServicePoint(servicePoint);
+          } catch (e) {
+            if (!await _hasConnection()) {
+              Sync.shared.logger?.i('There is no connection, start timer');
+              _isNetworkFailure = true;
+              _startConnectivityTimer(() {
+                // restart the function
+                _syncServicePoints(servicePoints);
+              });
+            }
+
+            rethrow;
+          }
+        }
+      });
     }
 
-    await _syncQueue.onComplete;
+    if (servicePoints.isNotEmpty) {
+      await _syncQueue.onComplete;
+    }
+  }
+
+  // start timer and check connection status every minute
+  void _startConnectivityTimer(Function callback) {
+    if (_isStartingConnectionTimer) {
+      Sync.shared.logger?.i('Timer is already running');
+      return;
+    }
+
+    _isStartingConnectionTimer = true;
+    _connectivityTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
+      _isNetworkFailure = !await _hasConnection();
+      Sync.shared.logger?.i('Timer checking, connection is $_isNetworkFailure');
+      // stop timer if there is connection
+      if (!_isNetworkFailure) {
+        Sync.shared.logger?.i('Connection is restored, stop timer');
+        _stopConnectivityTimer();
+        callback();
+      }
+    });
+  }
+
+  void _stopConnectivityTimer() {
+    _connectivityTimer?.cancel();
+    _connectivityTimer = null;
+    _isStartingConnectionTimer = false;
+  }
+
+  /// Detect connection by checking wifi/mobile status and connect to test site
+  Future<bool> _hasConnection() async {
+    if (!await hasConnection) return false;
+    try {
+      final _http = HTTP(null, {
+        'connectTimeout': 10000, // timeout in 10 seconds
+        'receiveTimeout': 10000,
+      });
+      final response =
+          await _http.head(_testConnectionUrl, includeHttpResponse: true);
+      if (response.statusCode != 200) {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+
+    return true;
   }
 
   /// Write created or updated records in this table

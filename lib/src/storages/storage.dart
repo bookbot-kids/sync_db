@@ -1,11 +1,9 @@
-import 'package:connectivity/connectivity.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/src/utils/file_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
 import 'package:universal_io/io.dart';
-import 'package:universal_platform/universal_platform.dart';
 
 class Storage {
   Storage(Map config) {
@@ -139,9 +137,7 @@ class Storage {
         }
 
         // retry if there is error
-        if (UniversalPlatform.isWindows ||
-            await Connectivity().checkConnectivity() !=
-                ConnectivityResult.none) {
+        if (await hasConnection) {
           // ignore: unawaited_futures
           _delayedPool.withResource(() async => await Future.delayed(
                       Duration(minutes: _retryDelayedMap[transfer.id]))
