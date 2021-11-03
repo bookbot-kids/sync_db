@@ -280,13 +280,12 @@ class ModelGenerator extends Generator {
         final construct = ids.map((id) => 'id = \$id');
         final list = List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
         final results = <$modelName>[];
-        ids.forEach((id) {
-          final item =
-              list.firstWhere((element) => element?.id == id, orElse: () => null);
-          if (item != null) {
-            results.add(item);
+        for (var id in ids) {
+          final items = list.where((element) => element?.id == id);
+          if (items.isNotEmpty) {
+            results.add(items.first);
           }
-        });
+        };
         return results;
       }
 
