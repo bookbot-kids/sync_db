@@ -281,7 +281,7 @@ class ModelGenerator extends Generator {
         final list = List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
         final results = <$modelName>[];
         for (var id in ids) {
-          final items = list.where((element) => element?.id == id);
+          final items = list.where((element) => element.id == id);
           if (items.isNotEmpty) {
             results.add(items.first);
           }
