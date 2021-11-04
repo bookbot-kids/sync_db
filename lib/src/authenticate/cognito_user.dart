@@ -298,8 +298,11 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<bool> confirmForgotPassword(
-      String confirmationCode, String newPassword) async {
+  Future<bool> confirmForgotPassword(String email, String confirmationCode,
+      String newPassword) async {
+    if (_cognitoUser == null || _userInfo?.email != email.toLowerCase()) {
+    _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+    }
     return _cognitoUser.confirmPassword(confirmationCode, newPassword);
   }
 

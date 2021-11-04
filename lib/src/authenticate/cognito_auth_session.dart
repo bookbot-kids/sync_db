@@ -13,7 +13,7 @@ abstract class CognitoAuthSession {
 
   Future forgotPassword(String email);
 
-  Future<bool> confirmForgotPassword(
+  Future<bool> confirmForgotPassword(String email,
       String confirmationCode, String newPassword);
 
   Future<CognitoUserInfo> confirmEmailPasscode(
