@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:ntp/ntp.dart';
+import 'package:singleton/singleton.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 class NetworkTime {
+  factory NetworkTime() =>
+      Singleton.lazy(() => NetworkTime._privateConstructor()).instance;
   NetworkTime._privateConstructor();
-
-  static NetworkTime shared = NetworkTime._privateConstructor();
+  static NetworkTime shared = NetworkTime();
 
   int _offset;
 

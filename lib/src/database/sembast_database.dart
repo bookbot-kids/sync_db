@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,8 +13,10 @@ import 'package:sembast/sembast.dart' as sembast;
 import 'package:sembast/src/utils.dart' as sembast_utils;
 
 class SembastDatabase extends Database {
+  factory SembastDatabase() =>
+      Singleton.lazy(() => SembastDatabase._privateConstructor()).instance;
   SembastDatabase._privateConstructor();
-  static SembastDatabase shared = SembastDatabase._privateConstructor();
+  static SembastDatabase shared = SembastDatabase();
   static final appVersionKey = 'app_version';
 
   final Map<String, sembast.Database> _database = {};
