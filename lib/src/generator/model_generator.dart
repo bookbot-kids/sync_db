@@ -285,7 +285,7 @@ class ModelGenerator extends Generator {
           if (items.isNotEmpty) {
             results.add(items.first);
           }
-        };
+        }
         return results;
       }
 
