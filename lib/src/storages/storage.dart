@@ -135,7 +135,7 @@ class Storage {
             (e is UnexpectedResponseException && e.statusCode == 404);
 
         if ((isNotFoundError && !_retryWhenNotFound) || !retry) {
-          rethrow;
+          return Future.error(e, stackTrace);
         }
 
         // retry if there is error
