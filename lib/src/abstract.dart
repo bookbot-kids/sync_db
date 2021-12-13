@@ -30,7 +30,7 @@ abstract class UserSession {
   String get role;
 
   /// sign out user & clear all private keys
-  Future<void> signout();
+  Future<void> signout({bool notify = true});
 
   /// provide storage token to upload/download file
   Future<String> get storageToken;

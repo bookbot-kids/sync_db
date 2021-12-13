@@ -173,7 +173,7 @@ class AzureADB2CUserSession extends UserSession {
   /// Sign out user, remove the refresh token from shared preferences
   /// and clear certain ServicePoints and databases
   @override
-  Future<void> signout() async {
+  Future<void> signout({bool notify = true}) async {
     final pref = await _sharePrefInstance;
     await pref.remove(_refreshTokenKey);
     await pref.remove(_userRoleKey);
@@ -193,7 +193,9 @@ class AzureADB2CUserSession extends UserSession {
     }
 
     _refreshed = refresh();
-    signoutNotifier.notify();
+    if (notify) {
+      signoutNotifier.notify();
+    }
   }
 
   @override
