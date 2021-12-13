@@ -180,8 +180,6 @@ class AzureADB2CUserSession extends UserSession {
     await pref.remove(_storageUriKey);
     _tokenExpiry = DateTime.utc(0);
     role = 'guest';
-    // refresh share preference
-    await pref.reload();
 
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
