@@ -15,6 +15,7 @@ class Query {
   String ordering;
   int resultLimit;
   String tableName;
+  List<String> orderings;
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
@@ -57,6 +58,14 @@ class Query {
   Query order([String order, Database database, Function instantiateModel]) {
     _set(instantiateModel, database);
     ordering = order;
+    return this;
+  }
+
+  /// Sets the sort orders on the query and other optionals
+  Query orders(
+      [List<String> orders, Database database, Function instantiateModel]) {
+    _set(instantiateModel, database);
+    orderings = orders;
     return this;
   }
 

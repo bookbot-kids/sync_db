@@ -290,6 +290,17 @@ class SembastDatabase extends Database {
         var isAscending = 'asc' == sort[1].toLowerCase().trim();
         finder.sortOrder = sembast.SortOrder(sort[0].trim(), isAscending);
       }
+    } else if (query.orderings != null) {
+      final sortOrders = <sembast.SortOrder>[];
+      for (final ordering in query.orderings) {
+        final sort = ordering.split(' ');
+        if (sort.length == 2) {
+          final isAscending = 'asc' == sort[1].toLowerCase().trim();
+          sortOrders.add(sembast.SortOrder(sort[0].trim(), isAscending));
+        }
+      }
+
+      finder.sortOrders = sortOrders;
     }
 
     if (query.resultLimit != null) {
