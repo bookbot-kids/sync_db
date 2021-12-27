@@ -206,7 +206,10 @@ class ModelGenerator extends Generator {
               ''');
             setterFields.add('''
               map['$name']?.forEach((key, value) {
-                  $name[EnumToString.fromString($type1.values, key)] = value;
+                  final itemKey = EnumToString.fromString($type1.values, key ?? '');
+                  if(itemKey != null) {
+                    $name[itemKey] = value;
+                  }                  
               });
             ''');
             continue;
