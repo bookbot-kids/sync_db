@@ -136,10 +136,10 @@ class ModelGenerator extends Generator {
           var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
           // enum list
           if (isEnumParam) {
-            getterFields
-                .add("map['${name}'] = EnumToString.toList(${name} ?? []);");
+            getterFields.add(
+                "map['${name}'] = EnumToString.toList((${name} ?? []).where((element) => element != null).toList());");
             setterFields.add(
-                "${name} = EnumToString.fromList(${listType}.values, map['${name}'] ?? []);");
+                "${name} = EnumToString.fromList(${listType}.values, (map['${name}'] ?? []).where((element) => element != null).toList()).toList();");
             continue;
           } else if (_isCustomType(listType)) {
             // custom list type
@@ -167,9 +167,9 @@ class ModelGenerator extends Generator {
           var setType = match.group(0).replaceAll('<', '').replaceAll('>', '');
           if (isEnumParam) {
             getterFields.add(
-                "map['${name}'] = EnumToString.toList(${name}?.toList() ?? []);");
+                "map['${name}'] = EnumToString.toList((${name} ?? []).where((element) => element != null).toList());");
             setterFields.add(
-                "${name} = EnumToString.fromList(${setType}.values, map['${name}'] ?? []).toSet();");
+                "${name} = EnumToString.fromList(${setType}.values, (map['${name}'] ?? []).where((element) => element != null).toList()).toSet();");
             continue;
           } else if (_isCustomType(setType)) {
             // custom set type
