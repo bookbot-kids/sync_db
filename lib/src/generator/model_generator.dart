@@ -120,8 +120,8 @@ class ModelGenerator extends Generator {
       // working on enum
       if (typeClass.isEnum) {
         final type = typeClass.displayName;
-        getterFields
-            .add("map['${name}'] = EnumToString.convertToString(${name});");
+        getterFields.add(
+            "map['${name}'] = ${name} == null ? null : EnumToString.convertToString(${name});");
         setterFields.add(
             "if(map['${name}'] != null) { ${name} = EnumToString.fromString(${type}.values, map['${name}']); }");
         continue;
