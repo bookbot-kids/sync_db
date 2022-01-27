@@ -2,6 +2,7 @@ import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:synchronized/synchronized.dart';
 
 class AzureADB2CUserSession extends UserSession {
   /// Config will need:
@@ -46,6 +47,7 @@ class AzureADB2CUserSession extends UserSession {
   static const _storageUriKey = 'storageUri';
   static const _userRoleKey = 'userRole';
   SharedPreferences _sharePref;
+  final _lock = Lock();
 
   @override
   String role = _defaultRole;
@@ -92,8 +94,14 @@ class AzureADB2CUserSession extends UserSession {
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
     try {
-      final response = await _http.get('/GetResourceTokens',
-          parameters: {'refresh_token': refreshToken ?? '', 'code': _azureKey});
+      Sync.shared.logger?.i('Start to request GetResourceTokens');
+      final response = await _lock.synchronized(() async {
+        return await _http.get('/GetResourceTokens', parameters: {
+          'refresh_token': refreshToken ?? '',
+          'code': _azureKey
+        });
+      });
+      Sync.shared.logger?.i('Finished request GetResourceTokens');
       _tokenExpiry =
           (await asyncTimeStamp).add(Duration(hours: 4, minutes: 59));
 
@@ -139,6 +147,9 @@ class AzureADB2CUserSession extends UserSession {
             stackTrace);
         rethrow;
       }
+    } on Exception catch (e, stackTrace) {
+      Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
+      rethrow;
     }
   }
 
@@ -150,6 +161,7 @@ class AzureADB2CUserSession extends UserSession {
 
   @override
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
+    Sync.shared.logger?.i('servicePointsForTable $table');
     await _refreshIfExpired();
     return List<ServicePoint>.from(
         await ServicePoint.where('name = $table').load());
@@ -167,7 +179,8 @@ class AzureADB2CUserSession extends UserSession {
 
   @override
   Future<bool> hasSignedIn() async {
-    return (await _sharePrefInstance).getString(_refreshTokenKey) != null;
+    return (await _sharePrefInstance).getString(_refreshTokenKey)?.isNotEmpty ==
+        true;
   }
 
   /// Sign out user, remove the refresh token from shared preferences

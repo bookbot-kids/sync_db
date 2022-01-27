@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:queue/queue.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
@@ -58,6 +60,8 @@ abstract class Service {
       _syncQueue.add(() => writeServicePoint(servicePoint));
     }
 
+    // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
+    unawaited(_syncQueue.add(() => Future.value()));
     await _syncQueue.onComplete;
   }
 

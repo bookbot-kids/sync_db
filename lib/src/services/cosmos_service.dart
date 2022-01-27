@@ -148,16 +148,24 @@ class CosmosService extends Service {
     _http.headers = headers;
 
     var data = '{\"query\": \"$query\",\"parameters\": $parameters}';
-    var response = await _http.post('colls/${servicePoint.name}/docs',
-        data: data, includeHttpResponse: true);
-    var responseData = response.data;
-    List docs = responseData['Documents'];
+    try {
+      var response = await _http.post('colls/${servicePoint.name}/docs',
+          data: data, includeHttpResponse: true);
+      var responseData = response.data;
+      List docs = responseData['Documents'];
 
-    return {
-      'response': docs,
-      'paginationToken': response.headers.value('x-ms-continuation'),
-      'responseTimestamp': response.headers.value('Date')
-    };
+      return {
+        'response': docs,
+        'paginationToken': response.headers.value('x-ms-continuation'),
+        'responseTimestamp': response.headers.value('Date')
+      };
+    } catch (e, stacktrace) {
+      Sync.shared.logger?.e(
+          'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
+          e,
+          stacktrace);
+      rethrow;
+    }
   }
 
   /// Cosmos api to create document
