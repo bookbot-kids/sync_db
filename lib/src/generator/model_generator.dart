@@ -86,12 +86,14 @@ class ModelGenerator extends Generator {
 
       var type = field.type.element.displayName;
       var isEnumParam = false;
+      String type2;
+      String type3;
       if (_propertyTypeChecker.hasAnnotationOfExact(field,
           throwOnUnresolved: false)) {
-        final name = _propertyTypeChecker
-            .firstAnnotationOfExact(field, throwOnUnresolved: false)
-            .getField('name')
-            ?.toStringValue();
+        // final name = _propertyTypeChecker
+        //     .firstAnnotationOfExact(field, throwOnUnresolved: false)
+        //     .getField('name')
+        //     ?.toStringValue();
         type = _propertyTypeChecker
                 .firstAnnotationOfExact(field, throwOnUnresolved: false)
                 .getField('type')
@@ -102,7 +104,15 @@ class ModelGenerator extends Generator {
                 .getField('isEnumParam')
                 ?.toBoolValue() ??
             false;
-        print('annotation name $name, type $type');
+
+        type2 = _propertyTypeChecker
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            .getField('type2')
+            ?.toStringValue();
+        type3 = _propertyTypeChecker
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            .getField('type3')
+            ?.toStringValue();
       } else {
         // try to get generic type if property does not have annotation
         final genericTypes = _getGenericTypes(field.type);
@@ -190,21 +200,71 @@ class ModelGenerator extends Generator {
 
       // working on Map object
       if (field.type.isDartCoreMap) {
-        // find map type
-        final regex = RegExp('<[a-zA-Z0-9, ]*>');
-        var match = regex.firstMatch(type.replaceFirst('Map', ''));
-        if (match != null) {
-          var mapTypes = match.group(0).replaceAll('<', '').replaceAll('>', '');
-          final types = mapTypes.split(',');
-          final type1 = types[0].trim();
-          final type2 = types[1].trim();
-          // custom map type, atm only support Enum as key
-          if (_isCustomType(type1)) {
-            getterFields.add('''
+        // in case predefine map key (type2) & value (type3)
+        if (type2 != null && type3 != null) {
+          final isMapValue = type3.startsWith('Map');
+          if (_isPrimitiveType(type2)) {
+            if (isMapValue) {
+              getterFields.add(
+                  '$name?.map((key, value) => MapEntry<$type2, $type3>(key, value));');
+              setterFields.add('''
+              map['$name']?.forEach((key, value) {
+                    $name[key] = $type3.from(value);
+              });
+              ''');
+            } else {
+              getterFields.add("map['${name}'] = ${name};");
+              setterFields.add(
+                  "${name} = Map<$type2,$type3>.from(map['${name}'] ?? {});");
+            }
+          } else {
+            if (isMapValue) {
+              getterFields.add('''
+              map['$name'] = $name?.map((key, value) =>
+                    MapEntry<String, $type3>(EnumToString.convertToString(key), value)) ?? {};
+              ''');
+              setterFields.add('''
+              map['$name']?.forEach((key, value) {
+                  final itemKey = EnumToString.fromString($type2.values, key ?? '');
+                  if(itemKey != null) {
+                    $name[itemKey] = $type3.from(value ?? {});
+                  }                  
+              });
+            ''');
+            } else {
+              getterFields.add('''
+              map['$name'] = $name?.map((key, value) =>
+                    MapEntry<String, $type3>(EnumToString.convertToString(key), value)) ?? {};
+              ''');
+              setterFields.add('''
+              map['$name']?.forEach((key, value) {
+                  final itemKey = EnumToString.fromString($type2.values, key ?? '');
+                  if(itemKey != null) {
+                    $name[itemKey] = value;
+                  }                  
+              });
+            ''');
+            }
+          }
+
+          continue;
+        } else {
+          // find map type if not define
+          final regex = RegExp('<[a-zA-Z0-9, ]*>');
+          var match = regex.firstMatch(type.replaceFirst('Map', ''));
+          if (match != null) {
+            var mapTypes =
+                match.group(0).replaceAll('<', '').replaceAll('>', '');
+            final types = mapTypes.split(',');
+            final type1 = types[0].trim();
+            final type2 = types[1].trim();
+            // custom map type, atm only support Enum as key
+            if (_isCustomType(type1)) {
+              getterFields.add('''
               map['$name'] = $name?.map((key, value) =>
                     MapEntry<String, dynamic>(EnumToString.convertToString(key), value)) ?? {};
               ''');
-            setterFields.add('''
+              setterFields.add('''
               map['$name']?.forEach((key, value) {
                   final itemKey = EnumToString.fromString($type1.values, key ?? '');
                   if(itemKey != null) {
@@ -212,12 +272,13 @@ class ModelGenerator extends Generator {
                   }                  
               });
             ''');
-            continue;
-          } else if (primitiveTypes.contains(type1)) {
-            getterFields.add("map['${name}'] = ${name};");
-            setterFields.add(
-                "${name} = Map<$type1,$type2>.from(map['${name}'] ?? <$type1,$type2>{});");
-            continue;
+              continue;
+            } else if (primitiveTypes.contains(type1)) {
+              getterFields.add("map['${name}'] = ${name};");
+              setterFields.add(
+                  "${name} = Map<$type1,$type2>.from(map['${name}'] ?? <$type1,$type2>{});");
+              continue;
+            }
           }
         }
       }
