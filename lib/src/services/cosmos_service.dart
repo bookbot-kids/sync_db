@@ -167,7 +167,9 @@ class CosmosService extends Service {
       };
     } on ConnectivityException catch (e, stacktrace) {
       if (_throwOnNetworkError) {
-        rethrow;
+        throw ConnectivityException(
+            'queryDocuments $query (${servicePoint.name}) $servicePoint error because of connection $e, $stacktrace',
+            hasConnectionStatus: e.hasConnectionStatus);
       }
 
       Sync.shared.logger?.w(
@@ -205,7 +207,9 @@ class CosmosService extends Service {
             data: record);
       } on ConnectivityException catch (e, stackTrace) {
         if (_throwOnNetworkError) {
-          rethrow;
+          throw ConnectivityException(
+              'Create cosmos $record document failed because of connection error $e, $stackTrace',
+              hasConnectionStatus: e.hasConnectionStatus);
         }
 
         Sync.shared.logger?.w(
@@ -265,7 +269,9 @@ class CosmosService extends Service {
             data: record);
       } on ConnectivityException catch (e, stackTrace) {
         if (_throwOnNetworkError) {
-          rethrow;
+          throw ConnectivityException(
+              'Update cosmos $record document failed because of connection $e $stackTrace',
+              hasConnectionStatus: e.hasConnectionStatus);
         }
 
         Sync.shared.logger?.w(
