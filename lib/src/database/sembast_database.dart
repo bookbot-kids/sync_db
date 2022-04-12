@@ -14,7 +14,7 @@ import 'package:sembast/src/utils.dart' as sembast_utils;
 
 class SembastDatabase extends Database {
   factory SembastDatabase() =>
-      Singleton.lazy(() => SembastDatabase._privateConstructor()).instance;
+      Singleton.lazy(() => SembastDatabase._privateConstructor());
   SembastDatabase._privateConstructor();
   static SembastDatabase shared = SembastDatabase();
   static final appVersionKey = 'app_version';

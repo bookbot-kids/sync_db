@@ -3,7 +3,7 @@ import 'package:sync_db/sync_db.dart';
 import 'package:logger/logger.dart';
 
 class Sync {
-  factory Sync() => Singleton.lazy(() => Sync._privateConstructor()).instance;
+  factory Sync() => Singleton.lazy(() => Sync._privateConstructor());
   Sync._privateConstructor();
   static Sync shared = Sync();
 

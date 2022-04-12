@@ -16,17 +16,16 @@ dependencies:
   synchronized: ^3.0.0+2
   universal_io: ^2.0.4
   sembast_web: ^2.0.1+1
-  graphql_flutter: ^5.0.1
+  graphql_flutter: ^5.1.0
   ntp: ^2.0.0
   universal_platform: ^1.0.0+1
-  amazon_cognito_identity_dart_2: ^1.0.5
+  amazon_cognito_identity_dart_2: ^2.0.0
   source_gen: ^1.2.1
   pool: ^1.5.0
   random_string: ^2.3.1
-  connectivity_plus: ^2.2.1
   queue: ^3.1.0+1
   mime_type: ^1.0.0
-  singleton: ^0.0.2
+  singleton: ^0.0.3-nullsafety
 
   robust_http:
     git:

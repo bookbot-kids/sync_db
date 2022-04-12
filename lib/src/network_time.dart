@@ -5,7 +5,7 @@ import 'package:universal_platform/universal_platform.dart';
 
 class NetworkTime {
   factory NetworkTime() =>
-      Singleton.lazy(() => NetworkTime._privateConstructor()).instance;
+      Singleton.lazy(() => NetworkTime._privateConstructor());
   NetworkTime._privateConstructor();
   static NetworkTime shared = NetworkTime();
 
