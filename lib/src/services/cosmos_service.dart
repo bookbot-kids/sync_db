@@ -13,11 +13,13 @@ class CosmosService extends Service {
         'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
         httpConfig);
     _pageSize = config['pageSize'] ?? 1000;
+    _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
   }
 
   HTTP _http;
   int _pageSize;
   int _cosmosRetries = 3;
+  var _throwOnNetworkError = true;
 
   final _apiVersion = '2018-12-31';
 
@@ -43,7 +45,7 @@ class CosmosService extends Service {
       await saveLocalRecords(servicePoint, docs);
       paginationToken = response['paginationToken'];
       Sync.shared.logger?.i(
-          'readFromService ${servicePoint.name}(${response['response']?.length}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
+          'readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
       if (docs.isNotEmpty) {
         var lastTimestamp = 0;
         if (docs.last[updatedKey] is int) {
@@ -86,7 +88,9 @@ class CosmosService extends Service {
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
         var newRecord = await _createDocument(servicePoint, record);
-        await updateRecordStatus(servicePoint, newRecord);
+        if (newRecord != null) {
+          await updateRecordStatus(servicePoint, newRecord);
+        }
       }));
     }
 
@@ -108,7 +112,9 @@ class CosmosService extends Service {
 
       futures.add(pool.withResource(() async {
         final updatedRecord = await _updateDocument(servicePoint, record);
-        await updateRecordStatus(servicePoint, updatedRecord);
+        if (updatedRecord != null) {
+          await updateRecordStatus(servicePoint, updatedRecord);
+        }
       }));
     }
 
@@ -159,6 +165,16 @@ class CosmosService extends Service {
         'paginationToken': response.headers.value('x-ms-continuation'),
         'responseTimestamp': response.headers.value('Date')
       };
+    } on ConnectivityException catch (e, stacktrace) {
+      if (_throwOnNetworkError) {
+        rethrow;
+      }
+
+      Sync.shared.logger?.w(
+          'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
+          e,
+          stacktrace);
+      return {};
     } catch (e, stacktrace) {
       Sync.shared.logger?.e(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
@@ -187,6 +203,16 @@ class CosmosService extends Service {
         };
         return await _http.post('colls/${servicePoint.name}/docs',
             data: record);
+      } on ConnectivityException catch (e, stackTrace) {
+        if (_throwOnNetworkError) {
+          rethrow;
+        }
+
+        Sync.shared.logger?.w(
+            'Create cosmos $record document failed because of connection error $e',
+            e,
+            stackTrace);
+        return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Create cosmos document $record failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
@@ -237,6 +263,16 @@ class CosmosService extends Service {
         return await _http.put(
             'colls/${servicePoint.name}/docs/${record['id']}',
             data: record);
+      } on ConnectivityException catch (e, stackTrace) {
+        if (_throwOnNetworkError) {
+          rethrow;
+        }
+
+        Sync.shared.logger?.w(
+            'Update cosmos $record document failed because of connection',
+            e,
+            stackTrace);
+        return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
@@ -267,10 +303,4 @@ class CosmosService extends Service {
     throw exception ??
         Exception('Update cosmos $record document failed without reason');
   }
-
-  /// Add parameter in list of map for cosmos query
-  // void _addParameter(
-  //     List<Map<String, String>> parameters, String key, String value) {
-  //   parameters.add({'\"name\"': '\"$key\"', '\"value\"': '\"$value\"'});
-  // }
 }
