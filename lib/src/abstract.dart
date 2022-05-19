@@ -34,6 +34,9 @@ abstract class UserSession {
 
   /// provide storage token to upload/download file
   Future<String> get storageToken;
+
+  /// delete user
+  Future<bool> deleteUser(String email);
 }
 
 abstract class Database {

@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sync_db/src/utils/web_service_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 
@@ -18,6 +21,10 @@ class AzureADB2CUserSession extends UserSession {
       'receiveTimeout': config['receiveTimeout'],
     });
     _azureKey = config['azureKey'];
+    _azureSecret = config['azureSecret'];
+    _azureSubject = config['azure_subject'];
+    _azureIssuer = config['azure_issuer'];
+    _azureAudience = config['azure_audience'];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     // try to load role first
     _sharePrefInstance.then((prefs) {
@@ -38,6 +45,10 @@ class AzureADB2CUserSession extends UserSession {
 
   HTTP _http;
   String _azureKey;
+  String _azureSecret;
+  String _azureSubject;
+  String _azureIssuer;
+  String _azureAudience;
   DateTime _tokenExpiry = DateTime.utc(0);
   Future<void> _refreshed;
   List<String> _tablesToClearOnSignout;
@@ -213,6 +224,26 @@ class AzureADB2CUserSession extends UserSession {
   Future<String> get storageToken async {
     await _refreshStorageIfExpired();
     return (await _sharePrefInstance).getString(_storageUriKey);
+  }
+
+  @override
+  Future<bool> deleteUser(String email) async {
+    final prefs = await _sharePrefInstance;
+    var refreshToken = prefs.getString(_refreshTokenKey);
+    var clientToken = WebServiceUtils.generateClientToken(_azureSecret, _azureSubject,
+        _azureIssuer, _azureAudience, await NetworkTime.shared.now,
+        jwtId: Random().nextInt(10000).toString());
+    try {
+      final response = await _http.post('/DeleteUser', data: {
+        'email': email,
+        'refresh_token': refreshToken ?? '',
+        'client_token': clientToken,
+      });
+      return response['success'] == true;
+    } catch (error, stacktrace) {
+      Sync.shared.logger?.e('DeleteUser error $error', error, stacktrace);
+    }
+    return false;
   }
 
   Future<Map<String, ServicePoint>> _mappedServicePoints() async {

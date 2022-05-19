@@ -429,6 +429,11 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     }
     return CognitoUserInfo(email: email);
   }
+
+  @override
+  Future<bool> deleteUser(String email) {
+    throw UnimplementedError();
+  }
 }
 
 class CognitoUserInfo {
