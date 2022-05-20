@@ -234,10 +234,11 @@ class AzureADB2CUserSession extends UserSession {
         _azureIssuer, _azureAudience, await NetworkTime.shared.now,
         jwtId: Random().nextInt(10000).toString());
     try {
-      final response = await _http.post('/DeleteUser', data: {
+      final response = await _http.post('/DeleteUser', parameters: {
         'email': email,
         'refresh_token': refreshToken ?? '',
         'client_token': clientToken,
+        'code': _azureKey
       });
       return response['success'] == true;
     } catch (error, stacktrace) {
