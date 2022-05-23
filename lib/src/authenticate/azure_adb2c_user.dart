@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -227,24 +228,31 @@ class AzureADB2CUserSession extends UserSession {
   }
 
   @override
-  Future<bool> deleteUser(String email) async {
+  Future<void> deleteUser(String email) async {
     final prefs = await _sharePrefInstance;
     var refreshToken = prefs.getString(_refreshTokenKey);
     var clientToken = WebServiceUtils.generateClientToken(_azureSecret, _azureSubject,
         _azureIssuer, _azureAudience, await NetworkTime.shared.now,
         jwtId: Random().nextInt(10000).toString());
-    try {
-      final response = await _http.post('/DeleteUser', parameters: {
-        'email': email,
-        'refresh_token': refreshToken ?? '',
-        'client_token': clientToken,
-        'code': _azureKey
-      });
-      return response['success'] == true;
-    } catch (error, stacktrace) {
-      Sync.shared.logger?.e('DeleteUser error $error', error, stacktrace);
+    if (!await ConnectionHelper.hasConnection()) {
+      throw ConnectivityException('The connection is turn off',
+          hasConnectionStatus: false);
     }
-    return false;
+    if (!await ConnectionHelper.hasInternetConnection()) {
+      throw ConnectivityException(
+          'The connection is turn on but there is no internet connection',
+          hasConnectionStatus: true);
+    }
+    final response = await _http.post('/DeleteUser', parameters: {
+      'email': email,
+      'refresh_token': refreshToken ?? '',
+      'client_token': clientToken,
+      'code': _azureKey
+    }, includeHttpResponse: true);
+    if (response.data == null || response.data['success'] != true) {
+      throw Exception('Delete account failed, statusCode: '
+          '${response.statusCode}, message: ${response.statusMessage}');
+    }
   }
 
   Future<Map<String, ServicePoint>> _mappedServicePoints() async {
