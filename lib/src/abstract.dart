@@ -36,7 +36,7 @@ abstract class UserSession {
   Future<String> get storageToken;
 
   /// delete user
-  Future<bool> deleteUser(String email);
+  Future<void> deleteUser(String email);
 }
 
 abstract class Database {

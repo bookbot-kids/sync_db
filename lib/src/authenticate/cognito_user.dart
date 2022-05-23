@@ -431,7 +431,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<bool> deleteUser(String email) {
+  Future<void> deleteUser(String email) {
     throw UnimplementedError();
   }
 }
