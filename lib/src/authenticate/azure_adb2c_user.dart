@@ -20,11 +20,11 @@ class AzureADB2CUserSession extends UserSession {
       'connectTimeout': config['connectTimeout'],
       'receiveTimeout': config['receiveTimeout'],
     });
-    _azureKey = config['azureKey'];
-    _azureSecret = config['azureSecret'];
-    _azureSubject = config['azure_subject'];
-    _azureIssuer = config['azure_issuer'];
-    _azureAudience = config['azure_audience'];
+    _azureKey = config['azureKey'] ?? '';
+    _azureSecret = config['azureSecret'] ?? '';
+    _azureSubject = config['azureSubject'] ?? '';
+    _azureIssuer = config['azureIssuer'] ?? '';
+    _azureAudience = config['azureAudience'] ?? '';
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     // try to load role first
     _sharePrefInstance.then((prefs) {
