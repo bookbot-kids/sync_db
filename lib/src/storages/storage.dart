@@ -5,7 +5,6 @@ import 'package:sync_db/src/utils/file_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
 import 'package:universal_io/io.dart';
-import 'package:universal_platform/universal_platform.dart';
 
 class Storage {
   Storage(Map config) {
@@ -113,21 +112,23 @@ class Storage {
       } catch (e, stackTrace) {
         // don't log error again on retry
         if (!isRetrying) {
-          if (e is UnexpectedResponseException) {
-            Sync.shared.logger?.e(
-                ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
-                e,
-                stackTrace);
-          } else if (e is UnknownException) {
-            Sync.shared.logger?.e(
-                ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error ${e.devDescription}',
-                e,
-                stackTrace);
-          } else {
-            Sync.shared.logger?.e(
-                'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
-                e,
-                stackTrace);
+          if (await ConnectionHelper.hasInternetConnection()) {
+            if (e is UnexpectedResponseException) {
+              Sync.shared.logger?.e(
+                  ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
+                  e,
+                  stackTrace);
+            } else if (e is UnknownException) {
+              Sync.shared.logger?.e(
+                  ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error ${e.devDescription}',
+                  e,
+                  stackTrace);
+            } else {
+              Sync.shared.logger?.e(
+                  'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
+                  e,
+                  stackTrace);
+            }
           }
         }
 
@@ -139,14 +140,17 @@ class Storage {
         }
 
         // retry if there is error
-        if (UniversalPlatform.isWindows ||
-            await ConnectionHelper.hasConnection()) {
+        if (await ConnectionHelper.hasInternetConnection()) {
+          _retryDelayedMap.putIfAbsent(transfer.id, () => _initRetryTime);
           // ignore: unawaited_futures
           _delayedPool.withResource(() async => await Future.delayed(
                       Duration(minutes: _retryDelayedMap[transfer.id]))
                   .then((value) {
                 Sync.shared.logger?.i('Retry transfer $transfer');
                 _transfer(transfer, isRetrying: true, retry: true);
+                if (_retryDelayedMap[transfer.id] == null) {
+                  _retryDelayedMap[transfer.id] = _initRetryTime;
+                }
                 // increase time on the next retry
                 if (isNotFoundError) {
                   _retryDelayedMap[transfer.id] *= 5;

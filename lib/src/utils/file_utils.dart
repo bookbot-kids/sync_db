@@ -1,3 +1,4 @@
+import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class FileUtils {
@@ -9,8 +10,15 @@ class FileUtils {
       return await sourceFile.rename(newPath);
     } on FileSystemException catch (e) {
       // if rename fails, copy the source file and then delete it
-      final newFile = await sourceFile.copy(newPath);
-      await sourceFile.delete();
+      File newFile;
+      try {
+        newFile = await sourceFile.copy(newPath);
+        await sourceFile.delete();
+      } catch (e, stacktrace) {
+        Sync.shared.logger
+            ?.e('Error moving file $sourcePath to $newPath', e, stacktrace);
+      }
+
       return newFile;
     }
   }
