@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
+import 'package:queue/queue.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
@@ -20,6 +23,7 @@ class SembastDatabase extends Database {
   static final appVersionKey = 'app_version';
 
   final Map<String, sembast.Database> _database = {};
+  final _syncQueue = Queue(parallel: 2);
 
   /// Opens up each table connected to each model, which is stored in a separate file.
   /// `dbAssetPath` the asset path to import database
@@ -81,37 +85,34 @@ class SembastDatabase extends Database {
 
   Future<void> copySnapShotAndRefreshTables(List<String> tableNames, String dbAssetPath,
       List<String> manifest) async {
-    if (dbAssetPath?.isNotEmpty != true ||
+    if (UniversalPlatform.isWeb ||
+        dbAssetPath?.isNotEmpty != true ||
         manifest?.isNotEmpty != true) {
       return;
     }
-    var dir;
-    if (!UniversalPlatform.isWeb) {
-      // get document directory
-      final documentPath = await getApplicationSupportDirectory();
-      await documentPath.create(recursive: true);
-      dir = documentPath.path;
-    }
-    final futures = <Future>[];
-    for (final tableName in tableNames) {
-      futures.add(_database[tableName]?.close());
-    }
-    await Future.wait(futures);
-
+    // get document directory
+    final documentPath = await getApplicationSupportDirectory();
+    await documentPath.create(recursive: true);
+    final dir = documentPath.path;
     // do copy from asset
-    futures.clear();
     for (final asset in manifest) {
       if (asset.startsWith(dbAssetPath)) {
         final fileName = basename(asset);
         final targetPath = dir == null ? fileName : join(dir, fileName);
-        futures.add(_copySnapshotTable(asset, targetPath));
+        // ignore: unawaited_futures
+        _syncQueue.add(() =>_copySnapshotTable(asset, targetPath));
       }
     }
-    await Future.wait(futures);
-    // Clear and open new databases;
-    futures.clear();
+    // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
+    unawaited(_syncQueue.add(() => Future.value()));
+    await _syncQueue.onComplete;
+
+    final futures = <Future>[];
     for (final tableName in tableNames) {
-      _database.remove(tableName);
+      final databaseRemoved = _database.remove(tableName);
+      if (databaseRemoved != null) {
+        futures.add(databaseRemoved.close());
+      }
       futures.add(initTable(tableName, dir: dir));
     }
     await Future.wait(futures);
