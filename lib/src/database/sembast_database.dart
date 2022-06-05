@@ -79,6 +79,44 @@ class SembastDatabase extends Database {
     }
   }
 
+  Future<void> copySnapShotAndRefreshTables(List<String> tableNames, String dbAssetPath,
+      List<String> manifest) async {
+    if (dbAssetPath?.isNotEmpty != true ||
+        manifest?.isNotEmpty != true) {
+      return;
+    }
+    var dir;
+    if (!UniversalPlatform.isWeb) {
+      // get document directory
+      final documentPath = await getApplicationSupportDirectory();
+      await documentPath.create(recursive: true);
+      dir = documentPath.path;
+    }
+    final futures = <Future>[];
+    for (final tableName in tableNames) {
+      futures.add(_database[tableName]?.close());
+    }
+    await Future.wait(futures);
+
+    // do copy from asset
+    futures.clear();
+    for (final asset in manifest) {
+      if (asset.startsWith(dbAssetPath)) {
+        final fileName = basename(asset);
+        final targetPath = dir == null ? fileName : join(dir, fileName);
+        futures.add(_copySnapshotTable(asset, targetPath));
+      }
+    }
+    await Future.wait(futures);
+    // Clear and open new databases;
+    futures.clear();
+    for (final tableName in tableNames) {
+      _database.remove(tableName);
+      futures.add(initTable(tableName, dir: dir));
+    }
+    await Future.wait(futures);
+  }
+
   Future<void> _copySnapshotTable(String assetPath, String targetPath) async {
     try {
       final assetContent = await rootBundle.load(assetPath);
