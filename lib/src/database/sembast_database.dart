@@ -23,7 +23,7 @@ class SembastDatabase extends Database {
   static final appVersionKey = 'app_version';
 
   final Map<String, sembast.Database> _database = {};
-  final _syncQueue = Queue(parallel: 2);
+  Queue _syncQueue;
 
   /// Opens up each table connected to each model, which is stored in a separate file.
   /// `dbAssetPath` the asset path to import database
@@ -31,7 +31,8 @@ class SembastDatabase extends Database {
   Future<void> init(List<String> tableNames,
       {String dbAssetPath = 'assets/db',
       String version,
-      List<String> manifest}) async {
+      List<String> manifest, int parallelTask = 1}) async {
+    _syncQueue = Queue(parallel: parallelTask);
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
     tableNames.add(TransferMap().tableName);
@@ -83,39 +84,33 @@ class SembastDatabase extends Database {
     }
   }
 
-  Future<void> copySnapShotAndRefreshTables(List<String> tableNames, String dbAssetPath,
-      List<String> manifest) async {
+  Future<void> copySnapShotAndRefreshTables(List<String> tableNames, String dbAssetPath) async {
     if (UniversalPlatform.isWeb ||
-        dbAssetPath?.isNotEmpty != true ||
-        manifest?.isNotEmpty != true) {
+        dbAssetPath?.isNotEmpty != true) {
       return;
     }
     // get document directory
     final documentPath = await getApplicationSupportDirectory();
     await documentPath.create(recursive: true);
     final dir = documentPath.path;
-    // do copy from asset
-    for (final asset in manifest) {
-      if (asset.startsWith(dbAssetPath)) {
-        final fileName = basename(asset);
+
+    for (final tableName in tableNames) {
+      // ignore: unawaited_futures
+      _syncQueue.add(() async {
+        final databaseRemoved = _database.remove(tableName);
+        if (databaseRemoved != null) {
+          await databaseRemoved.close();
+        }
+        final fileName = '${tableName}.db';
         final targetPath = dir == null ? fileName : join(dir, fileName);
-        // ignore: unawaited_futures
-        _syncQueue.add(() =>_copySnapshotTable(asset, targetPath));
-      }
+        final tableAssetPath = '$dbAssetPath$fileName';
+        await _copySnapshotTable(tableAssetPath, targetPath);
+        await initTable(tableName, dir: dir);
+      });
     }
     // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
     unawaited(_syncQueue.add(() => Future.value()));
     await _syncQueue.onComplete;
-
-    final futures = <Future>[];
-    for (final tableName in tableNames) {
-      final databaseRemoved = _database.remove(tableName);
-      if (databaseRemoved != null) {
-        futures.add(databaseRemoved.close());
-      }
-      futures.add(initTable(tableName, dir: dir));
-    }
-    await Future.wait(futures);
   }
 
   Future<void> _copySnapshotTable(String assetPath, String targetPath) async {
