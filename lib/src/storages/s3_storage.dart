@@ -57,9 +57,14 @@ class S3StorageUntrustedClient extends Storage {
         ),
       );
 
-      await request.addStream(streamUpload);
-      final httpResponse = await request.close();
-      if (httpResponse.statusCode != 200) {
+      try {
+        await request.addStream(streamUpload);
+        final httpResponse = await request.close();
+        if (httpResponse.statusCode != 200) {
+          throw Exception(
+              'Error [${httpResponse.statusCode}] uploading file $remotePath, $httpResponse');
+        }
+      } catch (e) {
         if (!await ConnectionHelper.hasConnection()) {
           throw ConnectivityException('The connection is turn off',
               hasConnectionStatus: false);
@@ -71,8 +76,7 @@ class S3StorageUntrustedClient extends Storage {
               hasConnectionStatus: true);
         }
 
-        throw Exception(
-            'Error [${httpResponse.statusCode}] uploading file $remotePath, $httpResponse');
+        rethrow;
       }
     }
   }

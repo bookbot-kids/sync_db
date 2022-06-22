@@ -159,6 +159,10 @@ class AzureADB2CUserSession extends UserSession {
             stackTrace);
         rethrow;
       }
+    } on ConnectivityException catch (e, stackTrace) {
+      Sync.shared.logger
+          ?.w('Resource tokens connection error $e', e, stackTrace);
+      rethrow;
     } on Exception catch (e, stackTrace) {
       Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
       rethrow;
@@ -231,8 +235,12 @@ class AzureADB2CUserSession extends UserSession {
   Future<void> deleteUser(String email) async {
     final prefs = await _sharePrefInstance;
     var refreshToken = prefs.getString(_refreshTokenKey);
-    var clientToken = WebServiceUtils.generateClientToken(_azureSecret, _azureSubject,
-        _azureIssuer, _azureAudience, await NetworkTime.shared.now,
+    var clientToken = WebServiceUtils.generateClientToken(
+        _azureSecret,
+        _azureSubject,
+        _azureIssuer,
+        _azureAudience,
+        await NetworkTime.shared.now,
         jwtId: Random().nextInt(10000).toString());
     if (!await ConnectionHelper.hasConnection()) {
       throw ConnectivityException('The connection is turn off',
@@ -243,12 +251,14 @@ class AzureADB2CUserSession extends UserSession {
           'The connection is turn on but there is no internet connection',
           hasConnectionStatus: true);
     }
-    final response = await _http.post('/DeleteUser', parameters: {
-      'email': email,
-      'refresh_token': refreshToken ?? '',
-      'client_token': clientToken,
-      'code': _azureKey
-    }, includeHttpResponse: true);
+    final response = await _http.post('/DeleteUser',
+        parameters: {
+          'email': email,
+          'refresh_token': refreshToken ?? '',
+          'client_token': clientToken,
+          'code': _azureKey
+        },
+        includeHttpResponse: true);
     if (response.data == null || response.data['success'] != true) {
       throw Exception('Delete account failed, statusCode: '
           '${response.statusCode}, message: ${response.statusMessage}');
