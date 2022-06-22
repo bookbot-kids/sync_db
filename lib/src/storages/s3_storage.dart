@@ -18,6 +18,13 @@ class S3StorageUntrustedClient extends Storage {
           Duration(seconds: config['uploadConnectTimeout'] ?? 60000)
       ..idleTimeout =
           Duration(seconds: config['uploadReceiveTimeout'] ?? 60000);
+
+    final acceptedHosts = config['uploadAcceptedHosts'] ?? [];
+    httpClient.badCertificateCallback =
+        (X509Certificate cert, String host, int port) {
+      if (acceptedHosts.isEmpty) return true;
+      return acceptedHosts.contains(host);
+    };
   }
 
   @override
