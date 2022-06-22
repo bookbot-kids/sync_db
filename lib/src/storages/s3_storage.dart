@@ -14,8 +14,10 @@ class S3StorageUntrustedClient extends Storage {
   S3StorageUntrustedClient(Map config) : super(config) {
     _baseUrl = config['s3UploadRemoteUrl'];
     httpClient = HttpClient()
-      ..connectionTimeout = Duration(seconds: config['connectTimeout'] ?? 60000)
-      ..idleTimeout = Duration(seconds: config['receiveTimeout'] ?? 60000);
+      ..connectionTimeout =
+          Duration(seconds: config['uploadConnectTimeout'] ?? 60000)
+      ..idleTimeout =
+          Duration(seconds: config['uploadReceiveTimeout'] ?? 60000);
   }
 
   @override
