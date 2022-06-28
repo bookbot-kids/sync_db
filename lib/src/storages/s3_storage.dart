@@ -74,12 +74,12 @@ class S3StorageUntrustedClient extends Storage {
               'Error [${httpResponse.statusCode}] uploading file $remotePath, $httpResponse');
         }
       } catch (e) {
-        if (!await ConnectionHelper.hasConnection()) {
+        if (!await ConnectionHelper.shared.hasConnection()) {
           throw ConnectivityException('The connection is turn off',
               hasConnectionStatus: false);
         }
 
-        if (!await ConnectionHelper.hasInternetConnection()) {
+        if (!await ConnectionHelper.shared.hasInternetConnection()) {
           throw ConnectivityException(
               'The connection is turn on but there is no internet connection',
               hasConnectionStatus: true);

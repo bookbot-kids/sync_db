@@ -112,7 +112,7 @@ class Storage {
       } catch (e, stackTrace) {
         // don't log error again on retry
         if (!isRetrying) {
-          if (await ConnectionHelper.hasInternetConnection()) {
+          if (await ConnectionHelper.shared.hasInternetConnection()) {
             if (e is UnexpectedResponseException) {
               Sync.shared.logger?.e(
                   ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
@@ -140,7 +140,7 @@ class Storage {
         }
 
         // retry if there is error
-        if (await ConnectionHelper.hasInternetConnection()) {
+        if (await ConnectionHelper.shared.hasInternetConnection()) {
           _retryDelayedMap.putIfAbsent(transfer.id, () => _initRetryTime);
           // ignore: unawaited_futures
           _delayedPool.withResource(() async => await Future.delayed(

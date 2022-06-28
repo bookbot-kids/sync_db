@@ -242,11 +242,11 @@ class AzureADB2CUserSession extends UserSession {
         _azureAudience,
         await NetworkTime.shared.now,
         jwtId: Random().nextInt(10000).toString());
-    if (!await ConnectionHelper.hasConnection()) {
+    if (!await ConnectionHelper.shared.hasConnection()) {
       throw ConnectivityException('The connection is turn off',
           hasConnectionStatus: false);
     }
-    if (!await ConnectionHelper.hasInternetConnection()) {
+    if (!await ConnectionHelper.shared.hasInternetConnection()) {
       throw ConnectivityException(
           'The connection is turn on but there is no internet connection',
           hasConnectionStatus: true);
