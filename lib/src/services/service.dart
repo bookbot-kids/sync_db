@@ -18,6 +18,10 @@ abstract class Service {
 
   /// Sync everything
   Future<void> sync({bool syncDelegate = true}) async {
+    if (!await connectivity()) {
+      return;
+    }
+
     var servicePoints = await Sync.shared.userSession.servicePoints();
     await _syncServicePoints(servicePoints);
     if (syncDelegate) {
@@ -27,7 +31,13 @@ abstract class Service {
 
   // Sync external data from delegates
   Future<void> syncDelegates() async {
+    if (!Sync.shared.networkAvailable) {
+      return;
+    }
     for (final delegate in Sync.shared.delegates) {
+      if (!Sync.shared.networkAvailable) {
+        return;
+      }
       final token = await Sync.shared.userSession.token;
       final records = await delegate.syncRead(token);
       // create a fake service point with read only permission to save records
@@ -46,7 +56,7 @@ abstract class Service {
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
-    // TODO: manage exceptions here
+    // manage exceptions here
     // If authentication error - log it - it's not supposed to happen
     // Connectivity - once connectivity is lost, do a connectivity check each minute.
     // If it is flagged as having no connectivity - do not allow it to start another network process
@@ -54,10 +64,35 @@ abstract class Service {
     // If can connect to google, but not our servers - log this
 
     for (final servicePoint in servicePoints) {
+      if (!Sync.shared.networkAvailable) {
+        return;
+      }
       // ignore: unawaited_futures
-      _syncQueue.add(() => readServicePoint(servicePoint));
+      _syncQueue.add(() async {
+        if (!Sync.shared.networkAvailable) {
+          return;
+        }
+        try {
+          await readServicePoint(servicePoint);
+        } catch (e) {
+          await Sync.shared.listenInternetChangedIfNeeded();
+          rethrow;
+        }
+      });
       // ignore: unawaited_futures
-      _syncQueue.add(() => writeServicePoint(servicePoint));
+      _syncQueue.add(() async {
+        if (!Sync.shared.networkAvailable) {
+          return;
+        }
+
+        try {
+          await writeServicePoint(servicePoint);
+        } catch (e) {
+          // listen internet change when there is network error
+          await Sync.shared.listenInternetChangedIfNeeded();
+          rethrow;
+        }
+      });
     }
 
     // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
@@ -67,12 +102,18 @@ abstract class Service {
 
   /// Write created or updated records in this table
   Future<void> writeTable(String table) async {
-    // TODO: manage connectivity & authentication exceptions here
+    if (!Sync.shared.networkAvailable) {
+      return;
+    }
+
     final servicePoints =
         await Sync.shared.userSession.servicePointsForTable(table);
     var futures = <Future>[];
     Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
+      if (!Sync.shared.networkAvailable) {
+        return;
+      }
       futures.add(writeServicePoint(servicePoint));
     }
     await Future.wait(futures);
@@ -94,6 +135,11 @@ abstract class Service {
   Future<void> writeServicePoint(ServicePoint service) async {
     // Needs all or write access
     if (service.access == Access.read) return;
+
+    // don't sync if there is no internet connection
+    if (!Sync.shared.networkAvailable) {
+      return;
+    }
 
     Sync.shared.logger?.i('writeServicePoint ${service.name}');
     // Get lock for only running one service point at a time
@@ -169,7 +215,9 @@ abstract class Service {
   }
 
   /// A function to handle connectivity checks
-  Future<bool> connectivity() {}
+  Future<bool> connectivity() async {
+    return await Sync.shared.connectivity();
+  }
 
   /// Remove private fields before saving to cosmos
   void excludePrivateFields(Map map) {

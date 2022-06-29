@@ -138,6 +138,11 @@ class CosmosService extends Service {
       ServicePoint servicePoint, String query,
       {List<Map<String, String>> parameters = const <Map<String, String>>[],
       String paginationToken}) async {
+    if (!await connectivity()) {
+      throw ConnectivityException(
+          'queryDocuments $query (${servicePoint.name}) $servicePoint error because there is no connection');
+    }
+
     var headers = <String, dynamic>{
       'authorization': Uri.encodeComponent(servicePoint.token),
       'content-type': 'application/query+json',
@@ -189,6 +194,11 @@ class CosmosService extends Service {
   /// Cosmos api to create document
   Future<Map<String, dynamic>> _createDocument(
       ServicePoint servicePoint, Map record) async {
+    if (!await connectivity()) {
+      throw ConnectivityException(
+          'Create cosmos $record document failed because there is no connection');
+    }
+
     // remove underscore fields
     excludePrivateFields(record);
 
@@ -250,6 +260,11 @@ class CosmosService extends Service {
 
   /// Cosmos api to update document
   Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record) async {
+    if (!await connectivity()) {
+      throw ConnectivityException(
+          'Update cosmos $record document failed because there is no connection');
+    }
+
     // we don't want to save local private fields
     excludePrivateFields(record);
 
