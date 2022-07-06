@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:robust_http/connection_helper.dart';
+import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
@@ -75,21 +77,39 @@ class AzureStorageTrustedClient extends Storage {
 
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
+    var localFile = File(transferMap.localPath);
+    IOSink ios;
+    var hasError = false;
     try {
+      // delete previous download file
+      if (await localFile.exists()) {
+        await localFile.delete();
+      }
+
       var response = await getBlob(transferMap.remotePath);
       if (response.statusCode == 200) {
-        var localFile = File(transferMap.localPath);
-        var ios = localFile.openWrite(mode: FileMode.write);
-        ios.add(await response.stream.toBytes());
-        await ios.close();
+        ios = localFile.openWrite(mode: FileMode.write);
+        ios?.add(await response.stream.toBytes());
       } else if (response.statusCode == 404) {
         throw FileNotFoundException('404 error on ${transferMap.remotePath}');
       } else {
         throw Exception(
             'download file with error status code ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      hasError = true;
+      if (!await ConnectionHelper.shared.hasInternetConnection()) {
+        throw ConnectivityException(
+            'Does not have connection when download  ${transferMap.remotePath} $e $stackTrace');
+      }
+
       rethrow;
+    } finally {
+      await ios?.flush();
+      await ios?.close();
+      if (hasError && await localFile.exists()) {
+        await localFile.delete();
+      }
     }
   }
 
