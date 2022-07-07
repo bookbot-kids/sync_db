@@ -31,7 +31,8 @@ class SembastDatabase extends Database {
   Future<void> init(List<String> tableNames,
       {String dbAssetPath = 'assets/db',
       String version,
-      List<String> manifest, int parallelTask = 1}) async {
+      List<String> manifest,
+      int parallelTask = 1}) async {
     _syncQueue = Queue(parallel: parallelTask);
     // need to setup the ServicePoint in sembast
     tableNames.add(ServicePoint().tableName);
@@ -84,9 +85,9 @@ class SembastDatabase extends Database {
     }
   }
 
-  Future<void> copySnapShotAndRefreshTables(List<String> tableNames, String dbAssetPath) async {
-    if (UniversalPlatform.isWeb ||
-        dbAssetPath?.isNotEmpty != true) {
+  Future<void> copySnapShotAndRefreshTables(
+      List<String> tableNames, String dbAssetPath) async {
+    if (UniversalPlatform.isWeb || dbAssetPath?.isNotEmpty != true) {
       return;
     }
     // get document directory
@@ -441,6 +442,21 @@ class SembastDatabase extends Database {
     var db = await _getDatabse(tableName);
     final store = sembast.StoreRef.main();
     await store.delete(db, finder: sembast.Finder());
+  }
+
+  @override
+  Future<void> resetTable(String tableName) async {
+    var db = await _getDatabse(tableName);
+    await db.close();
+    if (UniversalPlatform.isWeb) {
+      await databaseFactoryWeb.deleteDatabase(db.path);
+    } else {
+      await databaseFactoryIo.deleteDatabase(db.path);
+    }
+    _database.remove(tableName);
+    Sync.shared.logger?.i('Cleared table $tableName');
+    // reopen
+    await _getDatabse(tableName);
   }
 
   @override

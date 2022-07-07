@@ -59,7 +59,11 @@ abstract class Database {
 
   dynamic queryMap(Query query, {dynamic transaction});
 
+  /// clear all data in table
   Future<void> clearTable(String tableName);
+
+  /// delete table and recreate
+  Future<void> resetTable(String tableName);
 
   Future<void> delete(Model model);
 
