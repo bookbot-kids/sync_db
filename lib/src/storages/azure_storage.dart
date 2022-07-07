@@ -55,6 +55,7 @@ class AzureStorageTrustedClient extends Storage {
   static final String EndpointSuffix = 'EndpointSuffix';
   static final String AccountName = 'AccountName';
   static final String AccountKey = 'AccountKey';
+  final _client = http.Client();
 
   /// Initialize with connection string.
   AzureStorageTrustedClient(Map config) : super(config) {
@@ -89,7 +90,10 @@ class AzureStorageTrustedClient extends Storage {
       var response = await getBlob(transferMap.remotePath);
       if (response.statusCode == 200) {
         ios = localFile.openWrite(mode: FileMode.write);
-        ios?.add(await response.stream.toBytes());
+        final bytes = await response.stream.toBytes();
+        Sync.shared.logger?.i(
+            'Download ${transferMap.remoteUrl} into ${transferMap.localPath} bytes size = ${bytes.length}');
+        ios?.add(bytes);
       } else if (response.statusCode == 404) {
         throw FileNotFoundException('404 error on ${transferMap.remotePath}');
       } else {
@@ -98,6 +102,8 @@ class AzureStorageTrustedClient extends Storage {
       }
     } catch (e, stackTrace) {
       hasError = true;
+      Sync.shared.logger?.i(
+          'Download ${transferMap.remoteUrl} into ${transferMap.localPath} error $e, $stackTrace');
       if (!await ConnectionHelper.shared.hasInternetConnection()) {
         throw ConnectivityException(
             'Does not have connection when download  ${transferMap.remotePath} $e $stackTrace');
@@ -105,7 +111,6 @@ class AzureStorageTrustedClient extends Storage {
 
       rethrow;
     } finally {
-      await ios?.flush();
       await ios?.close();
       if (hasError && await localFile.exists()) {
         await localFile.delete();
@@ -196,8 +201,9 @@ class AzureStorageTrustedClient extends Storage {
   /// Get Blob.
   Future<http.StreamedResponse> getBlob(String path) async {
     var request = http.Request('GET', _uri(path: path));
+    request.headers[HttpHeaders.connectionHeader] = 'keep-alive';
     sign(request);
-    return request.send();
+    return _client.send(request);
   }
 
   /// Put Blob.
@@ -215,6 +221,8 @@ class AzureStorageTrustedClient extends Storage {
       request.headers['content-type'] = contentType;
     }
 
+    request.headers[HttpHeaders.connectionHeader] = 'keep-alive';
+
     if (type == BlobType.BlockBlob) {
       if (bodyBytes != null) {
         request.bodyBytes = bodyBytes;
@@ -225,7 +233,7 @@ class AzureStorageTrustedClient extends Storage {
       request.body = '';
     }
     sign(request);
-    var res = await request.send();
+    var res = await _client.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
 
@@ -250,7 +258,7 @@ class AzureStorageTrustedClient extends Storage {
       request.body = body;
     }
     sign(request);
-    var res = await request.send();
+    var res = await _client.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
       return;
@@ -289,6 +297,7 @@ class AzureStorageUntrustedClient extends Storage {
     http.headers = {
       'x-ms-blob-type': 'BlockBlob',
       HttpHeaders.contentLengthHeader: localFile.lengthSync(),
+      HttpHeaders.connectionHeader: 'keep-alive'
     };
 
     // upload file by stream
