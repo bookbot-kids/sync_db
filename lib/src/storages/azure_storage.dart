@@ -55,7 +55,8 @@ class AzureStorageTrustedClient extends Storage {
   static final String EndpointSuffix = 'EndpointSuffix';
   static final String AccountName = 'AccountName';
   static final String AccountKey = 'AccountKey';
-  final _client = http.Client();
+  final _downloadClient = http.Client();
+  final _uploadClient = http.Client();
 
   /// Initialize with connection string.
   AzureStorageTrustedClient(Map config) : super(config) {
@@ -203,7 +204,7 @@ class AzureStorageTrustedClient extends Storage {
     var request = http.Request('GET', _uri(path: path));
     request.headers[HttpHeaders.connectionHeader] = 'keep-alive';
     sign(request);
-    return _client.send(request);
+    return _downloadClient.send(request);
   }
 
   /// Put Blob.
@@ -233,7 +234,7 @@ class AzureStorageTrustedClient extends Storage {
       request.body = '';
     }
     sign(request);
-    var res = await _client.send(request);
+    var res = await _uploadClient.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
 
@@ -258,7 +259,7 @@ class AzureStorageTrustedClient extends Storage {
       request.body = body;
     }
     sign(request);
-    var res = await _client.send(request);
+    var res = await _uploadClient.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
       return;
