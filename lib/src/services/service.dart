@@ -11,9 +11,11 @@ abstract class Service {
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
   Queue _syncQueue;
+  List<String> ignoreTables = [];
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
+    ignoreTables = config['tablesToIgnore'] ?? [];
   }
 
   /// Sync everything
@@ -120,6 +122,8 @@ abstract class Service {
   }
 
   Future<void> readServicePoint(ServicePoint service) async {
+    // ignore given table from sync
+    if (ignoreTables.contains(service.tableName)) return;
     // Needs all or read access
     if (service.access == Access.write) return;
 
@@ -133,6 +137,8 @@ abstract class Service {
   }
 
   Future<void> writeServicePoint(ServicePoint service) async {
+    // ignore given table from sync
+    if (ignoreTables.contains(service.tableName)) return;
     // Needs all or write access
     if (service.access == Access.read) return;
 
