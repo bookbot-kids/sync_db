@@ -123,7 +123,7 @@ abstract class Service {
 
   Future<void> readServicePoint(ServicePoint service) async {
     // ignore given table from sync
-    if (ignoreTables.contains(service.tableName)) return;
+    if (ignoreTables.contains(service.name)) return;
     // Needs all or read access
     if (service.access == Access.write) return;
 
@@ -138,7 +138,7 @@ abstract class Service {
 
   Future<void> writeServicePoint(ServicePoint service) async {
     // ignore given table from sync
-    if (ignoreTables.contains(service.tableName)) return;
+    if (ignoreTables.contains(service.name)) return;
     // Needs all or write access
     if (service.access == Access.read) return;
 
