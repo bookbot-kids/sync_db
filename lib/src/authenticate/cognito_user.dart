@@ -6,6 +6,7 @@ import 'package:jaguar_jwt/jaguar_jwt.dart';
 import 'package:random_string/random_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/abstract.dart';
+import 'package:sync_db/src/authenticate/cognito_share_pref_storage.dart';
 import 'package:sync_db/src/services/graphql_service.dart';
 import 'package:sync_db/src/services/service_point.dart';
 import 'package:sync_db/src/sync_db.dart';
@@ -460,46 +461,4 @@ class CognitoUserInfo {
   bool hasAccess = false;
   String id;
   String name;
-}
-
-/// Cognito shared preference storage, uses to store session keys
-class SharedPreferenceStorage extends cognito.CognitoStorage {
-  SharedPreferenceStorage(this._prefs);
-
-  final SharedPreferences _prefs;
-
-  @override
-  Future<void> clear() async {
-    await _prefs.clear();
-  }
-
-  @override
-  Future getItem(String key) async {
-    String item;
-    try {
-      var value = _prefs.getString(key);
-      if (value != null) {
-        item = json.decode(value);
-      }
-    } catch (e) {
-      return null;
-    }
-    return item;
-  }
-
-  @override
-  Future removeItem(String key) async {
-    final item = getItem(key);
-    if (item != null) {
-      await _prefs.remove(key);
-      return item;
-    }
-    return null;
-  }
-
-  @override
-  Future setItem(String key, value) async {
-    await _prefs.setString(key, json.encode(value));
-    return getItem(key);
-  }
 }

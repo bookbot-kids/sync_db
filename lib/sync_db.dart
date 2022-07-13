@@ -17,3 +17,4 @@ export 'src/storages/azure_storage.dart';
 export 'src/services/sync_delegate.dart';
 export 'src/storages/s3_storage.dart';
 export 'src/generator/model_annotation.dart';
+export 'src/authenticate/cognito_azure_user.dart';
