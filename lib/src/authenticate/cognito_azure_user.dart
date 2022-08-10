@@ -337,9 +337,15 @@ class CognitoAzureUserSession extends UserSession
         username: email, authParameters: [], validationData: {});
     try {
       _session = await _cognitoUser.initiateAuth(authDetails);
-    } on CognitoUserCustomChallengeException {
-      // challenge exception, then send passcode
-      _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
+    } on CognitoUserCustomChallengeException catch (e, stackTrace) {
+      Sync.shared.logger?.i('initiate auth error $e', e, stackTrace);
+      try {
+        // challenge exception, then send passcode
+        _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
+      } on CognitoUserCustomChallengeException {
+        // if there is challenge exception, then it's not valid passcode
+        throw InvalidPasscodeException('Passcode $passcode is not valid');
+      }
 
       if (!_session.isValid()) {
         return null;
@@ -390,4 +396,11 @@ class CognitoAzureUserSession extends UserSession
       {String password, Function signUpSuccess}) {
     throw UnimplementedError();
   }
+}
+
+class InvalidPasscodeException implements Exception {
+  String errorMessage;
+  InvalidPasscodeException(this.errorMessage);
+  @override
+  String toString() => errorMessage;
 }
