@@ -21,8 +21,11 @@ class CognitoAzureUserSession extends UserSession
   /// `azureKey` the secure code to request azure function
   /// `tablesToClearOnSignout` a list of tables to remove when signing out
   /// `autoRefresh` auto refresh token
-  CognitoAzureUserSession(Map<String, dynamic> config,
-      {bool autoRefresh = true}) {
+  CognitoAzureUserSession(
+    Map<String, dynamic> config, {
+    bool autoRefresh = true,
+    SharedPreferences sharedPreferences,
+  }) {
     _http = HTTP(config['azureBaseUrl'], {
       'httpRetries': 1,
       'connectTimeout': config['connectTimeout'],
@@ -42,12 +45,21 @@ class CognitoAzureUserSession extends UserSession
 
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
 
-    _sharePrefInstance.then((prefs) {
+    final initializeListener = (SharedPreferences prefs) {
       _userPool.storage = SharedPreferenceStorage(prefs);
-      _initialized();
+      _initializeTask = _initialized();
       // try to load role first
       role = prefs.getString(_userRoleKey) ?? _defaultRole;
-    });
+    };
+
+    if (sharedPreferences != null) {
+      _sharePref = sharedPreferences;
+      initializeListener(sharedPreferences);
+    } else {
+      _sharePrefInstance.then((prefs) {
+        initializeListener(prefs);
+      });
+    }
 
     if (autoRefresh) {
       // Start the process of getting tokens
@@ -73,6 +85,7 @@ class CognitoAzureUserSession extends UserSession
   cognito.CognitoUser _cognitoUser;
   cognito.CognitoUserSession _session;
   cognito.CognitoUserPool _userPool;
+  Future _initializeTask;
 
   @override
   String role = _defaultRole;
@@ -113,6 +126,10 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<bool> hasSignedIn() async {
+    if (_initializeTask != null) {
+      await _initializeTask;
+    }
+
     return await _checkAuthenticated();
   }
 
