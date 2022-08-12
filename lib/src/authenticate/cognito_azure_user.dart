@@ -135,6 +135,10 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<void> refresh({bool forceRefreshToken = false}) async {
+    if (_initializeTask != null) {
+      await _initializeTask;
+    }
+
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
@@ -186,6 +190,7 @@ class CognitoAzureUserSession extends UserSession
       // Only handle refresh token expiry, otherwise the rest can bubble up
       if (e.statusCode == 401) {
         // token is expired -> sign out user
+        Sync.shared.logger.i('Token expired, sign out user');
         await signout();
       } else {
         Sync.shared.logger?.e(
@@ -232,7 +237,7 @@ class CognitoAzureUserSession extends UserSession
     role = _defaultRole;
     await _cognitoUser?.signOut();
     _session = null;
-
+    Sync.shared.logger.i('signed out, then clear tables');
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
       for (final servicePoint in servicePoints) {
