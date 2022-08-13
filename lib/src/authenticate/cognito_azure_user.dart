@@ -369,8 +369,13 @@ class CognitoAzureUserSession extends UserSession
         throw InvalidPasscodeException('Passcode $passcode is not valid');
       }
 
-      if (!_session.isValid()) {
-        return null;
+      if (_session == null || !_session.isValid()) {
+        // try to get new session
+        _session = await _cognitoUser.getSession();
+        if (_session == null || !_session.isValid()) {
+          throw Exception(
+              'Session $_session is invalid when confirm passcode $passcode for $email');
+        }
       }
 
       final attributes = await _cognitoUser.getUserAttributes();
@@ -378,6 +383,9 @@ class CognitoAzureUserSession extends UserSession
       user.confirmed = true;
       user.hasAccess = true;
       return user;
+    } on Exception catch (e, stackTrace) {
+      Sync.shared.logger?.e('Verify passcode error $e', e, stackTrace);
+      rethrow;
     } catch (e, stackTrace) {
       Sync.shared.logger?.e('Verify passcode error $e', e, stackTrace);
       rethrow;
