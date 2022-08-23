@@ -237,6 +237,7 @@ class CognitoAzureUserSession extends UserSession
     role = _defaultRole;
     await _cognitoUser?.signOut();
     _session = null;
+    _cognitoUser = null;
     Sync.shared.logger.i('signed out, then clear tables');
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
