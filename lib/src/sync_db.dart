@@ -2,6 +2,7 @@ import 'package:robust_http/connection_helper.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:logger/logger.dart';
+import 'package:tuple/tuple.dart';
 
 class Sync {
   factory Sync() => Singleton.lazy(() => Sync._privateConstructor());
@@ -15,6 +16,8 @@ class Sync {
   Storage storage;
   List<SyncDelegate> delegates = [];
   final networkNotifier = Notifier<bool>(true);
+  final exceptionNotifier =
+      Notifier<Tuple2<dynamic, dynamic>>(Tuple2(null, null));
 
   bool _hasConnection = true;
   bool _hasInternet = true;

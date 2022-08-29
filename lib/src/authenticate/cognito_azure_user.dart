@@ -11,6 +11,7 @@ import 'package:sync_db/src/utils/web_service_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
+import 'package:tuple/tuple.dart';
 
 /// A class that handles the authentication of a user with Cognito.
 /// And also handles the refreshing of the authentication token from azure services.
@@ -312,7 +313,23 @@ class CognitoAzureUserSession extends UserSession
 
   /// Check if user's current session is valid
   Future<bool> _checkAuthenticated() async {
-    if (_cognitoUser == null || _session == null) {
+    if (_cognitoUser == null) {
+      return false;
+    }
+
+    if (_session == null) {
+      try {
+        // try to get session
+        _session = await _cognitoUser?.getSession();
+      } catch (e, stacktrace) {
+        if (await ConnectionHelper.shared.hasConnection()) {
+          Sync.shared.logger?.e('initiate session error $e', e, stacktrace);
+          Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
+        }
+      }
+    }
+
+    if (_session == null) {
       return false;
     }
 
@@ -347,8 +364,15 @@ class CognitoAzureUserSession extends UserSession
   }
 
   Future<void> _initialized() async {
-    _cognitoUser = await _userPool.getCurrentUser();
-    _session = await _cognitoUser?.getSession();
+    try {
+      _cognitoUser = await _userPool.getCurrentUser();
+      _session = await _cognitoUser?.getSession();
+    } on CognitoClientException catch (e, stacktrace) {
+      if (await ConnectionHelper.shared.hasConnection()) {
+        Sync.shared.logger?.e('initiate cognito error $e', e, stacktrace);
+        Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
+      }
+    }
   }
 
   @override
