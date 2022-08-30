@@ -159,8 +159,7 @@ class CognitoAzureUserSession extends UserSession
         });
       });
       Sync.shared.logger?.i('Finished request GetResourceTokens');
-      _tokenExpiry =
-          (await asyncTimeStamp).add(Duration(hours: 4, minutes: 59));
+      _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));
 
       // Setup or update ServicePoints
       final mappedServicePoints = await asyncMapped;
