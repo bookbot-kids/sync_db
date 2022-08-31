@@ -320,11 +320,8 @@ class CognitoAzureUserSession extends UserSession
       try {
         // try to get session
         _session = await _cognitoUser?.getSession();
-      } catch (e, stacktrace) {
-        if (await ConnectionHelper.shared.hasConnection()) {
-          Sync.shared.logger?.e('initiate session error $e', e, stacktrace);
-          Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
-        }
+      } catch (e) {
+        // ignore
       }
     }
 
