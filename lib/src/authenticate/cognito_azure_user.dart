@@ -374,7 +374,10 @@ class CognitoAzureUserSession extends UserSession
   @override
   Future<CognitoUserInfo> confirmEmailPasscode(
       String email, String passcode) async {
-    _cognitoUser ??= CognitoUser(email, _userPool);
+    if (_cognitoUser == null || _cognitoUser.username != email) {
+      _cognitoUser = CognitoUser(email, _userPool);
+    }
+
     _cognitoUser.setAuthenticationFlowType('CUSTOM_AUTH');
     final authDetails = AuthenticationDetails(
         username: email, authParameters: [], validationData: {});
