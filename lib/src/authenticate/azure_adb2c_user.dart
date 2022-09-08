@@ -184,7 +184,13 @@ class AzureADB2CUserSession extends UserSession {
 
   // check to refresh the refresh token
   Future<void> _refreshIfExpired() async {
-    await _refreshed;
+    try {
+      await _refreshed;
+    } catch (e) {
+      //ignore & refresh new task
+      _refreshed = refresh();
+      await _refreshed;
+    }
     final now = await NetworkTime.shared.now;
     if (now.isAfter(_tokenExpiry)) {
       _refreshed = refresh();
