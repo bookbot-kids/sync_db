@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:analyzer/dart/element/element.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
@@ -5,7 +7,7 @@ import 'package:analyzer/dart/element/type.dart';
 
 import 'model_annotation.dart';
 
-T cast<T>(x) => x is T ? x : null;
+T? cast<T>(x) => x is T ? x : null;
 
 class ModelGenerator extends Generator {
   static final primitiveTypes = ['int', 'double', 'String', 'bool', 'num'];
@@ -39,15 +41,15 @@ class ModelGenerator extends Generator {
         var map = <String, dynamic>{};
         map[idKey] = id;
         if (createdAt != null) {
-          map[createdKey] = createdAt.millisecondsSinceEpoch;
+          map[createdKey] = createdAt?.millisecondsSinceEpoch;
         }
 
         if (updatedAt != null) {
-          map[updatedKey] = updatedAt.millisecondsSinceEpoch;
+          map[updatedKey] = updatedAt?.millisecondsSinceEpoch;
         }
 
         if (deletedAt != null) {
-          map[deletedKey] = deletedAt.millisecondsSinceEpoch;
+          map[deletedKey] = deletedAt?.millisecondsSinceEpoch;
         }
       ''';
 
@@ -84,10 +86,10 @@ class ModelGenerator extends Generator {
         continue;
       }
 
-      var type = field.type.element.displayName;
+      var type = field.type.element!.displayName;
       var isEnumParam = false;
-      String type2;
-      String type3;
+      String? type2;
+      String? type3;
       if (_propertyTypeChecker.hasAnnotationOfExact(field,
           throwOnUnresolved: false)) {
         // final name = _propertyTypeChecker
@@ -95,22 +97,22 @@ class ModelGenerator extends Generator {
         //     .getField('name')
         //     ?.toStringValue();
         type = _propertyTypeChecker
-                .firstAnnotationOfExact(field, throwOnUnresolved: false)
+                .firstAnnotationOfExact(field, throwOnUnresolved: false)!
                 .getField('type')
                 ?.toStringValue() ??
-            field.type.element.displayName;
+            field.type.element!.displayName;
         isEnumParam = _propertyTypeChecker
-                .firstAnnotationOfExact(field, throwOnUnresolved: false)
+                .firstAnnotationOfExact(field, throwOnUnresolved: false)!
                 .getField('isEnumParam')
                 ?.toBoolValue() ??
             false;
 
         type2 = _propertyTypeChecker
-            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)!
             .getField('type2')
             ?.toStringValue();
         type3 = _propertyTypeChecker
-            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)!
             .getField('type3')
             ?.toStringValue();
       } else {
@@ -126,14 +128,14 @@ class ModelGenerator extends Generator {
         }
       }
 
-      ClassElement typeClass = field.type.element;
+      final typeClass = field.type.element as ClassElement;
       // working on enum
       if (typeClass.isEnum) {
         final type = typeClass.displayName;
         getterFields.add(
             "map['${name}'] = ${name} == null ? null : EnumToString.convertToString(${name});");
         setterFields.add(
-            "if(map['${name}'] != null) { ${name} = EnumToString.fromString(${type}.values, map['${name}']); }");
+            "if(map['${name}'] != null) { ${name} = EnumToString.fromString(${type}.values, map['${name}'])!; }");
         continue;
       }
 
@@ -143,7 +145,8 @@ class ModelGenerator extends Generator {
         var regex = RegExp('<[a-zA-Z0-9]*>');
         var match = regex.firstMatch(type);
         if (match != null) {
-          var listType = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          var listType =
+              match.group(0)!.replaceAll('<', '').replaceAll('>', '');
           // enum list
           if (isEnumParam) {
             getterFields.add(
@@ -174,7 +177,7 @@ class ModelGenerator extends Generator {
         var regex = RegExp('<[a-zA-Z0-9]*>');
         var match = regex.firstMatch(type);
         if (match != null) {
-          var setType = match.group(0).replaceAll('<', '').replaceAll('>', '');
+          var setType = match.group(0)!.replaceAll('<', '').replaceAll('>', '');
           if (isEnumParam) {
             getterFields.add(
                 "map['${name}'] = EnumToString.toList((${name} ?? []).where((element) => element != null).toList());");
@@ -254,7 +257,7 @@ class ModelGenerator extends Generator {
           var match = regex.firstMatch(type.replaceFirst('Map', ''));
           if (match != null) {
             var mapTypes =
-                match.group(0).replaceAll('<', '').replaceAll('>', '');
+                match.group(0)!.replaceAll('<', '').replaceAll('>', '');
             final types = mapTypes.split(',');
             final type1 = types[0].trim();
             final type2 = types[1].trim();
@@ -329,17 +332,17 @@ class ModelGenerator extends Generator {
       }
 
       static Future<List<$modelName>> all({bool listenable = false}) async {
-        var all = await $modelName().database.all('$modelName', () {
+        var all = await $modelName().database?.all('$modelName', () {
           return $modelName();
-        }, listenable: listenable);
+        }, listenable: listenable) ?? [];
         return List<$modelName>.from(all);
       }
 
-      static Future<$modelName> find(String id, {bool listenable = false}) async {
-        return id == null ? null : await $modelName().database.find('$modelName', id, $modelName(), listenable: listenable);
+      static Future<$modelName?> find(String? id, {bool listenable = false}) async {
+        return id == null ? null : await $modelName().database?.find('$modelName', id, $modelName(), listenable: listenable);
       }
 
-      static Future<List<$modelName>> findByIds(List ids, {bool listenable = false}) async {
+      static Future<List<$modelName>> findByIds(List? ids, {bool listenable = false}) async {
         if (ids == null || ids.isEmpty) return <$modelName>[];
         final construct = ids.map((id) => 'id = \$id');
         final list = List<$modelName>.from(await where(construct.join(' or ')).load(listenable: listenable));
@@ -400,6 +403,6 @@ extension $DartType on DartType {
     if (isDynamic) return 'dynamic';
     if (isVoid) return 'bool';
     if (isDartCoreIterable) return 'Iterable';
-    return name;
+    return name ?? '';
   }
 }

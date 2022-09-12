@@ -2,13 +2,13 @@ import 'package:sync_db/sync_db.dart';
 
 /// The ServicePoint class keeps a record of access and the timestamp of where to sync from
 class ServicePoint extends Model {
-  ServicePoint({this.name, this.access});
+  ServicePoint({this.name = '', this.access});
 
-  String name; // The table name
-  int from = 0; // From is the timestamp the sync point in time
-  String partition;
-  Access access;
-  String token;
+  String name = ''; // The table name
+  int? from = 0; // From is the timestamp the sync point in time
+  String? partition;
+  Access? access;
+  String? token;
 
   @override
   SyncPermission get syncPermission => SyncPermission.read;
@@ -19,7 +19,7 @@ class ServicePoint extends Model {
     map['name'] = name;
     map['from'] = from;
     map['partition'] = partition;
-    map['access'] = access.name;
+    map['access'] = access?.name;
     map['token'] = token;
     return map;
   }
@@ -38,7 +38,7 @@ class ServicePoint extends Model {
   }
 
   static Future<List<ServicePoint>> all() async {
-    var all = await ServicePoint().database.all('ServicePoint', () {
+    var all = await ServicePoint().database!.all('ServicePoint', () {
       return ServicePoint();
     });
 
@@ -46,7 +46,7 @@ class ServicePoint extends Model {
   }
 
   static Future<ServicePoint> find(String id) async =>
-      await ServicePoint().database.find('ServicePoint', id, ServicePoint());
+      await ServicePoint().database!.find('ServicePoint', id, ServicePoint());
 
   static Query where(dynamic condition) {
     return Query('ServicePoint').where(condition, ServicePoint().database, () {
@@ -54,7 +54,8 @@ class ServicePoint extends Model {
     });
   }
 
-  static Future<ServicePoint> searchBy(String name, {String partition}) async {
+  static Future<ServicePoint?> searchBy(String? name,
+      {String? partition}) async {
     var partitionQuery = partition != null ? ' and partition = $partition' : '';
     var list = List<ServicePoint>.from(
         await where('name = $name${partitionQuery}').limit(1).load());
@@ -79,8 +80,8 @@ extension $Access on Access {
     'write': Access.write,
   };
 
-  String get name => $Access.string[this];
-  static Access fromString(String value) => $Access.toEnum[value];
+  String? get name => $Access.string[this];
+  static Access? fromString(String? value) => $Access.toEnum[value!];
 }
 
 enum SyncStatus { created, updated, synced }
@@ -98,6 +99,6 @@ extension $SyncStatus on SyncStatus {
     'synced': SyncStatus.synced,
   };
 
-  String get name => $SyncStatus.string[this];
-  static SyncStatus fromString(String value) => $SyncStatus.toEnum[value];
+  String? get name => $SyncStatus.string[this];
+  static SyncStatus? fromString(String value) => $SyncStatus.toEnum[value];
 }

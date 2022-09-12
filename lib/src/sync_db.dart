@@ -9,11 +9,11 @@ class Sync {
   Sync._privateConstructor();
   static Sync shared = Sync();
 
-  Database local;
-  Service service;
-  UserSession userSession;
-  Logger logger;
-  Storage storage;
+  Database? local;
+  Service? service;
+  UserSession? userSession;
+  Logger? logger;
+  Storage? storage;
   List<SyncDelegate> delegates = [];
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =

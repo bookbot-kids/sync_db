@@ -9,10 +9,10 @@ class NetworkTime {
   NetworkTime._privateConstructor();
   static NetworkTime shared = NetworkTime();
 
-  int _offset;
+  int? _offset;
 
   /// Get server datetime and cache the offset
-  Future<int> get offset async {
+  Future<int?> get offset async {
     if (UniversalPlatform.isWeb) {
       // not support for web yet
       return 0;
@@ -55,7 +55,7 @@ class NetworkTime {
       return DateTime.now();
     }
 
-    return DateTime.now().toLocal().add(Duration(milliseconds: _offset));
+    return DateTime.now().toLocal().add(Duration(milliseconds: _offset!));
   }
 
   @visibleForTesting

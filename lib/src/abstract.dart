@@ -13,7 +13,7 @@ abstract class UserSession {
   /// set login token. In azure b2c, it's id token
   Future<void> setToken(String token, {bool waitingRefresh = false});
 
-  Future<String> get token;
+  Future<String?> get token;
 
   /// Get new token
   Future<void> refresh({bool forceRefreshToken = false});
@@ -27,13 +27,13 @@ abstract class UserSession {
   Future<bool> hasSignedIn();
 
   /// user role
-  String get role;
+  String? get role;
 
   /// sign out user & clear all private keys
   Future<void> signout({bool notify = true});
 
   /// provide storage token to upload/download file
-  Future<String> get storageToken;
+  Future<String?> get storageToken;
 
   /// delete user
   Future<void> deleteUser(String email);

@@ -22,16 +22,16 @@ class SembastDatabase extends Database {
   static SembastDatabase shared = SembastDatabase();
   static final appVersionKey = 'app_version';
 
-  final Map<String, sembast.Database> _database = {};
-  Queue _syncQueue;
+  final Map<String?, sembast.Database> _database = {};
+  late Queue _syncQueue;
 
   /// Opens up each table connected to each model, which is stored in a separate file.
   /// `dbAssetPath` the asset path to import database
   /// `version` is the app version, it needs to be changed when update app to copy snapshot
   Future<void> init(List<String> tableNames,
       {String dbAssetPath = 'assets/db',
-      String version,
-      List<String> manifest,
+      String? version,
+      List<String>? manifest,
       int parallelTask = 1}) async {
     _syncQueue = Queue(parallel: parallelTask);
     // need to setup the ServicePoint in sembast
@@ -58,9 +58,9 @@ class SembastDatabase extends Database {
   }
 
   /// Copy snapshot files from assets to application folder whenever app version is changed
-  Future<void> _copySnapshotIfNeeded(String databaseDir, String dbAssetPath,
-      String version, List<String> manifest) async {
-    if (dbAssetPath?.isNotEmpty != true ||
+  Future<void> _copySnapshotIfNeeded(String? databaseDir, String dbAssetPath,
+      String? version, List<String>? manifest) async {
+    if (dbAssetPath.isNotEmpty != true ||
         version?.isNotEmpty != true ||
         manifest?.isNotEmpty != true) {
       return;
@@ -71,7 +71,7 @@ class SembastDatabase extends Database {
     if (oldVersion != version) {
       // do copy from asset
       final futures = <Future>[];
-      for (final asset in manifest) {
+      for (final asset in manifest!) {
         if (asset.startsWith(dbAssetPath)) {
           final fileName = basename(asset);
           final targetPath =
@@ -81,13 +81,13 @@ class SembastDatabase extends Database {
       }
 
       await Future.wait(futures);
-      await prefs.setString(appVersionKey, version);
+      await prefs.setString(appVersionKey, version!);
     }
   }
 
   Future<void> copySnapShotAndRefreshTables(
       List<String> tableNames, String dbAssetPath) async {
-    if (UniversalPlatform.isWeb || dbAssetPath?.isNotEmpty != true) {
+    if (UniversalPlatform.isWeb || dbAssetPath.isNotEmpty != true) {
       return;
     }
     // get document directory
@@ -103,7 +103,7 @@ class SembastDatabase extends Database {
           await databaseRemoved.close();
         }
         final fileName = '${tableName}.db';
-        final targetPath = dir == null ? fileName : join(dir, fileName);
+        final targetPath = dir.isEmpty ? fileName : join(dir, fileName);
         final tableAssetPath = '$dbAssetPath$fileName';
         await _copySnapshotTable(tableAssetPath, targetPath);
         await initTable(tableName, dir: dir);
@@ -132,10 +132,10 @@ class SembastDatabase extends Database {
 
   /// Config a table if it doesn't
   @override
-  Future<void> initTable(String tableName, {String dir}) async {
+  Future<void> initTable(String? tableName, {String? dir}) async {
     if (_database[tableName] == null) {
       if (UniversalPlatform.isWeb) {
-        final dbPath = _generateDatabasePath(tableName);
+        final dbPath = _generateDatabasePath(tableName!);
         Sync.shared.logger?.d('model $tableName has path $dbPath');
         shared._database[tableName] =
             await databaseFactoryWeb.openDatabase(dbPath);
@@ -146,7 +146,7 @@ class SembastDatabase extends Database {
           dir = documentPath.path;
         }
 
-        final dbPath = _generateDatabasePath(tableName, dir: dir);
+        final dbPath = _generateDatabasePath(tableName!, dir: dir);
         Sync.shared.logger?.d('model $tableName has path $dbPath');
 
         shared._database[tableName] =
@@ -155,16 +155,16 @@ class SembastDatabase extends Database {
     }
   }
 
-  Future<sembast.Database> _getDatabse(String tableName) async {
+  Future<sembast.Database> _getDatabse(String? tableName) async {
     if (_database[tableName] == null) {
       await initTable(tableName);
     }
 
-    return _database[tableName];
+    return _database[tableName]!;
   }
 
   /// Get database file path
-  static String _generateDatabasePath(String table, {String dir}) {
+  static String _generateDatabasePath(String table, {String? dir}) {
     var fileName = table + '.db';
     return dir == null ? fileName : join(dir, fileName);
   }
@@ -184,7 +184,7 @@ class SembastDatabase extends Database {
 
   /// Find model instance by id. Disable stream listener if `listenable = false`
   @override
-  Future<Model> find(String modelName, String id, Model model,
+  Future<Model?> find(String modelName, String? id, Model model,
       {bool listenable = false}) async {
     final store = sembast.StoreRef.main();
     var recordRef = await store.record(id);
@@ -217,13 +217,12 @@ class SembastDatabase extends Database {
   @override
   Future<List<T>> query<T extends Model>(Query query,
       {dynamic transaction, bool listenable = false}) async {
-    // TODO: will add filter deletedAt is null into query
     var records = await queryMap(query, transaction: transaction);
     var results = <T>[];
     final store = sembast.StoreRef.main();
     for (var record in records) {
-      if (query.instantiateModel != null && record[deletedKey] == null) {
-        final model = query.instantiateModel();
+      if (query.instantiateModel != null && record![deletedKey] == null) {
+        final model = query.instantiateModel!();
         await model.setMap(record);
         if (listenable) {
           model.stream = store
@@ -241,9 +240,9 @@ class SembastDatabase extends Database {
   /// Query the table with the Query class
   /// Return the list of map
   @override
-  Future<List<Map>> queryMap(Query query, {dynamic transaction}) async {
+  Future<List<Map?>> queryMap(Query query, {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
-    var results = <Map>[];
+    var results = <Map?>[];
     var finder = sembast.Finder();
 
     // parse condition query
@@ -258,7 +257,7 @@ class SembastDatabase extends Database {
             var searchText = query.condition.substring(
                 left.length + filterOperator.length + 2); // include 2 spaces
             var filter = _buildFilter(
-                left, filterOperator, searchText, query.caseSensitive);
+                left, filterOperator, searchText, query.caseSensitive)!;
             finder.filter = filter;
           }
         } else {
@@ -268,7 +267,7 @@ class SembastDatabase extends Database {
           List<String> conditions = query.condition.split(RegExp('\\s+'));
           if (conditions.length == 3) {
             var filter = _buildFilter(conditions[0], conditions[1],
-                conditions[2], query.caseSensitive);
+                conditions[2], query.caseSensitive)!;
             finder.filter = filter;
           } else if (query.condition.toLowerCase().contains(' or ') ||
               query.condition.toLowerCase().contains(' and ')) {
@@ -277,7 +276,9 @@ class SembastDatabase extends Database {
             for (var i = 0; i < conditions.length; i += 4) {
               var filter = _buildFilter(conditions[i], conditions[i + 1],
                   conditions[i + 2], query.caseSensitive);
-              filters.add(filter);
+              if (filter != null) {
+                filters.add(filter);
+              }
             }
 
             if (query.condition.toLowerCase().contains(' or ')) {
@@ -295,7 +296,7 @@ class SembastDatabase extends Database {
           conditions.forEach((key, value) {
             if (query.isMatches == true) {
               filters.add(sembast.Filter.matchesRegExp(
-                  key, RegExp(value, caseSensitive: query.caseSensitive)));
+                  key, RegExp(value, caseSensitive: query.caseSensitive!)));
             } else {
               filters.add(sembast.Filter.equals(key, value));
             }
@@ -310,7 +311,7 @@ class SembastDatabase extends Database {
           var entry = conditions.entries.toList()[0];
           if (query.isMatches == true) {
             finder.filter = sembast.Filter.matchesRegExp(entry.key,
-                RegExp(entry.value, caseSensitive: query.caseSensitive));
+                RegExp(entry.value, caseSensitive: query.caseSensitive!));
           } else {
             finder.filter = sembast.Filter.equals(entry.key, entry.value);
           }
@@ -320,14 +321,14 @@ class SembastDatabase extends Database {
 
     // query order
     if (query.ordering != null) {
-      var sort = query.ordering.split(' ');
+      var sort = query.ordering!.split(' ');
       if (sort.length == 2) {
         var isAscending = 'asc' == sort[1].toLowerCase().trim();
         finder.sortOrder = sembast.SortOrder(sort[0].trim(), isAscending);
       }
     } else if (query.orderings != null) {
       final sortOrders = <sembast.SortOrder>[];
-      for (final ordering in query.orderings) {
+      for (final ordering in query.orderings!) {
         final sort = ordering.split(' ');
         if (sort.length == 2) {
           final isAscending = 'asc' == sort[1].toLowerCase().trim();
@@ -339,7 +340,7 @@ class SembastDatabase extends Database {
     }
 
     if (query.resultLimit != null) {
-      finder.limit = query.resultLimit;
+      finder.limit = query.resultLimit!;
     }
 
     final db = await _getDatabse(query.tableName);
@@ -353,7 +354,7 @@ class SembastDatabase extends Database {
   }
 
   @override
-  Future<void> runInTransaction(String tableName, Function action) async {
+  Future<void> runInTransaction(String? tableName, Function action) async {
     final db = await _getDatabse(tableName);
     await db.transaction((transaction) async {
       await action(transaction);
@@ -377,7 +378,7 @@ class SembastDatabase extends Database {
       if (isCreated) {
         map[statusKey] = SyncStatus.created.name;
       } else {
-        var currentRecord = await findMap(model.tableName, model.id);
+        var currentRecord = await findMap(model.tableName, model.id!);
         if (currentRecord == null ||
             currentRecord[statusKey] == SyncStatus.created.name) {
           // keep it as created status
@@ -413,7 +414,7 @@ class SembastDatabase extends Database {
     map.putIfAbsent(createdKey, () => now);
     map.putIfAbsent(updatedKey, () => now);
 
-    final store = sembast.StoreRef<String, dynamic>.main();
+    final store = sembast.StoreRef<String?, dynamic>.main();
     await store
         .record(map[idKey])
         .put(transaction ?? await _getDatabse(tableName), map);
@@ -462,7 +463,7 @@ class SembastDatabase extends Database {
   @override
   Future<void> cleanDatabase() async {
     final servicePoints = await ServicePoint.all();
-    final tablesToClear = <String>{};
+    final tablesToClear = <String?>{};
     tablesToClear.addAll(_database.keys);
     tablesToClear.addAll(servicePoints.map((e) => e.name));
     for (var tableName in tablesToClear) {
@@ -497,8 +498,8 @@ class SembastDatabase extends Database {
     }
   }
 
-  sembast.Filter _buildFilter(String left, String filterOperator, String right,
-      [bool caseSensitive = false]) {
+  sembast.Filter? _buildFilter(String left, String filterOperator, String right,
+      [bool? caseSensitive = false]) {
     dynamic value;
     right = right.trim();
     if (int.tryParse(right) != null) {
@@ -531,12 +532,12 @@ class SembastDatabase extends Database {
         return sembast.Filter.notNull(left.trim());
       case 'matches':
         return sembast.Filter.matchesRegExp(
-            left.trim(), RegExp(value, caseSensitive: caseSensitive));
+            left.trim(), RegExp(value, caseSensitive: caseSensitive!));
       case 'contains':
         return sembast.Filter.equals(left.trim(), value, anyInList: true);
       case 'matchesAny':
         return sembast.Filter.matchesRegExp(
-            left.trim(), RegExp(value, caseSensitive: caseSensitive),
+            left.trim(), RegExp(value, caseSensitive: caseSensitive!),
             anyInList: true);
       default:
         return null;

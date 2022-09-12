@@ -10,7 +10,7 @@ abstract class Service {
   final pool = Pool(8, timeout: Duration(seconds: 60));
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
-  Queue _syncQueue;
+  late Queue _syncQueue;
   List<String> ignoreTables = [];
 
   Service(Map config) {
@@ -24,7 +24,7 @@ abstract class Service {
       return;
     }
 
-    var servicePoints = await Sync.shared.userSession.servicePoints();
+    var servicePoints = await Sync.shared.userSession?.servicePoints() ?? [];
     await _syncServicePoints(servicePoints);
     if (syncDelegate) {
       await syncDelegates();
@@ -40,7 +40,7 @@ abstract class Service {
       if (!Sync.shared.networkAvailable) {
         return;
       }
-      final token = await Sync.shared.userSession.token;
+      final token = await Sync.shared.userSession?.token;
       final records = await delegate.syncRead(token);
       // create a fake service point with read only permission to save records
       final servicePoint = ServicePoint(
@@ -54,7 +54,7 @@ abstract class Service {
   /// Sync a table to service
   Future<void> syncTable(String table) async {
     await _syncServicePoints(
-        await Sync.shared.userSession.servicePointsForTable(table));
+        await Sync.shared.userSession?.servicePointsForTable(table) ?? []);
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
@@ -109,7 +109,7 @@ abstract class Service {
     }
 
     final servicePoints =
-        await Sync.shared.userSession.servicePointsForTable(table);
+        await Sync.shared.userSession?.servicePointsForTable(table) ?? [];
     var futures = <Future>[];
     Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
@@ -168,12 +168,12 @@ abstract class Service {
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
     if (records.isEmpty) return;
-    final database = Sync.shared.local;
+    final database = Sync.shared.local!;
     //var lastTimestamp = DateTime.utc(0);
 
     await database.runInTransaction(service.name, (transaction) async {
       // Get updating records to compare
-      var transientRecords = <String, Map>{};
+      Map<String?, Map<dynamic, dynamic>?> transientRecords = <String, Map>{};
       if (service.access == Access.all) {
         final query =
             Query(service.name).where({statusKey: SyncStatus.updated.name});
@@ -202,7 +202,7 @@ abstract class Service {
   /// if there has, do not update record to synced
   Future<void> updateRecordStatus(
       ServicePoint service, Map serverRecord) async {
-    final database = Sync.shared.local;
+    final database = Sync.shared.local!;
 
     await database.runInTransaction(service.name, (transaction) async {
       final localRecord = await database

@@ -2,7 +2,7 @@ name: sync_db
 description: A syncronising database that automatically gets and saves data to a server.
 
 environment:
-  sdk: '>=2.6.0 <3.0.0'
+  sdk: '>=2.12.0 <3.0.0'
 
 dependencies:
   flutter:

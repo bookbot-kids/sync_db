@@ -16,8 +16,8 @@ class CosmosService extends Service {
     _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
   }
 
-  HTTP _http;
-  int _pageSize;
+  late HTTP _http;
+  int? _pageSize;
   int _cosmosRetries = 3;
   var _throwOnNetworkError = true;
 
@@ -47,7 +47,7 @@ class CosmosService extends Service {
       Sync.shared.logger?.i(
           'readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
       if (docs.isNotEmpty) {
-        var lastTimestamp = 0;
+        int? lastTimestamp = 0;
         if (docs.last[updatedKey] is int) {
           lastTimestamp = docs.last[updatedKey];
         } else if (docs.last[_cosmosLastUpdatedKey] is int) {
@@ -58,7 +58,7 @@ class CosmosService extends Service {
         Sync.shared.logger?.i(
             'readFromService ${servicePoint.name} lastTimestamp $lastTimestamp');
 
-        if (lastTimestamp > 0) servicePoint.from = lastTimestamp;
+        if (lastTimestamp! > 0) servicePoint.from = lastTimestamp;
         await servicePoint.save(syncToService: false);
       }
     } while (paginationToken != null);
@@ -73,7 +73,7 @@ class CosmosService extends Service {
     var query = Query(servicePoint.name)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
-    var createdRecords = await Sync.shared.local.queryMap(query);
+    var createdRecords = await Sync.shared.local!.queryMap(query);
 
     for (final record in createdRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
@@ -98,7 +98,7 @@ class CosmosService extends Service {
     query = Query(servicePoint.name)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
-    var updatedRecords = await Sync.shared.local.queryMap(query);
+    var updatedRecords = await Sync.shared.local!.queryMap(query);
 
     for (final record in updatedRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
@@ -137,14 +137,14 @@ class CosmosService extends Service {
   Future<Map<String, dynamic>> _queryDocuments(
       ServicePoint servicePoint, String query,
       {List<Map<String, String>> parameters = const <Map<String, String>>[],
-      String paginationToken}) async {
+      String? paginationToken}) async {
     if (!await connectivity()) {
       throw ConnectivityException(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error because there is no connection');
     }
 
     var headers = <String, dynamic>{
-      'authorization': Uri.encodeComponent(servicePoint.token),
+      'authorization': Uri.encodeComponent(servicePoint.token!),
       'content-type': 'application/query+json',
       'x-ms-version': _apiVersion,
       'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]',
@@ -163,7 +163,7 @@ class CosmosService extends Service {
       var response = await _http.post('colls/${servicePoint.name}/docs',
           data: data, includeHttpResponse: true);
       var responseData = response.data;
-      List docs = responseData['Documents'];
+      List? docs = responseData['Documents'];
 
       return {
         'response': docs,
@@ -192,7 +192,7 @@ class CosmosService extends Service {
   }
 
   /// Cosmos api to create document
-  Future<Map<String, dynamic>> _createDocument(
+  Future<Map<String, dynamic>?> _createDocument(
       ServicePoint servicePoint, Map record) async {
     if (!await connectivity()) {
       throw ConnectivityException(
@@ -202,19 +202,19 @@ class CosmosService extends Service {
     // remove underscore fields
     excludePrivateFields(record);
 
-    Exception exception;
+    Exception? exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
         var now = HttpDate.format(await NetworkTime.shared.now);
         _http.headers = {
           'x-ms-date': now,
-          'authorization': Uri.encodeComponent(servicePoint.token),
+          'authorization': Uri.encodeComponent(servicePoint.token!),
           'content-type': 'application/json',
           'x-ms-version': _apiVersion,
           'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
         };
-        return await _http.post('colls/${servicePoint.name}/docs',
-            data: record);
+        return await (_http.post('colls/${servicePoint.name}/docs',
+            data: record));
       } on ConnectivityException catch (e, stackTrace) {
         if (_throwOnNetworkError) {
           throw ConnectivityException(
@@ -234,7 +234,7 @@ class CosmosService extends Service {
             stackTrace);
         if (e.statusCode == 409) {
           // Strange that this has happened. Record is already created. Log it and try an update.
-          return await _updateDocument(servicePoint, record);
+          return await (_updateDocument(servicePoint, record));
         } else {
           rethrow;
         }
@@ -268,13 +268,13 @@ class CosmosService extends Service {
     // we don't want to save local private fields
     excludePrivateFields(record);
 
-    Exception exception;
+    Exception? exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
         var now = HttpDate.format(await NetworkTime.shared.now);
         _http.headers = {
           'x-ms-date': now,
-          'authorization': Uri.encodeComponent(servicePoint.token),
+          'authorization': Uri.encodeComponent(servicePoint.token!),
           'content-type': 'application/json',
           'x-ms-version': _apiVersion,
           'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
