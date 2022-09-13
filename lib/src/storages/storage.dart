@@ -286,8 +286,8 @@ class TransferMap extends Model {
   static Future<TransferMap> find(String id) async =>
       await TransferMap().database!.find('TransferMap', id, TransferMap());
 
-  static Query where(dynamic condition) {
-    return Query('TransferMap').where(condition, TransferMap().database, () {
+  static DbQuery where(dynamic condition) {
+    return DbQuery('TransferMap').where(condition, TransferMap().database, () {
       return TransferMap();
     });
   }

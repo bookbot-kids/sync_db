@@ -48,8 +48,9 @@ class ServicePoint extends Model {
   static Future<ServicePoint> find(String id) async =>
       await ServicePoint().database!.find('ServicePoint', id, ServicePoint());
 
-  static Query where(dynamic condition) {
-    return Query('ServicePoint').where(condition, ServicePoint().database, () {
+  static DbQuery where(dynamic condition) {
+    return DbQuery('ServicePoint').where(condition, ServicePoint().database,
+        () {
       return ServicePoint();
     });
   }

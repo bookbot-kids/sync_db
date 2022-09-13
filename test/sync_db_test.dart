@@ -122,8 +122,8 @@ extension $Test on Test {
   static Future<Test> find(String id) async =>
       await Test().database.find('Test', id, Test());
 
-  static Query where(dynamic condition) {
-    return Query('Test').where(condition, Test().database, () {
+  static DbQuery where(dynamic condition) {
+    return DbQuery('Test').where(condition, Test().database, () {
       return Test();
     });
   }

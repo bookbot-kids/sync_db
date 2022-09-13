@@ -70,7 +70,7 @@ class CosmosService extends Service {
     var futures = <Future>[];
 
     // Get created records and save to Cosmos DB
-    var query = Query(servicePoint.name)
+    var query = DbQuery(servicePoint.name)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
     var createdRecords = await Sync.shared.local!.queryMap(query);
@@ -95,7 +95,7 @@ class CosmosService extends Service {
     }
 
     // Get records that have been updated and update Cosmos
-    query = Query(servicePoint.name)
+    query = DbQuery(servicePoint.name)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
     var updatedRecords = await Sync.shared.local!.queryMap(query);

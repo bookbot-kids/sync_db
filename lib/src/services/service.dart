@@ -176,7 +176,7 @@ abstract class Service {
       Map<String?, Map<dynamic, dynamic>?> transientRecords = <String, Map>{};
       if (service.access == Access.all) {
         final query =
-            Query(service.name).where({statusKey: SyncStatus.updated.name});
+            DbQuery(service.name).where({statusKey: SyncStatus.updated.name});
         final recentUpdatedRecords =
             await database.queryMap(query, transaction: transaction);
         transientRecords = {

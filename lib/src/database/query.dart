@@ -2,8 +2,8 @@ import 'package:intl/intl.dart';
 import '../abstract.dart';
 
 /// Based on https://guides.rubyonrails.org/active_record_querying.html
-class Query {
-  Query(this.tableName);
+class DbQuery {
+  DbQuery(this.tableName);
 
   bool? caseSensitive = false;
   dynamic condition;
@@ -28,7 +28,7 @@ class Query {
   /// The `filterOperator` must be `and` or `or`
   /// It's equals: `column1 = 3 {filterOperator} column2 = "a"`
   ///
-  Query where(
+  DbQuery where(
       [dynamic condition,
       Database? database,
       Function? instantiateModel,
@@ -55,14 +55,15 @@ class Query {
   }
 
   /// Sets the sort order on the query and other optionals
-  Query order([String? order, Database? database, Function? instantiateModel]) {
+  DbQuery order(
+      [String? order, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     ordering = order;
     return this;
   }
 
   /// Sets the sort orders on the query and other optionals
-  Query orders(
+  DbQuery orders(
       [List<String>? orders, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     orderings = orders;
@@ -70,21 +71,21 @@ class Query {
   }
 
   /// Set the limit on the number of results
-  Query limit([int? limit, Database? database, Function? instantiateModel]) {
+  DbQuery limit([int? limit, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     resultLimit = limit;
     return this;
   }
 
   /// Start the first result at the offset
-  Query offset([int? index, Database? database, Function? instantiateModel]) {
+  DbQuery offset([int? index, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     this.index = index;
     return this;
   }
 
   /// Set the query is matched
-  Query matches(
+  DbQuery matches(
       [bool? isMatches,
       bool? caseSensitive,
       Database? database,

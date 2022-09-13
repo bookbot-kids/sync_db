@@ -84,8 +84,8 @@ abstract class Model extends ChangeNotifier {
   Future<void> deleteAll() async {
     var now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
     await database?.runInTransaction(tableName, (transaction) async {
-      var list =
-          await database?.queryMap(Query(tableName), transaction: transaction);
+      var list = await database?.queryMap(DbQuery(tableName),
+          transaction: transaction);
       list ??= [];
       for (var item in list) {
         item[deletedKey] = now;

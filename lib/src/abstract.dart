@@ -54,10 +54,10 @@ abstract class Database {
 
   dynamic findMap(String modelName, String id, {dynamic transaction});
 
-  dynamic query<T extends Model>(Query query,
+  dynamic query<T extends Model>(DbQuery query,
       {dynamic transaction, bool listenable = false});
 
-  dynamic queryMap(Query query, {dynamic transaction});
+  dynamic queryMap(DbQuery query, {dynamic transaction});
 
   /// clear all data in table
   Future<void> clearTable(String tableName);

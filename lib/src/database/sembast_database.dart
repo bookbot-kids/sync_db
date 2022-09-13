@@ -173,7 +173,7 @@ class SembastDatabase extends Database {
   @override
   Future<List<Model>> all(String modelName, Function instantiateModel,
       {bool listenable = false}) async {
-    var q = Query(modelName).where(
+    var q = DbQuery(modelName).where(
       '',
       null,
       instantiateModel,
@@ -215,7 +215,7 @@ class SembastDatabase extends Database {
   /// Query the table with the Query class. Disable stream listener if `listenable = false`
   /// Return the list of model
   @override
-  Future<List<T>> query<T extends Model>(Query query,
+  Future<List<T>> query<T extends Model>(DbQuery query,
       {dynamic transaction, bool listenable = false}) async {
     var records = await queryMap(query, transaction: transaction);
     var results = <T>[];
@@ -240,7 +240,7 @@ class SembastDatabase extends Database {
   /// Query the table with the Query class
   /// Return the list of map
   @override
-  Future<List<Map?>> queryMap(Query query, {dynamic transaction}) async {
+  Future<List<Map?>> queryMap(DbQuery query, {dynamic transaction}) async {
     final store = sembast.StoreRef.main();
     var results = <Map?>[];
     var finder = sembast.Finder();

@@ -82,7 +82,7 @@ class GraphQLService extends Service {
     var futures = <Future>[];
     final table = service.name;
     // get created records and create in appsync
-    var query = q.Query(table)
+    var query = q.DbQuery(table)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
     var records = await Sync.shared.local!.queryMap(query);
@@ -103,7 +103,7 @@ class GraphQLService extends Service {
     }
 
     // Get records that have been updated and update to appsync
-    query = q.Query(table)
+    query = q.DbQuery(table)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
     records = await Sync.shared.local!.queryMap(query);

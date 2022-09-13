@@ -356,8 +356,8 @@ class ModelGenerator extends Generator {
         return results;
       }
 
-      static Query where(dynamic condition) {
-        return Query('$modelName').where(condition, $modelName().database, () {
+      static DbQuery where(dynamic condition) {
+        return DbQuery('$modelName').where(condition, $modelName().database, () {
           return $modelName();
         });
       }
