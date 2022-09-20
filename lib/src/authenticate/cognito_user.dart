@@ -140,12 +140,11 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     }
     _userRole = null;
     for (final table in _tablesToClearOnSignOut) {
-      final servicePoints = await ServicePoint.where('name = $table').load();
+      final servicePoints = await ServicePoint.listByName(table);
       for (final servicePoint in servicePoints) {
-        await servicePoint.database
-            .deleteLocal(servicePoint.tableName, servicePoint.id);
+        await servicePoint.deleteLocal();
       }
-      await Sync.shared.local!.clearTable(table);
+      await Sync.shared.modelHandlers[table]?.clear();
     }
   }
 

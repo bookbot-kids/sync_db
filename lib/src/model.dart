@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
+import 'package:uuid/uuid.dart';
 
 enum SyncPermission { user, read }
 
@@ -14,24 +17,40 @@ enum AssetStatus {
   deferred, // deferred components. Unlike on-demand assets, it can access on flutter side after download
 }
 
-abstract class Model extends ChangeNotifier {
+abstract class Model extends ChangeNotifier implements ModelHandler {
+  Id localId = Isar.autoIncrement;
   DateTime? createdAt;
   DateTime? deletedAt;
   String? id;
   DateTime? updatedAt;
 
-  StreamSubscription? _subscription;
+  @Ignore()
+  Map $metadata = {};
+
+  String get metadata => jsonEncode($metadata);
+  set metadata(String json) {
+    $metadata = jsonDecode(json);
+  }
+
+  String? partition;
+
+  @enumerated
+  SyncStatus syncStatus = SyncStatus.none;
 
   @override
   String toString() {
     return map.toString();
   }
 
-  Database? get database => Sync.shared.local;
+  @Ignore()
+  Isar get db => Sync.shared.db;
+
+  @Ignore()
   SyncPermission get syncPermission => SyncPermission.user;
 
-  Map<String, dynamic> get map {
-    var map = <String, dynamic>{};
+  @Ignore()
+  Map get map {
+    var map = {};
     map[idKey] = id;
     if (createdAt != null) {
       map[createdKey] = createdAt?.millisecondsSinceEpoch;
@@ -48,7 +67,7 @@ abstract class Model extends ChangeNotifier {
     return map;
   }
 
-  Future<void> setMap(Map<String, dynamic> map) async {
+  Future<void> setMap(Map map) async {
     id = map[idKey];
     if (map[createdKey] is int) {
       createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
@@ -63,10 +82,10 @@ abstract class Model extends ChangeNotifier {
     }
   }
 
+  @Ignore()
   String get tableName;
 
-  Future<void> save({bool syncToService = true}) async =>
-      await database!.save(this, syncToService: syncToService);
+  Future<void> save({bool syncToService = true, bool runInTransaction = true});
 
   /// delete and sync record
   Future<void> delete() async {
@@ -75,41 +94,11 @@ abstract class Model extends ChangeNotifier {
   }
 
   /// delete local record
-  Future<void> deleteLocal() async {
-    if (id != null) {
-      await database?.deleteLocal(tableName, id!);
-    }
-  }
+  Future<void> deleteLocal() async {}
 
-  Future<void> deleteAll() async {
-    var now = (await NetworkTime.shared.now).millisecondsSinceEpoch;
-    await database?.runInTransaction(tableName, (transaction) async {
-      var list = await database?.queryMap(DbQuery(tableName),
-          transaction: transaction);
-      list ??= [];
-      for (var item in list) {
-        item[deletedKey] = now;
-        item[updatedKey] = now;
-        item[statusKey] = SyncStatus.updated.name;
-        await database?.saveMap(tableName, item, transaction: transaction);
-      }
-    });
-  }
-
-  /// Set the stream listener for this record. It will notify when the record in db is updated.
-  /// When this happens, it will reload all the properties by `setMap`
-  set stream(Stream value) {
-    _subscription = value.listen((event) async {
-      //var record = sembast_utils.cloneValue(event.value);
-      await setMap(event.value);
-      notifyListeners();
-    });
-  }
-
-  /// Cancel listener
-  void cancel() {
-    _subscription?.cancel();
-  }
+  /// Find record by id
+  @override
+  Future<Model?> find(String? id) async => null;
 
   /// Storage managers and functions
   /// Readme: Files are handled in groups in the record.
@@ -192,4 +181,31 @@ abstract class Model extends ChangeNotifier {
   }
 
   void setAssetStatus(AssetStatus assetStatus, {String? key}) {}
+
+  static String get newId => Uuid().v4().toString();
+
+  Future<void> init() async {
+    final isCreated = id == null || createdAt == null;
+    id ??= newId;
+    createdAt ??= await NetworkTime.shared.now;
+    updatedAt = await NetworkTime.shared.now;
+    if (isCreated) {
+      syncStatus = SyncStatus.created;
+    } else {
+      if (syncStatus == SyncStatus.created) {
+      } else {
+        syncStatus = SyncStatus.updated;
+      }
+    }
+  }
+
+  Future<void> sync() async {
+    if (syncPermission == SyncPermission.user) {
+      // ignore: unawaited_futures
+      Sync.shared.service?.writeTable(tableName);
+    }
+  }
+
+  @override
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus);
 }

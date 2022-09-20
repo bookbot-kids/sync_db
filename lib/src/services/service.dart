@@ -168,56 +168,110 @@ abstract class Service {
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
     if (records.isEmpty) return;
-    final database = Sync.shared.local!;
-    //var lastTimestamp = DateTime.utc(0);
+    final handler = Sync.shared.modelHandlers[service.name];
+    if (handler == null) {
+      Sync.shared.logger?.w('${service.name} does not register handler');
+      return;
+    }
 
-    await database.runInTransaction(service.name, (transaction) async {
+    await Sync.shared.db.writeTxn(() async {
+      var transientRecords = <String, dynamic>{};
       // Get updating records to compare
-      Map<String?, Map<dynamic, dynamic>?> transientRecords = <String, Map>{};
       if (service.access == Access.all) {
-        final query =
-            DbQuery(service.name).where({statusKey: SyncStatus.updated.name});
         final recentUpdatedRecords =
-            await database.queryMap(query, transaction: transaction);
+            await handler.queryStatus(SyncStatus.updated);
         transientRecords = {
-          for (var record in recentUpdatedRecords) record[idKey]: record
+          for (var record in recentUpdatedRecords) record.id!: record
         };
       }
 
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
-      for (final record in records) {
-        final existingRecord = transientRecords[record[idKey]];
+      for (Map record in records) {
+        var existingRecord = transientRecords[record[idKey]];
         if (existingRecord == null ||
-            record[updatedKey] > existingRecord[updatedKey] ||
+            record[updatedKey] > existingRecord.updatedAt ||
             service.access == Access.read) {
-          record[statusKey] = SyncStatus.synced.name;
-          await database.saveMap(service.name, record,
-              transaction: transaction);
+          // save record
+          existingRecord ??= Sync.shared.modelInstances[service.tableName];
+          existingRecord.syncStatus = SyncStatus.synced;
+          existingRecord.init();
+          existingRecord.setMap(record);
+          existingRecord.save(syncToService: false);
         }
       }
     });
+
+    // final database = Sync.shared.local;
+    // await database?.runInTransaction(service.name, (transaction) async {
+    //   // Get updating records to compare
+    //   Map<String?, Map<dynamic, dynamic>?> transientRecords = <String, Map>{};
+    //   if (service.access == Access.all) {
+    //     final query =
+    //         DbQuery(service.name).where({statusKey: SyncStatus.updated.name});
+    //     final recentUpdatedRecords =
+    //         await database.queryMap(query, transaction: transaction);
+    //     transientRecords = {
+    //       for (var record in recentUpdatedRecords) record[idKey]: record
+    //     };
+    //   }
+
+    //   // Check all records can be saved - don't save over records that have been updated locally (unless read only)
+    //   for (final record in records) {
+    //     final existingRecord = transientRecords[record[idKey]];
+    //     if (existingRecord == null ||
+    //         record[updatedKey] > existingRecord[updatedKey] ||
+    //         service.access == Access.read) {
+    //       record[statusKey] = SyncStatus.synced.name;
+    //       await database.saveMap(service.name, record,
+    //           transaction: transaction);
+    //     }
+    //   }
+    // });
   }
 
   /// On response check to see if there has been a local change in that time
   /// if there has, do not update record to synced
   Future<void> updateRecordStatus(
       ServicePoint service, Map serverRecord) async {
-    final database = Sync.shared.local!;
+    if (serverRecord.isEmpty) return;
+    final handler = Sync.shared.modelHandlers[service.name];
+    if (handler == null) {
+      Sync.shared.logger?.w('${service.name} does not register handler');
+      return;
+    }
 
-    await database.runInTransaction(service.name, (transaction) async {
-      final localRecord = await database
-          .findMap(service.name, serverRecord[idKey], transaction: transaction);
-      if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
-        serverRecord[statusKey] = SyncStatus.synced.name;
-        await database.saveMap(service.name, serverRecord,
-            transaction: transaction);
-      } else {
-        // in case local is newer, mark it as updated and sync again next time
-        localRecord[statusKey] = SyncStatus.updated.name;
-        await database.saveMap(service.name, localRecord,
-            transaction: transaction);
+    await Sync.shared.db.writeTxn(() async {
+      final localRecord = await handler.find(serverRecord[idKey]);
+      if (localRecord != null) {
+        if (serverRecord[updatedKey] >= localRecord.updatedAt) {
+          localRecord.syncStatus = SyncStatus.synced;
+          await localRecord.setMap(serverRecord);
+          await localRecord.save(syncToService: false);
+        } else {
+          // in case local is newer, mark it as updated and sync again next time
+          localRecord.syncStatus = SyncStatus.updated;
+          await localRecord.setMap(serverRecord);
+          await localRecord.save(syncToService: false);
+        }
       }
     });
+
+    // final database = Sync.shared.local!;
+
+    // await database.runInTransaction(service.name, (transaction) async {
+    //   final localRecord = await database
+    //       .findMap(service.name, serverRecord[idKey], transaction: transaction);
+    //   if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
+    //     serverRecord[statusKey] = SyncStatus.synced.name;
+    //     await database.saveMap(service.name, serverRecord,
+    //         transaction: transaction);
+    //   } else {
+    //     // in case local is newer, mark it as updated and sync again next time
+    //     localRecord[statusKey] = SyncStatus.updated.name;
+    //     await database.saveMap(service.name, localRecord,
+    //         transaction: transaction);
+    //   }
+    // });
   }
 
   /// A function to handle connectivity checks

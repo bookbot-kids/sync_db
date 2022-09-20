@@ -4,7 +4,6 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:sync_db/src/utils/string_utils.dart';
 import '../../sync_db.dart';
-import '../database/query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
@@ -81,18 +80,21 @@ class GraphQLService extends Service {
   Future<void> writeToService(ServicePoint service) async {
     var futures = <Future>[];
     final table = service.name;
+
+    final modelHandler = Sync.shared.modelHandlers[service.tableName];
+    if (modelHandler == null) {
+      return;
+    }
+
     // get created records and create in appsync
-    var query = q.DbQuery(table)
-        .where('_status = ${SyncStatus.created.name}')
-        .order('createdAt asc');
-    var records = await Sync.shared.local!.queryMap(query);
+    var records = await modelHandler.queryStatus(SyncStatus.created);
 
     for (final record in records) {
       var fields = _getFields(table);
 
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
-        var serverRecord = await _createDocument(table, fields, record);
+        var serverRecord = await _createDocument(table, fields, record.map);
         if (serverRecord != null) {
           _fixCreatedDate(serverRecord);
           await updateRecordStatus(service, serverRecord);
@@ -103,15 +105,12 @@ class GraphQLService extends Service {
     }
 
     // Get records that have been updated and update to appsync
-    query = q.DbQuery(table)
-        .where('_status = ${SyncStatus.updated.name}')
-        .order('updatedAt asc');
-    records = await Sync.shared.local!.queryMap(query);
+    records = await modelHandler.queryStatus(SyncStatus.updated);
     for (var record in records) {
       var fields = _getFields(table);
 
       futures.add(pool.withResource(() async {
-        var serverRecord = await _updateDocument(table, fields, record);
+        var serverRecord = await _updateDocument(table, fields, record.map);
         if (serverRecord != null) {
           await updateRecordStatus(service, serverRecord);
         } else {

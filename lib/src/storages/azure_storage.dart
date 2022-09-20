@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
+import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 

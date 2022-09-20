@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:mime_type/mime_type.dart';
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
+import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';

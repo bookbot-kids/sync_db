@@ -1,179 +1,232 @@
-import 'package:sync_db/sync_db.dart';
-import 'package:flutter_test/flutter_test.dart';
+// import 'package:sync_db/sync_db.dart';
+// import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter/services.dart';
-import 'package:universal_io/io.dart';
+// import 'package:flutter/services.dart';
+// import 'package:universal_io/io.dart';
 
-class Category extends Model {
-  String? image;
-  String? name;
+// class Category extends Model {
+//   String? image;
+//   String? name;
 
-  @override
-  String get tableName => 'Category';
+//   @override
+//   String get tableName => 'Category';
 
-  @override
-  Map<String, dynamic> get map => $Category(this).map;
+//   @override
+//   Map get map => $Category(this).map;
 
-  @override
-  Future<void> setMap(Map<String, dynamic> map) async =>
-      $Category(this).map = map;
-}
+//   @override
+//   Future<void> setMap(Map map) async => $Category(this).map = map;
 
-extension $Category on Category {
-  Map<String, dynamic> get map {
-    return {
-      'id': id,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'deletedAt': deletedAt,
-      'name': name,
-      'image': image
-    };
-  }
+//   @override
+//   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) {
+//     // TODO: implement queryStatus
+//     throw UnimplementedError();
+//   }
 
-  set map(Map<String, dynamic> map) {
-    id = map['id'];
-    createdAt = map['createdAt'];
-    updatedAt = map['updatedAt'];
-    deletedAt = map['deletedAt'];
-    name = map['name'];
-    image = map['image'];
-  }
+//   @override
+//   Future<void> saveRemoteRecords(Access access, List records) {
+//     // TODO: implement saveRemoteRecords
+//     throw UnimplementedError();
+//   }
 
-  static Future<Category> find(String id) async =>
-      await Category().database!.find('Category', id, Category());
-}
+//   @override
+//   Future<void> updateRecordStatus(Map serverRecord) {
+//     // TODO: implement updateRecordStatus
+//     throw UnimplementedError();
+//   }
 
-// class Series extends Model {
-//   String name;
+//   @override
+//   Future<void> deleteLocal() {
+//     // TODO: implement deleteLocal
+//     throw UnimplementedError();
+//   }
+
+//   @override
+//   Future<void> save({bool syncToService = true}) {
+//     // TODO: implement save
+//     throw UnimplementedError();
+//   }
+
+//   @override
+//   Model newInstance() {
+//     // TODO: implement newInstance
+//     throw UnimplementedError();
+//   }
+
+//   @override
+//   Future<void> clear() {
+//     // TODO: implement clear
+//     throw UnimplementedError();
+//   }
 // }
 
-enum Layout { fixed, responsive }
+// extension $Category on Category {
+//   Map get map {
+//     return {
+//       'id': id,
+//       'createdAt': createdAt,
+//       'updatedAt': updatedAt,
+//       'deletedAt': deletedAt,
+//       'name': name,
+//       'image': image
+//     };
+//   }
 
-extension $Layout on Layout? {
-  static final layoutString = {
-    Layout.fixed: 'fixed',
-    Layout.responsive: 'responsive'
-  };
-  static final layoutEnum = {
-    'fixed': Layout.fixed,
-    'responsive': Layout.responsive
-  };
+//   set map(Map map) {
+//     id = map['id'];
+//     createdAt = map['createdAt'];
+//     updatedAt = map['updatedAt'];
+//     deletedAt = map['deletedAt'];
+//     name = map['name'];
+//     image = map['image'];
+//   }
+// }
 
-  String? get name => $Layout.layoutString[this!];
-  static Layout? fromString(String? value) => $Layout.layoutEnum[value!];
-}
+// // class Series extends Model {
+// //   String name;
+// // }
 
-class Test extends Model {
-  late Category category2;
-  Layout? layout = Layout.fixed;
-  String? testString = 'Test String';
+// enum Layout { fixed, responsive }
 
-  String categoryId = '';
+// extension $Layout on Layout? {
+//   static final layoutString = {
+//     Layout.fixed: 'fixed',
+//     Layout.responsive: 'responsive'
+//   };
+//   static final layoutEnum = {
+//     'fixed': Layout.fixed,
+//     'responsive': Layout.responsive
+//   };
 
-  @override
-  String get tableName => 'Test';
+//   String? get name => $Layout.layoutString[this!];
+//   static Layout? fromString(String? value) => $Layout.layoutEnum[value!];
+// }
 
-  @override
-  Map<String, dynamic> get map => $Test(this).map;
+// class Test extends Model {
+//   late Category category2;
+//   Layout? layout = Layout.fixed;
+//   String? testString = 'Test String';
 
-  @override
-  Future<void> setMap(Map<String, dynamic> map) async => $Test(this).map = map;
+//   String categoryId = '';
 
-  @override
-  Database get database => SembastDatabase.shared;
-}
+//   @override
+//   String get tableName => 'Test';
 
-extension $Test on Test {
-  Map<String, dynamic> get map {
-    return {
-      'id': id,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'deletedAt': deletedAt,
-      'testString': testString,
-      'layout': layout.name,
-      'categoryId': categoryId,
-      'category2Id': category2.id
-    };
-  }
+//   @override
+//   Map get map => $Test(this).map;
 
-  set map(Map<String, dynamic> map) {
-    id = map['id'];
-    createdAt = map['createdAt'];
-    updatedAt = map['updatedAt'];
-    deletedAt = map['deletedAt'];
-    testString = map['testString'];
-    layout = $Layout.fromString(map['layout']);
-    categoryId = map['categoryId'];
-    $Category.find(map['category2Id']).then((value) => category2 = value);
-  }
+//   @override
+//   Future<void> setMap(Map map) async => $Test(this).map = map;
 
-  Future<Category> get category async => $Category.find(categoryId);
+//   @override
+//   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) {
+//     // TODO: implement queryStatus
+//     throw UnimplementedError();
+//   }
 
-  static Future<List<Test>> all() async {
-    var all = await Test().database.all('Test', () {
-      return Test();
-    });
+//   @override
+//   Future<void> saveRemoteRecords(Access access, List records) {
+//     // TODO: implement saveRemoteRecords
+//     throw UnimplementedError();
+//   }
 
-    return List<Test>.from(all);
-  }
+//   @override
+//   Future<void> updateRecordStatus(Map serverRecord) {
+//     // TODO: implement updateRecordStatus
+//     throw UnimplementedError();
+//   }
 
-  static Future<Test> find(String id) async =>
-      await Test().database.find('Test', id, Test());
+//   @override
+//   Future<void> deleteLocal() {
+//     // TODO: implement deleteLocal
+//     throw UnimplementedError();
+//   }
 
-  static DbQuery where(dynamic condition) {
-    return DbQuery('Test').where(condition, Test().database, () {
-      return Test();
-    });
-  }
-}
+//   @override
+//   Future<void> save({bool syncToService = true}) {
+//     // TODO: implement save
+//     throw UnimplementedError();
+//   }
 
-void main() {
-  group('HTTP: ', () {
-    test('Test getting resource tokens from refresh token', () async {
-      //final file = File('test/test_conf.json');
-      //final config = jsonDecode(await file.readAsString());
+//   @override
+//   Model newInstance() {
+//     // TODO: implement newInstance
+//     throw UnimplementedError();
+//   }
 
-      //final user = AzureADB2CUserSession(config);
-      // final tokens = await user.resourceTokens();
-      // print(tokens);
-      // expect(tokens, isNotNull);
-    });
+//   @override
+//   Future<void> clear() {
+//     // TODO: implement clear
+//     throw UnimplementedError();
+//   }
+// }
 
-    test('Test model creation', () async {
-      TestWidgetsFlutterBinding.ensureInitialized();
-      const channel = MethodChannel('plugins.flutter.io/path_provider');
-      channel.setMockMethodCallHandler((MethodCall methodCall) async {
-        return '.';
-      });
+// extension $Test on Test {
+//   Map get map {
+//     return {
+//       'id': id,
+//       'createdAt': createdAt,
+//       'updatedAt': updatedAt,
+//       'deletedAt': deletedAt,
+//       'testString': testString,
+//       'layout': layout.name,
+//       'categoryId': categoryId,
+//       'category2Id': category2.id
+//     };
+//   }
 
-      var test = Test();
-      await SembastDatabase.shared.init([]);
-      await test.save();
+//   set map(Map map) {
+//     id = map['id'];
+//     createdAt = map['createdAt'];
+//     updatedAt = map['updatedAt'];
+//     deletedAt = map['deletedAt'];
+//     testString = map['testString'];
+//     layout = $Layout.fromString(map['layout']);
+//     categoryId = map['categoryId'];
+//   }
+// }
 
-      print(await $Test.all());
-      print(await $Test.find('85523e33-644f-4ed4-9c85-d8d0ec20fcc0'));
-    });
+// void main() {
+//   group('HTTP: ', () {
+//     test('Test getting resource tokens from refresh token', () async {
+//       //final file = File('test/test_conf.json');
+//       //final config = jsonDecode(await file.readAsString());
 
-    test('test azure storage', () async {
-      final config = {'storageConnection': ''};
-      var client = AzureStorageTrustedClient(config);
-      // upload
-      final file = File('test.png');
-      var bytes = Uint8List.fromList(await file.readAsBytes());
-      await client.putBlob(
-        'images/test.png',
-        bodyBytes: bytes,
-      );
+//       //final user = AzureADB2CUserSession(config);
+//       // final tokens = await user.resourceTokens();
+//       // print(tokens);
+//       // expect(tokens, isNotNull);
+//     });
 
-      // download
-      var response = await client.getBlob('images/test.png');
-      var localFile = File('test_result.png');
-      var ios = localFile.openWrite(mode: FileMode.write);
-      ios.add(await response.stream.toBytes());
-      await ios.close();
-      assert(true);
-    });
-  });
-}
+//     test('Test model creation', () async {
+//       TestWidgetsFlutterBinding.ensureInitialized();
+//       const channel = MethodChannel('plugins.flutter.io/path_provider');
+//       channel.setMockMethodCallHandler((MethodCall methodCall) async {
+//         return '.';
+//       });
+
+//       var test = Test();
+//       await test.save();
+//     });
+
+//     test('test azure storage', () async {
+//       final config = {'storageConnection': ''};
+//       var client = AzureStorageTrustedClient(config);
+//       // upload
+//       final file = File('test.png');
+//       var bytes = Uint8List.fromList(await file.readAsBytes());
+//       await client.putBlob(
+//         'images/test.png',
+//         bodyBytes: bytes,
+//       );
+
+//       // download
+//       var response = await client.getBlob('images/test.png');
+//       var localFile = File('test_result.png');
+//       var ios = localFile.openWrite(mode: FileMode.write);
+//       ios.add(await response.stream.toBytes());
+//       await ios.close();
+//       assert(true);
+//     });
+//   });
+// }

@@ -13,3 +13,7 @@ class ModelProperty {
     this.type3,
   });
 }
+
+class ModelIgnore {
+  const ModelIgnore();
+}

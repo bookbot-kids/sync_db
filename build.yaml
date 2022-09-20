@@ -1,10 +1,25 @@
+# builders:
+#     # name of the builder
+#     model_builer:
+#       # library URI containing the builder - maps to `lib/member_count_library_generator.dart`
+#       import: "package:sync_db/src/generator/builder.dart"
+#       # Name of the function in the above library to call.
+#       builder_factories: ["modelLibraryBuilder"]
+#       # The mapping from the source extension to the generated file extension
+#       build_extensions: {".dart": ["model.g.part"]}
+#       # Will automatically run on any package that depends on it
+#       auto_apply: dependents
+#       # Generate the output directly into the package, not to a hidden cache dir
+#       build_to: cache
+#       # combine the parts from each builder into one part file.
+#       applies_builders: ["source_gen|combining_builder"]
 builders:
     # name of the builder
-    model_builer:
+    model2_builer:
       # library URI containing the builder - maps to `lib/member_count_library_generator.dart`
       import: "package:sync_db/src/generator/builder.dart"
       # Name of the function in the above library to call.
-      builder_factories: ["modelLibraryBuilder"]
+      builder_factories: ["model2LibraryBuilder"]
       # The mapping from the source extension to the generated file extension
       build_extensions: {".dart": ["model.g.part"]}
       # Will automatically run on any package that depends on it

@@ -124,15 +124,14 @@ class AzureADB2CUserSession extends UserSession {
           tableName = tableName.split('-shared')[0];
         }
 
-        await Sync.shared.local!.initTable(tableName);
-
         final servicePoint = mappedServicePoints.putIfAbsent(
             tableName, () => ServicePoint(name: tableName));
         servicePoint.id = permission['id'];
         servicePoint.partition = permission['resourcePartitionKey'].first;
         servicePoint.token = permission['_token'];
         servicePoint.access =
-            $Access.fromString(permission['permissionMode'].toLowerCase());
+            $Access.fromString(permission['permissionMode'].toLowerCase()) ??
+                Access.read;
         await servicePoint.save();
       }
 
@@ -178,8 +177,7 @@ class AzureADB2CUserSession extends UserSession {
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     Sync.shared.logger?.i('servicePointsForTable $table');
     await _refreshIfExpired();
-    return List<ServicePoint>.from(
-        await ServicePoint.where('name = $table').load());
+    return await ServicePoint.listByName(table);
   }
 
   // check to refresh the refresh token
@@ -216,12 +214,11 @@ class AzureADB2CUserSession extends UserSession {
     role = 'guest';
 
     for (final table in _tablesToClearOnSignout) {
-      final servicePoints = await ServicePoint.where('name = $table').load();
+      final servicePoints = await ServicePoint.listByName(table);
       for (final servicePoint in servicePoints) {
-        await servicePoint.database
-            .deleteLocal(servicePoint.tableName, servicePoint.id);
+        await servicePoint.deleteLocal();
       }
-      await Sync.shared.local!.clearTable(table);
+      await Sync.shared.modelHandlers[table]?.clear();
     }
 
     _refreshed = refresh();

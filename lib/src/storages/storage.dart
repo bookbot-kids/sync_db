@@ -1,6 +1,7 @@
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
+import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/utils/file_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -51,7 +52,7 @@ class Storage {
   Future<void> transfer(List<Paths> paths, TransferStatus status,
       {retry = false}) async {
     var futures = <Future>[];
-    final transferMaps = await TransferMap.all();
+    final transferMaps = await TransferMap().all();
     transferMaps.forEach((element) {
       _transferrings[element.localPath] = element;
     });
@@ -106,7 +107,7 @@ class Storage {
             await FileUtils.moveFile(transfer.localPath!, finalPath);
           }
         }
-        await transfer.database!.deleteLocal(transfer.tableName, transfer.id!);
+        await transfer.deleteLocal();
         _transferrings.remove(transfer.localPath);
         _retryDelayedMap.remove(transfer.id);
       } catch (e, stackTrace) {
@@ -189,7 +190,7 @@ class Storage {
   }
 
   void finishUnfinishedTransfers() {
-    TransferMap.all().then((transfers) async {
+    TransferMap().all().then((transfers) async {
       // final now = await NetworkTime.shared.now;
       // final past = now.subtract(Duration(seconds: _transferTimeout));
 
@@ -215,100 +216,6 @@ class Storage {
 
   /// Write file to cloud storage from file
   Future<void> writeToRemote(TransferMap transferMap) async {}
-}
-
-class Paths {
-  Paths({
-    this.localPath = '',
-    this.assetPath = '',
-    this.remotePath = '',
-    this.remoteUrl = '',
-    this.ondemandPath = '',
-  });
-  String localPath;
-  String assetPath;
-  String remotePath;
-  String remoteUrl;
-  String ondemandPath;
-
-  @override
-  String toString() {
-    return 'localPath = $localPath\nassetPath = $assetPath remotePath = $remotePath\nremoteUrl = $remoteUrl\nondemandPath = $ondemandPath';
-  }
-}
-
-class TransferMap extends Model {
-  TransferMap({Paths? paths, this.transferStatus}) {
-    localPath = paths?.localPath;
-    remotePath = paths?.remotePath;
-    remoteUrl = paths?.remoteUrl;
-  }
-
-  String? localPath;
-  String? remotePath;
-  String? remoteUrl;
-  TransferStatus? transferStatus;
-
-  @override
-  String get tableName => 'TransferMap';
-
-  @override
-  SyncPermission get syncPermission => SyncPermission.read;
-
-  @override
-  Map<String, dynamic> get map {
-    var map = super.map;
-    map['localPath'] = localPath;
-    map['remotePath'] = remotePath;
-    map['remoteUrl'] = remoteUrl;
-    map['transferStatus'] = transferStatus.name;
-
-    return map;
-  }
-
-  @override
-  Future<void> setMap(Map<String, dynamic> map) async {
-    await super.setMap(map);
-    localPath = map['localPath'];
-    remotePath = map['remotePath'];
-    remoteUrl = map['remoteUrl'];
-    transferStatus = $TransferStatus.fromString(map['transferStatus']);
-  }
-
-  static Future<List<TransferMap>> all() async {
-    var all = await TransferMap().database!.all('TransferMap', () {
-      return TransferMap();
-    });
-
-    return List<TransferMap>.from(all);
-  }
-
-  static Future<TransferMap> find(String id) async =>
-      await TransferMap().database!.find('TransferMap', id, TransferMap());
-
-  static DbQuery where(dynamic condition) {
-    return DbQuery('TransferMap').where(condition, TransferMap().database, () {
-      return TransferMap();
-    });
-  }
-}
-
-enum TransferStatus { uploading, downloading }
-
-extension $TransferStatus on TransferStatus? {
-  static final string = {
-    TransferStatus.uploading: 'uploading',
-    TransferStatus.downloading: 'downloading'
-  };
-
-  static final toEnum = {
-    'uploading': TransferStatus.uploading,
-    'downloading': TransferStatus.downloading
-  };
-
-  String? get name => $TransferStatus.string[this!];
-  static TransferStatus? fromString(String? value) =>
-      $TransferStatus.toEnum[value!];
 }
 
 class FileNotFoundException implements Exception {

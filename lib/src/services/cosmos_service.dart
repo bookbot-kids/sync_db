@@ -68,50 +68,43 @@ class CosmosService extends Service {
   @override
   Future<void> writeToService(ServicePoint servicePoint) async {
     var futures = <Future>[];
+    final handler = Sync.shared.modelHandlers[servicePoint.name];
+    if (handler == null) {
+      Sync.shared.logger?.w('${servicePoint.name} does not register handler');
+      return;
+    }
 
-    // Get created records and save to Cosmos DB
-    var query = DbQuery(servicePoint.name)
-        .where('_status = ${SyncStatus.created.name}')
-        .order('createdAt asc');
-    var createdRecords = await Sync.shared.local!.queryMap(query);
-
+    final createdRecords = await handler.queryStatus(SyncStatus.created);
     for (final record in createdRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
-      if (record['partition'] != null &&
-          servicePoint.partition != record['partition']) continue;
+      if (record.partition != null &&
+          servicePoint.partition != record.partition) {
+        continue;
+      }
 
       // if a record does not have partition, then use it from service point
-      if (record['partition'] == null) {
-        record['partition'] = servicePoint.partition;
-      }
+      record.partition ??= servicePoint.partition;
 
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
-        var newRecord = await _createDocument(servicePoint, record);
+        var newRecord = await _createDocument(servicePoint, record.map);
         if (newRecord != null) {
           await updateRecordStatus(servicePoint, newRecord);
         }
       }));
     }
 
-    // Get records that have been updated and update Cosmos
-    query = DbQuery(servicePoint.name)
-        .where('_status = ${SyncStatus.updated.name}')
-        .order('updatedAt asc');
-    var updatedRecords = await Sync.shared.local!.queryMap(query);
-
+    final updatedRecords = await handler.queryStatus(SyncStatus.updated);
     for (final record in updatedRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
-      if (record['partition'] != null &&
-          servicePoint.partition != record['partition']) continue;
+      if (record.partition != null &&
+          servicePoint.partition != record.partition) continue;
 
       // if a record does not have partition, then use it from service point
-      if (record['partition'] == null) {
-        record['partition'] = servicePoint.partition;
-      }
+      record.partition ??= servicePoint.partition;
 
       futures.add(pool.withResource(() async {
-        final updatedRecord = await _updateDocument(servicePoint, record);
+        final updatedRecord = await _updateDocument(servicePoint, record.map);
         if (updatedRecord != null) {
           await updateRecordStatus(servicePoint, updatedRecord);
         }

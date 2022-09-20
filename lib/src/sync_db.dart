@@ -1,3 +1,4 @@
+import 'package:isar/isar.dart';
 import 'package:robust_http/connection_helper.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
@@ -9,12 +10,15 @@ class Sync {
   Sync._privateConstructor();
   static Sync shared = Sync();
 
-  Database? local;
+  late Isar db;
   Service? service;
   UserSession? userSession;
   Logger? logger;
   Storage? storage;
   List<SyncDelegate> delegates = [];
+  Map<String, ModelHandler> modelHandlers = {};
+  Map<String, Model Function()> modelInstances = {};
+  late IsarDatabase isarDatabase;
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =
       Notifier<Tuple2<dynamic, dynamic>>(Tuple2(null, null));
