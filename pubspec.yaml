@@ -38,4 +38,5 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.1.5
 dependency_overrides:
-  path: ^1.8.2  
+  path: ^1.8.2
+  analyzer: ^4.7.0
