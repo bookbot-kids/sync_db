@@ -108,7 +108,8 @@ class IsarDatabase {
         for (final record in recordMaps) {
           final entry = modelHandler.call();
           await entry.init();
-          await entry.setMap(record);
+          final keys = await entry.setMap(record);
+          entry.setMetadata(keys, record);
           await entry.save(syncToService: false, runInTransaction: false);
           Sync.shared.logger?.i('save done $tableName ${entry.id}');
         }

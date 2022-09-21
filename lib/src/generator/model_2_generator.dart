@@ -63,6 +63,7 @@ class Model2Generator extends Generator {
       ''';
 
       setterMap = '''
+        final keys = <String>{};
         id = map[idKey];
         if (map[createdKey] is int) {
           createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
@@ -78,7 +79,7 @@ class Model2Generator extends Generator {
       ''';
     } else {
       getterMap = 'var map = \$${parentType}(this).map;';
-      setterMap = 'await \$${parentType}(this).setMap(map);';
+      setterMap = 'final keys = await \$${parentType}(this).setMap(map);';
     }
 
     final getterFields = [];
@@ -119,30 +120,40 @@ class Model2Generator extends Generator {
           if(value != null) {
             ${name} = value;
           } 
-        }''');
+        }
+        keys.add('$name');
+        ''');
       } else if (typeName == 'List') // list
       {
         final regex = RegExp('<[a-zA-Z0-9]*>');
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
         final listType = match.replaceAll('<', '').replaceAll('>', '');
         getterFields.add("map['${name}'] = ${name};");
-        setterFields.add(
-            "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
+        setterFields.add('''
+        ${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);
+        keys.add('$name');
+        ''');
       } else if (typeName == 'double') {
         //double
         getterFields.add("map['${name}'] = ${name};");
-        setterFields.add(
-            "if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }");
+        setterFields.add('''
+        if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }
+        keys.add('$name');
+        ''');
       } else if (typeName == 'DateTime') {
         // DateTime
         getterFields.add("map['${name}'] = ${name}?.millisecondsSinceEpoch;");
-        setterFields.add(
-            "if(map['${name}'] is int) { ${name} = DateTime.fromMillisecondsSinceEpoch(map['$name']); }");
+        setterFields.add('''
+        if(map['${name}'] is int) { ${name} = DateTime.fromMillisecondsSinceEpoch(map['$name']); }
+        keys.add('$name');
+        ''');
       } else {
         // the rest types
         getterFields.add("map['${name}'] = ${name};");
-        setterFields
-            .add("if(map['${name}'] != null) ${name} = map['${name}'];");
+        setterFields.add('''
+        if(map['${name}'] != null) ${name} = map['${name}'];
+        keys.add('$name');
+        ''');
       }
     }
 
@@ -215,9 +226,10 @@ class Model2Generator extends Generator {
         return map;
       }
 
-      Future<void> setMap(Map map) async {
+      Future<Set<String>> setMap(Map map) async {
         $setterMap
         $setFields
+        return keys;
       }
 
       ${element.isAbstract ? '' : dbMethods}

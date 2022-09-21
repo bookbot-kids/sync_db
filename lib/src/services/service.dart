@@ -195,9 +195,10 @@ abstract class Service {
           existingRecord ??=
               Sync.shared.db.modelInstances[service.tableName]?.call();
           existingRecord.syncStatus = SyncStatus.synced;
-          existingRecord.init();
-          existingRecord.setMap(record);
-          existingRecord.save(syncToService: false);
+          await existingRecord.init();
+          final keys = await existingRecord.setMap(record);
+          existingRecord.setMetadata(keys, record);
+          await existingRecord.save(syncToService: false);
         }
       }
     });
@@ -246,12 +247,14 @@ abstract class Service {
       if (localRecord != null) {
         if (serverRecord[updatedKey] >= localRecord.updatedAt) {
           localRecord.syncStatus = SyncStatus.synced;
-          await localRecord.setMap(serverRecord);
+          final keys = await localRecord.setMap(serverRecord);
+          localRecord.setMetadata(keys, serverRecord);
           await localRecord.save(syncToService: false);
         } else {
           // in case local is newer, mark it as updated and sync again next time
           localRecord.syncStatus = SyncStatus.updated;
-          await localRecord.setMap(serverRecord);
+          final keys = await localRecord.setMap(serverRecord);
+          localRecord.setMetadata(keys, serverRecord);
           await localRecord.save(syncToService: false);
         }
       }

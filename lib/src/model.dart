@@ -23,16 +23,11 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   DateTime? deletedAt;
   String? id;
   DateTime? updatedAt;
+  String metadata = '';
+  String? partition;
 
   @Ignore()
-  Map $metadata = {};
-
-  String get metadata => jsonEncode($metadata);
-  set metadata(String json) {
-    $metadata = jsonDecode(json);
-  }
-
-  String? partition;
+  Map get metadataMap => json.decode(metadata);
 
   @enumerated
   SyncStatus syncStatus = SyncStatus.none;
@@ -67,7 +62,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     return map;
   }
 
-  Future<void> setMap(Map map) async {
+  Future<Set<String>> setMap(Map map) async {
     id = map[idKey];
     if (map[createdKey] is int) {
       createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
@@ -80,6 +75,8 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     if (map[deletedKey] is int) {
       deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
     }
+
+    return {};
   }
 
   @Ignore()
@@ -95,6 +92,24 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
 
   /// delete local record
   Future<void> deleteLocal() async {}
+
+  void setMetadata(Set<String> keys, Map data) {
+    keys.addAll([
+      idKey,
+      createdKey,
+      updatedKey,
+      deletedKey,
+      'partition',
+    ]);
+
+    final newMap = {};
+    for (final item in data.entries) {
+      if (!keys.contains(item.key)) {
+        newMap[item.key] = item.value;
+      }
+    }
+    metadata = json.encode(newMap);
+  }
 
   /// Find record by id
   @override

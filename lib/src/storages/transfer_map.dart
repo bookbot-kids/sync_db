@@ -100,9 +100,6 @@ class TransferMap extends Model {
   }
 
   @override
-  Model newInstance() => TransferMap();
-
-  @override
   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
     final result =
         await db.transferMaps.filter().syncStatusEqualTo(syncStatus).findAll();
