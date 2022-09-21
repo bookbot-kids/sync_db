@@ -168,13 +168,13 @@ abstract class Service {
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
     if (records.isEmpty) return;
-    final handler = Sync.shared.modelHandlers[service.name];
+    final handler = Sync.shared.db.modelHandlers[service.name];
     if (handler == null) {
       Sync.shared.logger?.w('${service.name} does not register handler');
       return;
     }
 
-    await Sync.shared.db.writeTxn(() async {
+    await Sync.shared.db.local.writeTxn(() async {
       var transientRecords = <String, dynamic>{};
       // Get updating records to compare
       if (service.access == Access.all) {
@@ -192,7 +192,8 @@ abstract class Service {
             record[updatedKey] > existingRecord.updatedAt ||
             service.access == Access.read) {
           // save record
-          existingRecord ??= Sync.shared.modelInstances[service.tableName];
+          existingRecord ??=
+              Sync.shared.db.modelInstances[service.tableName]?.call();
           existingRecord.syncStatus = SyncStatus.synced;
           existingRecord.init();
           existingRecord.setMap(record);
@@ -234,13 +235,13 @@ abstract class Service {
   Future<void> updateRecordStatus(
       ServicePoint service, Map serverRecord) async {
     if (serverRecord.isEmpty) return;
-    final handler = Sync.shared.modelHandlers[service.name];
+    final handler = Sync.shared.db.modelHandlers[service.name];
     if (handler == null) {
       Sync.shared.logger?.w('${service.name} does not register handler');
       return;
     }
 
-    await Sync.shared.db.writeTxn(() async {
+    await Sync.shared.db.local.writeTxn(() async {
       final localRecord = await handler.find(serverRecord[idKey]);
       if (localRecord != null) {
         if (serverRecord[updatedKey] >= localRecord.updatedAt) {

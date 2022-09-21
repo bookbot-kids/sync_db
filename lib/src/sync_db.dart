@@ -10,15 +10,12 @@ class Sync {
   Sync._privateConstructor();
   static Sync shared = Sync();
 
-  late Isar db;
   Service? service;
   UserSession? userSession;
   Logger? logger;
   Storage? storage;
   List<SyncDelegate> delegates = [];
-  Map<String, ModelHandler> modelHandlers = {};
-  Map<String, Model Function()> modelInstances = {};
-  late IsarDatabase isarDatabase;
+  late IsarDatabase db;
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =
       Notifier<Tuple2<dynamic, dynamic>>(Tuple2(null, null));

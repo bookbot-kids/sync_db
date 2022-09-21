@@ -43,7 +43,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   @Ignore()
-  Isar get db => Sync.shared.db;
+  Isar get db => Sync.shared.db.local;
 
   @Ignore()
   SyncPermission get syncPermission => SyncPermission.user;

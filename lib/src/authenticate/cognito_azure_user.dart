@@ -243,7 +243,7 @@ class CognitoAzureUserSession extends UserSession
         await servicePoint.deleteLocal();
       }
 
-      await Sync.shared.modelHandlers[table]?.clear();
+      await Sync.shared.db.modelHandlers[table]?.clear();
     }
 
     _refreshed = refresh();

@@ -218,7 +218,7 @@ class AzureADB2CUserSession extends UserSession {
       for (final servicePoint in servicePoints) {
         await servicePoint.deleteLocal();
       }
-      await Sync.shared.modelHandlers[table]?.clear();
+      await Sync.shared.db.modelHandlers[table]?.clear();
     }
 
     _refreshed = refresh();

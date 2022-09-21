@@ -151,36 +151,37 @@ class Model2Generator extends Generator {
     final dbMethods = '''
       /// Save record and sync to service
       Future<void> save({bool syncToService = true, bool runInTransaction = true}) async {
-        final func = () async {
-          await this.init();
-          await Sync.shared.db.$collectionName.put(this);
-          if(syncToService) {
-              sync();
-          } 
-        };
-
-        if(runInTransaction) {
-          Sync.shared.db.writeTxn(() async {
-            func();       
+        if (runInTransaction) {
+          await Sync.shared.db.local.writeTxn(() async {
+            await this.init();
+            await Sync.shared.db.local.$collectionName.put(this);
           });
+
+          if (syncToService) {
+            sync();
+          }
         } else {
-          func();
-        }        
+            await this.init();
+            await Sync.shared.db.local.$collectionName.put(this);
+            if (syncToService) {
+              sync();
+            }
+        }     
       }
 
       /// Get all records
       static Future<List<$modelName>> all() {
-          return Sync.shared.db.$collectionName.where().findAll();
+          return Sync.shared.db.local.$collectionName.where().findAll();
       }
 
       /// Find record by id
       static Future<$modelName?> find(String? id) async {
-        return await Sync.shared.db.$collectionName.filter().idEqualTo(id).findFirst();
+        return await Sync.shared.db.local.$collectionName.filter().idEqualTo(id).findFirst();
       }
 
       /// List records by sync status
       static Future<List<$modelName>> queryStatus(SyncStatus status) async {
-        return await Sync.shared.db.$collectionName.filter().syncStatusEqualTo(status).findAll();
+        return await Sync.shared.db.local.$collectionName.filter().syncStatusEqualTo(status).findAll();
       }
 
       /// delete and sync record

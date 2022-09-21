@@ -7,6 +7,7 @@ import 'package:sembast/utils/value_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
+import 'package:sync_db/src/services/sync_delegate.dart';
 import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/sync_db.dart';
 import 'package:universal_io/io.dart';
@@ -15,6 +16,10 @@ import 'package:sembast/sembast.dart' as sembast;
 
 class IsarDatabase {
   static const appVersionKey = 'app_version';
+  Map<String, ModelHandler> modelHandlers = {};
+  Map<String, Model Function()> modelInstances = {};
+  late Isar local;
+
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
     String dbAssetPath = 'assets/db',
@@ -37,13 +42,11 @@ class IsarDatabase {
       directory: dir,
     );
 
-    Sync.shared.db = isar;
-    Sync.shared.modelHandlers = {
-      for (var v in models.values) v().tableName: v()
-    };
-    models.values.forEach((element) {
-      final instance = element();
-      Sync.shared.modelInstances[instance.tableName] = () => instance;
+    local = isar;
+    modelHandlers = {for (var v in models.values) v().tableName: v()};
+    models.values.forEach((func) {
+      final instance = func.call();
+      modelInstances[instance.tableName] = func;
     });
 
     // copy database
@@ -61,7 +64,7 @@ class IsarDatabase {
       for (final asset in manifest!) {
         if (asset.startsWith(dbAssetPath)) {
           final fileName = basename(asset);
-          print('copy database $fileName');
+          Sync.shared.logger?.i('copy database $fileName');
           final targetPath = dir == null ? fileName : join(dir, fileName);
           futures.add(_copySnapshotTable(
               asset, targetPath, basenameWithoutExtension(asset)));
@@ -70,7 +73,7 @@ class IsarDatabase {
 
       await Future.wait(futures);
       await prefs.setString(appVersionKey, version!);
-      print('copy done');
+      Sync.shared.logger?.i('copy done');
     }
   }
 
@@ -93,22 +96,21 @@ class IsarDatabase {
           .map((e) => Map<dynamic, dynamic>.from(cloneMap(e.value)))
           .toList();
       await db.close();
-      print('close db $tableName, there are ${recordMaps.length} records');
-      final modelHandler = Sync.shared.modelInstances[tableName];
+      final modelHandler = modelInstances[tableName];
       if (modelHandler == null) {
         print('model handler $tableName not exist');
         return;
       }
 
-      await Sync.shared.db.writeTxn(() async {
+      await local.writeTxn(() async {
+        await modelHandler.call().clear();
+        Sync.shared.logger?.i('Clear table $tableName');
         for (final record in recordMaps) {
-          print('to save $tableName ${record['id']} ');
-          final entry = modelHandler();
+          final entry = modelHandler.call();
           await entry.init();
           await entry.setMap(record);
-          print('prepare to save $tableName ${entry.id}');
           await entry.save(syncToService: false, runInTransaction: false);
-          print('save done $tableName ${entry.id}');
+          Sync.shared.logger?.i('save done $tableName ${entry.id}');
         }
       });
     } catch (e, stacktrace) {

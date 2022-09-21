@@ -144,7 +144,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
       for (final servicePoint in servicePoints) {
         await servicePoint.deleteLocal();
       }
-      await Sync.shared.modelHandlers[table]?.clear();
+      await Sync.shared.db.modelHandlers[table]?.clear();
     }
   }
 

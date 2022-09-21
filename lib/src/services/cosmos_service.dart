@@ -68,7 +68,7 @@ class CosmosService extends Service {
   @override
   Future<void> writeToService(ServicePoint servicePoint) async {
     var futures = <Future>[];
-    final handler = Sync.shared.modelHandlers[servicePoint.name];
+    final handler = Sync.shared.db.modelHandlers[servicePoint.name];
     if (handler == null) {
       Sync.shared.logger?.w('${servicePoint.name} does not register handler');
       return;

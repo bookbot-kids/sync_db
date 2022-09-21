@@ -81,7 +81,7 @@ class GraphQLService extends Service {
     var futures = <Future>[];
     final table = service.name;
 
-    final modelHandler = Sync.shared.modelHandlers[service.tableName];
+    final modelHandler = Sync.shared.db.modelHandlers[service.tableName];
     if (modelHandler == null) {
       return;
     }
