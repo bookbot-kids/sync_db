@@ -256,13 +256,15 @@ abstract class Service {
           localRecord.syncStatus = SyncStatus.synced;
           final keys = await localRecord.setMap(serverRecord);
           localRecord.setMetadata(keys, serverRecord);
-          await localRecord.save(syncToService: false);
+          await localRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
         } else {
           // in case local is newer, mark it as updated and sync again next time
           localRecord.syncStatus = SyncStatus.updated;
           final keys = await localRecord.setMap(serverRecord);
           localRecord.setMetadata(keys, serverRecord);
-          await localRecord.save(syncToService: false);
+          await localRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
         }
       }
     });
