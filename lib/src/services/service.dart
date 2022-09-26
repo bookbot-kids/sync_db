@@ -193,14 +193,21 @@ abstract class Service {
             service.access == Access.read) {
           // save record
           existingRecord ??=
-              Sync.shared.db.modelInstances[service.tableName]?.call();
-          existingRecord.syncStatus = SyncStatus.synced;
+              Sync.shared.db.modelInstances[service.name]?.call();
           await existingRecord.init();
+          existingRecord.syncStatus = SyncStatus.synced;
           final keys = await existingRecord.setMap(record);
           existingRecord.setMetadata(keys, record);
-          await existingRecord.save(syncToService: false);
+          if (existingRecord?.partition == null &&
+              record['partition'] != null) {
+            existingRecord.partition = record['partition'];
+          }
+          await existingRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
         }
       }
+
+      print('save ${records.length} records');
     });
 
     // final database = Sync.shared.local;

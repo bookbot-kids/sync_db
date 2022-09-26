@@ -27,7 +27,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   String? partition;
 
   @Ignore()
-  Map get metadataMap => json.decode(metadata);
+  Map get metadataMap => metadata.isEmpty ? {} : json.decode(metadata);
 
   @enumerated
   SyncStatus syncStatus = SyncStatus.none;
@@ -82,7 +82,11 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   @Ignore()
   String get tableName;
 
-  Future<void> save({bool syncToService = true, bool runInTransaction = true});
+  Future<void> save({
+    bool syncToService = true,
+    bool runInTransaction = true,
+    bool initialize = true,
+  });
 
   /// delete and sync record
   Future<void> delete() async {
@@ -202,8 +206,9 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   Future<void> init() async {
     final isCreated = id == null || createdAt == null;
     id ??= newId;
-    createdAt ??= await NetworkTime.shared.now;
-    updatedAt = await NetworkTime.shared.now;
+    final now = await NetworkTime.shared.now;
+    createdAt ??= now;
+    updatedAt = now;
     if (isCreated) {
       syncStatus = SyncStatus.created;
     } else {

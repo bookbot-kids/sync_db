@@ -61,10 +61,15 @@ class ServicePoint extends Model {
   }
 
   @override
-  Future<void> save(
-      {bool syncToService = true, bool runInTransaction = true}) async {
+  Future<void> save({
+    bool syncToService = true,
+    bool runInTransaction = true,
+    bool initialize = true,
+  }) async {
     final func = () async {
-      await init();
+      if (initialize) {
+        await init();
+      }
       await db.servicePoints.put(this);
     };
 

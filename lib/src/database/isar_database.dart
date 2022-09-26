@@ -19,6 +19,7 @@ class IsarDatabase {
   Map<String, ModelHandler> modelHandlers = {};
   Map<String, Model Function()> modelInstances = {};
   late Isar local;
+  bool _isInitialized = false;
 
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
@@ -37,12 +38,16 @@ class IsarDatabase {
       dir = documentPath.path;
     }
 
-    final isar = await Isar.open(
-      models.keys.toList(),
-      directory: dir,
-    );
+    if (!_isInitialized) {
+      final isar = await Isar.open(
+        models.keys.toList(),
+        directory: dir,
+      );
 
-    local = isar;
+      local = isar;
+      _isInitialized = true;
+    }
+
     modelHandlers = {for (var v in models.values) v().tableName: v()};
     models.values.forEach((func) {
       final instance = func.call();
@@ -107,10 +112,12 @@ class IsarDatabase {
         Sync.shared.logger?.i('Clear table $tableName');
         for (final record in recordMaps) {
           final entry = modelHandler.call();
-          await entry.init();
           final keys = await entry.setMap(record);
           entry.setMetadata(keys, record);
-          await entry.save(syncToService: false, runInTransaction: false);
+          await entry.init();
+          entry.syncStatus = SyncStatus.synced;
+          await entry.save(
+              syncToService: false, runInTransaction: false, initialize: false);
           Sync.shared.logger?.i('save done $tableName ${entry.id}');
         }
       });

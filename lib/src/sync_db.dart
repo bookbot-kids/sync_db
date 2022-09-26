@@ -1,4 +1,3 @@
-import 'package:isar/isar.dart';
 import 'package:robust_http/connection_helper.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';

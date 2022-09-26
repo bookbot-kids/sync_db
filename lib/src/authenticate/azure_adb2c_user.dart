@@ -132,7 +132,7 @@ class AzureADB2CUserSession extends UserSession {
         servicePoint.access =
             $Access.fromString(permission['permissionMode'].toLowerCase()) ??
                 Access.read;
-        await servicePoint.save();
+        await servicePoint.save(syncToService: false);
       }
 
       // set role along with the resource tokens

@@ -161,20 +161,26 @@ class Model2Generator extends Generator {
     final setFields = setterFields.join('\n');
     final dbMethods = '''
       /// Save record and sync to service
-      Future<void> save({bool syncToService = true, bool runInTransaction = true}) async {
+      Future<void> save({bool syncToService = true, bool runInTransaction = true, bool initialize = true}) async {
         if (runInTransaction) {
           await Sync.shared.db.local.writeTxn(() async {
-            await this.init();
+            if(initialize) {
+              await init();
+            }            
             await Sync.shared.db.local.$collectionName.put(this);
           });
 
           if (syncToService) {
+            // ignore: unawaited_futures
             sync();
           }
         } else {
-            await this.init();
+            if(initialize) {
+              await init();
+            } 
             await Sync.shared.db.local.$collectionName.put(this);
             if (syncToService) {
+              // ignore: unawaited_futures
               sync();
             }
         }     
@@ -204,7 +210,7 @@ class Model2Generator extends Generator {
       /// delete local record without syncing
       Future<void> deleteLocal() async {
         if (id != null) {
-          db.writeTxn(() async {
+          await db.writeTxn(() async {
             await db.$collectionName.delete(localId);
           });
         }

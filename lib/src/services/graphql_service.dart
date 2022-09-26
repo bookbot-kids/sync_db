@@ -94,7 +94,9 @@ class GraphQLService extends Service {
 
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
-        var serverRecord = await _createDocument(table, fields, record.map);
+        final recordMap = record.map;
+        recordMap.addAll(record.metadataMap);
+        var serverRecord = await _createDocument(table, fields, recordMap);
         if (serverRecord != null) {
           _fixCreatedDate(serverRecord);
           await updateRecordStatus(service, serverRecord);
@@ -110,7 +112,9 @@ class GraphQLService extends Service {
       var fields = _getFields(table);
 
       futures.add(pool.withResource(() async {
-        var serverRecord = await _updateDocument(table, fields, record.map);
+        final recordMap = record.map;
+        recordMap.addAll(record.metadataMap);
+        var serverRecord = await _updateDocument(table, fields, recordMap);
         if (serverRecord != null) {
           await updateRecordStatus(service, serverRecord);
         } else {

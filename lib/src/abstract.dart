@@ -8,6 +8,7 @@ const idKey = 'id';
 const updatedKey = 'updatedAt';
 const createdKey = 'createdAt';
 const deletedKey = 'deletedAt';
+const partitionKey = 'partition';
 
 abstract class UserSession {
   /// set login token. In azure b2c, it's id token
