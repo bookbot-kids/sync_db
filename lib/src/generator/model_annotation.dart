@@ -14,6 +14,10 @@ class ModelProperty {
   });
 }
 
+class ModelSet {
+  const ModelSet();
+}
+
 class ModelIgnore {
   const ModelIgnore();
 }

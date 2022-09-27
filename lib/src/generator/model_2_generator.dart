@@ -123,6 +123,17 @@ class Model2Generator extends Generator {
         }
         keys.add('$name');
         ''');
+      } else if (TypeChecker.fromRuntime(ModelSet).hasAnnotationOfExact(field,
+          throwOnUnresolved: false)) //list but treat as set
+      {
+        final regex = RegExp('<[a-zA-Z0-9]*>');
+        final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
+        final listType = match.replaceAll('<', '').replaceAll('>', '');
+        getterFields.add("map['${name}'] = ${name}.toSet().toList();");
+        setterFields.add('''
+        ${name} = Set<$listType>.from(map['${name}'] ?? <$listType>[]).toList();
+        keys.add('$name');
+        ''');
       } else if (typeName == 'List') // list
       {
         final regex = RegExp('<[a-zA-Z0-9]*>');
