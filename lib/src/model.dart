@@ -117,7 +117,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
 
   /// Find record by id
   @override
-  Future<Model?> find(String? id) async => null;
+  Future<Model?> find(String? id);
 
   /// Storage managers and functions
   /// Readme: Files are handled in groups in the record.

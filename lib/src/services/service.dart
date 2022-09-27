@@ -252,7 +252,8 @@ abstract class Service {
     await Sync.shared.db.local.writeTxn(() async {
       final localRecord = await handler.find(serverRecord[idKey]);
       if (localRecord != null) {
-        if (serverRecord[updatedKey] >= localRecord.updatedAt) {
+        if (serverRecord[updatedKey] >=
+            (localRecord.updatedAt?.millisecondsSinceEpoch ?? 0)) {
           localRecord.syncStatus = SyncStatus.synced;
           final keys = await localRecord.setMap(serverRecord);
           localRecord.setMetadata(keys, serverRecord);
