@@ -82,6 +82,10 @@ class IsarDatabase {
     }
   }
 
+  void close({bool deleteFromDisk = false}) {
+    local.close(deleteFromDisk: deleteFromDisk);
+  }
+
   Future<void> _copySnapshotTable(
       String assetPath, String targetPath, String tableName) async {
     try {

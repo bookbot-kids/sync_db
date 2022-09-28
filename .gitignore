@@ -108,3 +108,5 @@ Temporary Items
 test/test_conf.json
 Test.db
 example
+libisar.dylib
+test/keys.json

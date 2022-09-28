@@ -206,36 +206,7 @@ abstract class Service {
               syncToService: false, runInTransaction: false, initialize: false);
         }
       }
-
-      print('save ${records.length} records');
     });
-
-    // final database = Sync.shared.local;
-    // await database?.runInTransaction(service.name, (transaction) async {
-    //   // Get updating records to compare
-    //   Map<String?, Map<dynamic, dynamic>?> transientRecords = <String, Map>{};
-    //   if (service.access == Access.all) {
-    //     final query =
-    //         DbQuery(service.name).where({statusKey: SyncStatus.updated.name});
-    //     final recentUpdatedRecords =
-    //         await database.queryMap(query, transaction: transaction);
-    //     transientRecords = {
-    //       for (var record in recentUpdatedRecords) record[idKey]: record
-    //     };
-    //   }
-
-    //   // Check all records can be saved - don't save over records that have been updated locally (unless read only)
-    //   for (final record in records) {
-    //     final existingRecord = transientRecords[record[idKey]];
-    //     if (existingRecord == null ||
-    //         record[updatedKey] > existingRecord[updatedKey] ||
-    //         service.access == Access.read) {
-    //       record[statusKey] = SyncStatus.synced.name;
-    //       await database.saveMap(service.name, record,
-    //           transaction: transaction);
-    //     }
-    //   }
-    // });
   }
 
   /// On response check to see if there has been a local change in that time
@@ -269,23 +240,6 @@ abstract class Service {
         }
       }
     });
-
-    // final database = Sync.shared.local!;
-
-    // await database.runInTransaction(service.name, (transaction) async {
-    //   final localRecord = await database
-    //       .findMap(service.name, serverRecord[idKey], transaction: transaction);
-    //   if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
-    //     serverRecord[statusKey] = SyncStatus.synced.name;
-    //     await database.saveMap(service.name, serverRecord,
-    //         transaction: transaction);
-    //   } else {
-    //     // in case local is newer, mark it as updated and sync again next time
-    //     localRecord[statusKey] = SyncStatus.updated.name;
-    //     await database.saveMap(service.name, localRecord,
-    //         transaction: transaction);
-    //   }
-    // });
   }
 
   /// A function to handle connectivity checks

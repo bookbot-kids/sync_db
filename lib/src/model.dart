@@ -213,6 +213,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
       syncStatus = SyncStatus.created;
     } else {
       if (syncStatus == SyncStatus.created) {
+        // do nothing
       } else {
         syncStatus = SyncStatus.updated;
       }
