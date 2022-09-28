@@ -61,6 +61,11 @@ class IsarDatabase {
       return;
     }
 
+    if (UniversalPlatform.isWeb) {
+      // don't support copy snapshot on web
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final oldVersion = prefs.getString(appVersionKey);
     if (oldVersion != version) {
@@ -71,8 +76,19 @@ class IsarDatabase {
           final fileName = basename(asset);
           Sync.shared.logger?.i('copy database $fileName');
           final targetPath = dir == null ? fileName : join(dir, fileName);
-          futures.add(_copySnapshotTable(
-              asset, targetPath, basenameWithoutExtension(asset)));
+
+          // copy asset to file dir
+          final assetContent = await rootBundle.load(asset);
+          final targetFile = File(targetPath);
+          if (await targetFile.exists()) {
+            await targetFile.delete();
+          }
+          final bytes = assetContent.buffer.asUint8List(
+              assetContent.offsetInBytes, assetContent.lengthInBytes);
+          await targetFile.writeAsBytes(bytes);
+
+          futures.add(
+              copySnapshotTable(targetFile, basenameWithoutExtension(asset)));
         }
       }
 
@@ -86,48 +102,46 @@ class IsarDatabase {
     local.close(deleteFromDisk: deleteFromDisk);
   }
 
-  Future<void> _copySnapshotTable(
-      String assetPath, String targetPath, String tableName) async {
-    try {
-      final assetContent = await rootBundle.load(assetPath);
-      final targetFile = File(targetPath);
-      if (await targetFile.exists()) {
-        await targetFile.delete();
-      }
-      final bytes = assetContent.buffer
-          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
-      await targetFile.writeAsBytes(bytes);
-      final db = await databaseFactoryIo.openDatabase(targetPath);
-      final store = sembast.StoreRef.main();
-      final finder = sembast.Finder();
-      final records = await store.find(db, finder: finder);
-      final recordMaps = records
-          .map((e) => Map<dynamic, dynamic>.from(cloneMap(e.value)))
-          .toList();
-      await db.close();
-      final modelHandler = modelInstances[tableName];
-      if (modelHandler == null) {
-        print('model handler $tableName not exist');
-        return;
-      }
-
-      await local.writeTxn(() async {
-        await modelHandler.call().clear();
-        Sync.shared.logger?.i('Clear table $tableName');
-        for (final record in recordMaps) {
-          final entry = modelHandler.call();
-          final keys = await entry.setMap(record);
-          entry.setMetadata(keys, record);
-          await entry.init();
-          entry.syncStatus = SyncStatus.synced;
-          await entry.save(
-              syncToService: false, runInTransaction: false, initialize: false);
-          Sync.shared.logger?.i('save done $tableName ${entry.id}');
-        }
-      });
-    } catch (e, stacktrace) {
-      Sync.shared.logger
-          ?.e('Copy snapshot $assetPath failed $e', e, stacktrace);
+  // Copy sembast database into isar
+  Future<void> migrateTableData(String tableName) async {
+    final documentPath = await getApplicationSupportDirectory();
+    await documentPath.create(recursive: true);
+    final targetFile = File(join(documentPath.path, tableName));
+    if (await targetFile.exists()) {
+      await copySnapshotTable(targetFile, tableName);
+      await targetFile.delete();
     }
+  }
+
+// Copy snapshot sembast database into isar
+  Future<void> copySnapshotTable(File targetFile, String tableName) async {
+    final db = await databaseFactoryIo.openDatabase(targetFile.path);
+    final store = sembast.StoreRef.main();
+    final finder = sembast.Finder();
+    final records = await store.find(db, finder: finder);
+    final recordMaps = records
+        .map((e) => Map<dynamic, dynamic>.from(cloneMap(e.value)))
+        .toList();
+    await db.close();
+    final modelHandler = modelInstances[tableName];
+    if (modelHandler == null) {
+      print('model handler $tableName not exist');
+      return;
+    }
+
+    await local.writeTxn(() async {
+      await modelHandler.call().clear();
+      Sync.shared.logger?.i('Clear table $tableName');
+      for (final record in recordMaps) {
+        final entry = modelHandler.call();
+        final keys = await entry.setMap(record);
+        entry.setMetadata(keys, record);
+        await entry.init();
+        entry.syncStatus = SyncStatus.synced;
+        await entry.save(
+            syncToService: false, runInTransaction: false, initialize: false);
+        Sync.shared.logger?.i('save done $tableName ${entry.id}');
+      }
+    });
   }
 }
