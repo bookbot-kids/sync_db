@@ -1,7 +1,11 @@
 import 'package:enum_to_string/enum_to_string.dart';
+import 'package:equatable/equatable.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:collection/collection.dart';
+
 import 'languages.dart';
+import 'profile.dart';
 
 part 'progress.g.dart';
 
@@ -12,7 +16,10 @@ class Progress extends Model {
   int currentPage = 0;
   int rating = 0;
 
-  @enumerated
+  @Ignore()
+  Profile? _profile;
+
+  @Enumerated(EnumType.name)
   LibraryLanguage bookLanguage = LibraryLanguage.en;
 
   // Properties to clear on completion
@@ -87,12 +94,17 @@ class Progress extends Model {
     return keys;
   }
 
+  Future<Profile?> getProfile() async {
+    _profile ??= await $Profile.find(profileId);
+    return _profile;
+  }
+
   @override
   Future<Progress?> find(String? id) => $Progress.find(id);
 }
 
-@embedded
-class ProgressCorrectWords {
+@Embedded(ignore: {'props', 'stringify'})
+class ProgressCorrectWords with EquatableMixin {
   String word = '';
   bool correct = false;
 
@@ -105,4 +117,7 @@ class ProgressCorrectWords {
 
   @override
   int get hashCode => word.hashCode;
+
+  @override
+  List<Object?> get props => [word, correct];
 }

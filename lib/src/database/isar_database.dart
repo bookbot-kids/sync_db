@@ -7,6 +7,7 @@ import 'package:sembast/utils/value_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
+import 'package:sync_db/src/services/service_record.dart';
 import 'package:sync_db/src/services/sync_delegate.dart';
 import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/sync_db.dart';
@@ -29,6 +30,7 @@ class IsarDatabase {
   }) async {
     models[ServicePointSchema] = () => ServicePoint();
     models[TransferMapSchema] = () => TransferMap();
+    models[ServiceRecordSchema] = () => ServiceRecord();
 
     String? dir;
     if (!UniversalPlatform.isWeb) {

@@ -19,5 +19,6 @@ class ModelSet {
 }
 
 class ModelIgnore {
-  const ModelIgnore();
+  const ModelIgnore({this.ignoreEqual = false});
+  final bool ignoreEqual;
 }

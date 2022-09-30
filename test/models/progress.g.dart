@@ -30,7 +30,7 @@ const ProgressSchema = CollectionSchema(
     r'bookLanguage': PropertySchema(
       id: 2,
       name: r'bookLanguage',
-      type: IsarType.byte,
+      type: IsarType.string,
       enumMap: _ProgressbookLanguageEnumValueMap,
     ),
     r'completedAt': PropertySchema(
@@ -173,6 +173,7 @@ int _progressEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.bookLanguage.name.length * 3;
   bytesCount += 3 + object.correct.length;
   bytesCount += 3 + object.correctWords.length * 3;
   {
@@ -231,7 +232,7 @@ void _progressSerialize(
 ) {
   writer.writeDouble(offsets[0], object.accuracy);
   writer.writeString(offsets[1], object.bookId);
-  writer.writeByte(offsets[2], object.bookLanguage.index);
+  writer.writeString(offsets[2], object.bookLanguage.name);
   writer.writeLong(offsets[3], object.completedAt);
   writer.writeBoolList(offsets[4], object.correct);
   writer.writeObjectList<ProgressCorrectWords>(
@@ -276,7 +277,7 @@ Progress _progressDeserialize(
   object.accuracy = reader.readDouble(offsets[0]);
   object.bookId = reader.readStringOrNull(offsets[1]);
   object.bookLanguage =
-      _ProgressbookLanguageValueEnumMap[reader.readByteOrNull(offsets[2])] ??
+      _ProgressbookLanguageValueEnumMap[reader.readStringOrNull(offsets[2])] ??
           LibraryLanguage.en;
   object.completedAt = reader.readLongOrNull(offsets[3]);
   object.correct = reader.readBoolList(offsets[4]) ?? [];
@@ -329,7 +330,7 @@ P _progressDeserializeProp<P>(
       return (reader.readStringOrNull(offset)) as P;
     case 2:
       return (_ProgressbookLanguageValueEnumMap[
-              reader.readByteOrNull(offset)] ??
+              reader.readStringOrNull(offset)] ??
           LibraryLanguage.en) as P;
     case 3:
       return (reader.readLongOrNull(offset)) as P;
@@ -394,12 +395,12 @@ P _progressDeserializeProp<P>(
 }
 
 const _ProgressbookLanguageEnumValueMap = {
-  'en': 0,
-  'id': 1,
+  r'en': r'en',
+  r'id': r'id',
 };
 const _ProgressbookLanguageValueEnumMap = {
-  0: LibraryLanguage.en,
-  1: LibraryLanguage.id,
+  r'en': LibraryLanguage.en,
+  r'id': LibraryLanguage.id,
 };
 const _ProgresssyncStatusEnumValueMap = {
   'created': 0,
@@ -716,11 +717,14 @@ extension ProgressQueryFilter
   }
 
   QueryBuilder<Progress, Progress, QAfterFilterCondition> bookLanguageEqualTo(
-      LibraryLanguage value) {
+    LibraryLanguage value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'bookLanguage',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -729,12 +733,14 @@ extension ProgressQueryFilter
       bookLanguageGreaterThan(
     LibraryLanguage value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'bookLanguage',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -742,12 +748,14 @@ extension ProgressQueryFilter
   QueryBuilder<Progress, Progress, QAfterFilterCondition> bookLanguageLessThan(
     LibraryLanguage value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'bookLanguage',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -757,6 +765,7 @@ extension ProgressQueryFilter
     LibraryLanguage upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -765,6 +774,78 @@ extension ProgressQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      bookLanguageStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'bookLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> bookLanguageEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'bookLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> bookLanguageContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'bookLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> bookLanguageMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'bookLanguage',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      bookLanguageIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bookLanguage',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      bookLanguageIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'bookLanguage',
+        value: '',
       ));
     });
   }
@@ -3373,9 +3454,10 @@ extension ProgressQueryWhereDistinct
     });
   }
 
-  QueryBuilder<Progress, Progress, QDistinct> distinctByBookLanguage() {
+  QueryBuilder<Progress, Progress, QDistinct> distinctByBookLanguage(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'bookLanguage');
+      return query.addDistinctBy(r'bookLanguage', caseSensitive: caseSensitive);
     });
   }
 
@@ -4086,12 +4168,31 @@ extension $Progress on Progress {
       {bool syncToService = true,
       bool runInTransaction = true,
       bool initialize = true}) async {
+    final callback = () async {
+      if (initialize) {
+        await init();
+      }
+
+      if (syncToService && syncStatus == SyncStatus.updated) {
+        final other = await find(id);
+        if (other != null) {
+          final diff = compare(other);
+          if (diff.isNotEmpty) {
+            var recordLog = await ServiceRecord().findBy(id, tableName);
+            recordLog ??= ServiceRecord();
+            recordLog.id = id;
+            recordLog.name = tableName;
+            recordLog.appendFields(diff);
+            await recordLog.save(runInTransaction: false);
+          }
+        }
+      }
+      await Sync.shared.db.local.progress.put(this);
+    };
+
     if (runInTransaction) {
       await Sync.shared.db.local.writeTxn(() async {
-        if (initialize) {
-          await init();
-        }
-        await Sync.shared.db.local.progress.put(this);
+        await callback();
       });
 
       if (syncToService) {
@@ -4099,10 +4200,7 @@ extension $Progress on Progress {
         sync();
       }
     } else {
-      if (initialize) {
-        await init();
-      }
-      await Sync.shared.db.local.progress.put(this);
+      await callback();
       if (syncToService) {
         // ignore: unawaited_futures
         sync();
@@ -4149,5 +4247,84 @@ extension $Progress on Progress {
   /// Clear all records and reset the auto increment value
   Future<void> clear() {
     return db.progress.clear();
+  }
+
+  Set<String> compare(Progress other) {
+    final result = <String>{};
+    if (profileId != other.profileId) {
+      result.add('profileId');
+    }
+
+    if (bookId != other.bookId) {
+      result.add('bookId');
+    }
+
+    if (currentPage != other.currentPage) {
+      result.add('currentPage');
+    }
+
+    if (rating != other.rating) {
+      result.add('rating');
+    }
+
+    if (bookLanguage != other.bookLanguage) {
+      result.add('bookLanguage');
+    }
+
+    if (!DeepCollectionEquality().equals(progress, other.progress)) {
+      result.add('progress');
+    }
+
+    if (!DeepCollectionEquality().equals(correct, other.correct)) {
+      result.add('correct');
+    }
+
+    if (fluency != other.fluency) {
+      result.add('fluency');
+    }
+
+    if (accuracy != other.accuracy) {
+      result.add('accuracy');
+    }
+
+    if (pageReadCount != other.pageReadCount) {
+      result.add('pageReadCount');
+    }
+
+    if (!DeepCollectionEquality().equals(correctWords, other.correctWords)) {
+      result.add('correctWords');
+    }
+
+    if (!DeepCollectionEquality()
+        .equals(incorrectWords, other.incorrectWords)) {
+      result.add('incorrectWords');
+    }
+
+    if (readToMeTime != other.readToMeTime) {
+      result.add('readToMeTime');
+    }
+
+    if (readingTime != other.readingTime) {
+      result.add('readingTime');
+    }
+
+    if (completedAt != other.completedAt) {
+      result.add('completedAt');
+    }
+
+    if (!DeepCollectionEquality().equals(markers, other.markers)) {
+      result.add('markers');
+    }
+
+    final list = <String>[];
+    final remap = remapFields();
+    for (final item in result) {
+      if (remap.containsKey(item)) {
+        list.addAll(remap[item]!);
+      } else {
+        list.add(item);
+      }
+    }
+    return list.toSet();
   }
 }

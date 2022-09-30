@@ -5,10 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
-import 'profile.dart';
-import 'class.dart';
 import 'dart:io' as io;
 import 'package:collection/collection.dart';
+import 'models/class.dart';
+import 'models/profile.dart';
 import 'sync_service_helper.dart';
 
 void main() {

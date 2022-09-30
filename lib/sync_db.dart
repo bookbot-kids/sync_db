@@ -21,3 +21,4 @@ export 'src/authenticate/cognito_azure_user.dart';
 export 'src/storages/transfer_map.dart';
 export 'src/database/isar_database.dart';
 export 'src/utils/list_utils.dart';
+export 'src/services/service_record.dart';

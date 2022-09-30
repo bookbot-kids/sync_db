@@ -45,7 +45,8 @@ class Model2Generator extends Generator {
 
     String getterMap;
     String setterMap;
-    if (parentType == null || parentType == 'Model') {
+    final hasParent = parentType != null && parentType != 'Model';
+    if (!hasParent) {
       getterMap = '''
         var map = {};
         map[idKey] = id;
@@ -85,6 +86,8 @@ class Model2Generator extends Generator {
     final getterFields = [];
     final setterFields = [];
 
+    final comparisonFields = [];
+
     // loop through fields
     for (var field in element.fields) {
       final name = field.name;
@@ -104,10 +107,36 @@ class Model2Generator extends Generator {
         continue;
       }
 
+      // add comparison
+      final addComparisonCallback = () {
+        if (typeName == 'List') {
+          comparisonFields.add('''
+        if (!DeepCollectionEquality().equals($name, other.$name)) {
+          result.add('$name');
+        }
+        ''');
+        } else {
+          comparisonFields.add('''
+        if ($name != other.$name) {
+          result.add('$name');
+        }
+''');
+        }
+      };
+
       if (TypeChecker.fromRuntime(ModelIgnore)
           .hasAnnotationOfExact(field, throwOnUnresolved: false)) {
+        final ignoreEqual = TypeChecker.fromRuntime(ModelIgnore)
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            ?.getField('ignoreEqual')
+            ?.toBoolValue();
+        if (ignoreEqual != true) {
+          addComparisonCallback();
+        }
         continue;
       }
+
+      addComparisonCallback();
 
       // enum
       if (fieldElement is EnumElement) {
@@ -170,15 +199,34 @@ class Model2Generator extends Generator {
 
     final getFields = getterFields.join('\n');
     final setFields = setterFields.join('\n');
-    final dbMethods = '''
+    var dbMethods = '''
       /// Save record and sync to service
       Future<void> save({bool syncToService = true, bool runInTransaction = true, bool initialize = true}) async {
+        final callback = () async {
+          if (initialize) {
+            await init();
+          }
+
+          if (syncToService && syncStatus == SyncStatus.updated) {
+              final other = await find(id);
+              if (other != null) {
+                final diff = compare(other);
+                if (diff.isNotEmpty) {
+                  var recordLog = await ServiceRecord().findBy(id, tableName);
+                  recordLog ??= ServiceRecord();
+                  recordLog.id = id;
+                  recordLog.name = tableName;
+                  recordLog.appendFields(diff);
+                  await recordLog.save(runInTransaction: false);
+                }
+              }
+            }
+            await Sync.shared.db.local.$collectionName.put(this);
+        };
+
         if (runInTransaction) {
           await Sync.shared.db.local.writeTxn(() async {
-            if(initialize) {
-              await init();
-            }            
-            await Sync.shared.db.local.$collectionName.put(this);
+             await callback();
           });
 
           if (syncToService) {
@@ -186,10 +234,7 @@ class Model2Generator extends Generator {
             sync();
           }
         } else {
-            if(initialize) {
-              await init();
-            } 
-            await Sync.shared.db.local.$collectionName.put(this);
+            await callback();
             if (syncToService) {
               // ignore: unawaited_futures
               sync();
@@ -231,7 +276,41 @@ class Model2Generator extends Generator {
       Future<void> clear() {
         return db.$collectionName.clear();
       }
+
+      Set<String> compare($modelName other) {
+        final result = ${hasParent ? '\$${parentType}(this).compare(other);' : '<String>{};'}
+        ${comparisonFields.join('\n')}
+        final list = <String>[];
+        final remap = remapFields();
+        for (final item in result) {
+          if (remap.containsKey(item)) {
+            list.addAll(remap[item]!);
+          } else {
+            list.add(item);
+          }
+        }
+        return list.toSet();
+      }
 ''';
+
+    if (element.isAbstract) {
+      dbMethods = '''
+      Set<String> compare($modelName other) {
+        final result = <String>{};
+        ${comparisonFields.join('\n')}
+        final list = <String>[];
+        final remap = remapFields();
+        for (final item in result) {
+          if (remap.containsKey(item)) {
+            list.addAll(remap[item] ?? []);
+          } else {
+            list.add(item);
+          }
+        }
+        return list.toSet();
+      } 
+''';
+    }
     // generate texts
     output.add('// $modelName model generator');
     output.add('''
@@ -249,7 +328,7 @@ class Model2Generator extends Generator {
         return keys;
       }
 
-      ${element.isAbstract ? '' : dbMethods}
+      $dbMethods
     }
       ''');
     return output.join('\n');

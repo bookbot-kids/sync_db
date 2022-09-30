@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'class.dart';
+part of 'service_record.dart';
 
 // **************************************************************************
 // IsarCollectionGenerator
@@ -9,13 +9,13 @@ part of 'class.dart';
 // coverage:ignore-file
 // ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
 
-extension GetClassRoomCollection on Isar {
-  IsarCollection<ClassRoom> get classRooms => this.collection();
+extension GetServiceRecordCollection on Isar {
+  IsarCollection<ServiceRecord> get serviceRecords => this.collection();
 }
 
-const ClassRoomSchema = CollectionSchema(
-  name: r'ClassRoom',
-  id: 2717467172829419821,
+const ServiceRecordSchema = CollectionSchema(
+  name: r'ServiceRecord',
+  id: 1320320961809859071,
   properties: {
     r'createdAt': PropertySchema(
       id: 0,
@@ -56,40 +56,35 @@ const ClassRoomSchema = CollectionSchema(
       id: 7,
       name: r'syncStatus',
       type: IsarType.byte,
-      enumMap: _ClassRoomsyncStatusEnumValueMap,
-    ),
-    r'tableName': PropertySchema(
-      id: 8,
-      name: r'tableName',
-      type: IsarType.string,
-    ),
-    r'teacherId': PropertySchema(
-      id: 9,
-      name: r'teacherId',
-      type: IsarType.string,
+      enumMap: _ServiceRecordsyncStatusEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 10,
+      id: 8,
       name: r'updatedAt',
       type: IsarType.dateTime,
+    ),
+    r'updatedFields': PropertySchema(
+      id: 9,
+      name: r'updatedFields',
+      type: IsarType.stringList,
     )
   },
-  estimateSize: _classRoomEstimateSize,
-  serialize: _classRoomSerialize,
-  deserialize: _classRoomDeserialize,
-  deserializeProp: _classRoomDeserializeProp,
+  estimateSize: _serviceRecordEstimateSize,
+  serialize: _serviceRecordSerialize,
+  deserialize: _serviceRecordDeserialize,
+  deserializeProp: _serviceRecordDeserializeProp,
   idName: r'localId',
   indexes: {},
   links: {},
   embeddedSchemas: {},
-  getId: _classRoomGetId,
-  getLinks: _classRoomGetLinks,
-  attach: _classRoomAttach,
+  getId: _serviceRecordGetId,
+  getLinks: _serviceRecordGetLinks,
+  attach: _serviceRecordAttach,
   version: '3.0.1',
 );
 
-int _classRoomEstimateSize(
-  ClassRoom object,
+int _serviceRecordEstimateSize(
+  ServiceRecord object,
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
@@ -108,13 +103,18 @@ int _classRoomEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
-  bytesCount += 3 + object.tableName.length * 3;
-  bytesCount += 3 + object.teacherId.length * 3;
+  bytesCount += 3 + object.updatedFields.length * 3;
+  {
+    for (var i = 0; i < object.updatedFields.length; i++) {
+      final value = object.updatedFields[i];
+      bytesCount += value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
-void _classRoomSerialize(
-  ClassRoom object,
+void _serviceRecordSerialize(
+  ServiceRecord object,
   IsarWriter writer,
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
@@ -127,18 +127,17 @@ void _classRoomSerialize(
   writer.writeString(offsets[5], object.name);
   writer.writeString(offsets[6], object.partition);
   writer.writeByte(offsets[7], object.syncStatus.index);
-  writer.writeString(offsets[8], object.tableName);
-  writer.writeString(offsets[9], object.teacherId);
-  writer.writeDateTime(offsets[10], object.updatedAt);
+  writer.writeDateTime(offsets[8], object.updatedAt);
+  writer.writeStringList(offsets[9], object.updatedFields);
 }
 
-ClassRoom _classRoomDeserialize(
+ServiceRecord _serviceRecordDeserialize(
   Id id,
   IsarReader reader,
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  final object = ClassRoom();
+  final object = ServiceRecord();
   object.createdAt = reader.readDateTimeOrNull(offsets[0]);
   object.deletedAt = reader.readDateTimeOrNull(offsets[1]);
   object.id = reader.readStringOrNull(offsets[3]);
@@ -147,14 +146,14 @@ ClassRoom _classRoomDeserialize(
   object.name = reader.readString(offsets[5]);
   object.partition = reader.readStringOrNull(offsets[6]);
   object.syncStatus =
-      _ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offsets[7])] ??
+      _ServiceRecordsyncStatusValueEnumMap[reader.readByteOrNull(offsets[7])] ??
           SyncStatus.created;
-  object.teacherId = reader.readString(offsets[9]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[10]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[8]);
+  object.updatedFields = reader.readStringList(offsets[9]) ?? [];
   return object;
 }
 
-P _classRoomDeserializeProp<P>(
+P _serviceRecordDeserializeProp<P>(
   IsarReader reader,
   int propertyId,
   int offset,
@@ -176,56 +175,56 @@ P _classRoomDeserializeProp<P>(
     case 6:
       return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (_ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
+      return (_ServiceRecordsyncStatusValueEnumMap[
+              reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
     case 8:
-      return (reader.readString(offset)) as P;
-    case 9:
-      return (reader.readString(offset)) as P;
-    case 10:
       return (reader.readDateTimeOrNull(offset)) as P;
+    case 9:
+      return (reader.readStringList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
 
-const _ClassRoomsyncStatusEnumValueMap = {
+const _ServiceRecordsyncStatusEnumValueMap = {
   'created': 0,
   'updated': 1,
   'synced': 2,
   'none': 3,
 };
-const _ClassRoomsyncStatusValueEnumMap = {
+const _ServiceRecordsyncStatusValueEnumMap = {
   0: SyncStatus.created,
   1: SyncStatus.updated,
   2: SyncStatus.synced,
   3: SyncStatus.none,
 };
 
-Id _classRoomGetId(ClassRoom object) {
+Id _serviceRecordGetId(ServiceRecord object) {
   return object.localId;
 }
 
-List<IsarLinkBase<dynamic>> _classRoomGetLinks(ClassRoom object) {
+List<IsarLinkBase<dynamic>> _serviceRecordGetLinks(ServiceRecord object) {
   return [];
 }
 
-void _classRoomAttach(IsarCollection<dynamic> col, Id id, ClassRoom object) {
+void _serviceRecordAttach(
+    IsarCollection<dynamic> col, Id id, ServiceRecord object) {
   object.localId = id;
 }
 
-extension ClassRoomQueryWhereSort
-    on QueryBuilder<ClassRoom, ClassRoom, QWhere> {
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhere> anyLocalId() {
+extension ServiceRecordQueryWhereSort
+    on QueryBuilder<ServiceRecord, ServiceRecord, QWhere> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhere> anyLocalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
 }
 
-extension ClassRoomQueryWhere
-    on QueryBuilder<ClassRoom, ClassRoom, QWhereClause> {
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> localIdEqualTo(
+extension ServiceRecordQueryWhere
+    on QueryBuilder<ServiceRecord, ServiceRecord, QWhereClause> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> localIdEqualTo(
       Id localId) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(IdWhereClause.between(
@@ -235,8 +234,8 @@ extension ClassRoomQueryWhere
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> localIdNotEqualTo(
-      Id localId) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause>
+      localIdNotEqualTo(Id localId) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -258,9 +257,8 @@ extension ClassRoomQueryWhere
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> localIdGreaterThan(
-      Id localId,
-      {bool include = false}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause>
+      localIdGreaterThan(Id localId, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: localId, includeLower: include),
@@ -268,7 +266,7 @@ extension ClassRoomQueryWhere
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> localIdLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> localIdLessThan(
       Id localId,
       {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
@@ -278,7 +276,7 @@ extension ClassRoomQueryWhere
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> localIdBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> localIdBetween(
     Id lowerLocalId,
     Id upperLocalId, {
     bool includeLower = true,
@@ -295,9 +293,10 @@ extension ClassRoomQueryWhere
   }
 }
 
-extension ClassRoomQueryFilter
-    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> createdAtIsNull() {
+extension ServiceRecordQueryFilter
+    on QueryBuilder<ServiceRecord, ServiceRecord, QFilterCondition> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      createdAtIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
         property: r'createdAt',
@@ -305,7 +304,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       createdAtIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
@@ -314,8 +313,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> createdAtEqualTo(
-      DateTime? value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      createdAtEqualTo(DateTime? value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'createdAt',
@@ -324,7 +323,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       createdAtGreaterThan(
     DateTime? value, {
     bool include = false,
@@ -338,7 +337,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> createdAtLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      createdAtLessThan(
     DateTime? value, {
     bool include = false,
   }) {
@@ -351,7 +351,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> createdAtBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      createdAtBetween(
     DateTime? lower,
     DateTime? upper, {
     bool includeLower = true,
@@ -368,7 +369,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> deletedAtIsNull() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      deletedAtIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
         property: r'deletedAt',
@@ -376,7 +378,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       deletedAtIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
@@ -385,8 +387,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> deletedAtEqualTo(
-      DateTime? value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      deletedAtEqualTo(DateTime? value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'deletedAt',
@@ -395,7 +397,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       deletedAtGreaterThan(
     DateTime? value, {
     bool include = false,
@@ -409,7 +411,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> deletedAtLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      deletedAtLessThan(
     DateTime? value, {
     bool include = false,
   }) {
@@ -422,7 +425,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> deletedAtBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      deletedAtBetween(
     DateTime? lower,
     DateTime? upper, {
     bool includeLower = true,
@@ -439,8 +443,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> hasListenersEqualTo(
-      bool value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      hasListenersEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'hasListeners',
@@ -449,7 +453,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idIsNull() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
         property: r'id',
@@ -457,7 +461,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idIsNotNull() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      idIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
         property: r'id',
@@ -465,7 +470,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idEqualTo(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idEqualTo(
     String? value, {
     bool caseSensitive = true,
   }) {
@@ -478,7 +483,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idGreaterThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      idGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -493,7 +499,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idLessThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -508,7 +514,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -527,7 +533,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idStartsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      idStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -540,7 +547,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idEndsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -553,7 +560,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idContains(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idContains(
       String value,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -565,7 +572,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idMatches(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> idMatches(
       String pattern,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -577,7 +584,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idIsEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      idIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'id',
@@ -586,7 +594,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> idIsNotEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      idIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'id',
@@ -595,8 +604,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> localIdEqualTo(
-      Id value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      localIdEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'localId',
@@ -605,7 +614,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> localIdGreaterThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      localIdGreaterThan(
     Id value, {
     bool include = false,
   }) {
@@ -618,7 +628,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> localIdLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      localIdLessThan(
     Id value, {
     bool include = false,
   }) {
@@ -631,7 +642,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> localIdBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      localIdBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
@@ -648,7 +660,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataEqualTo(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataEqualTo(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -661,7 +674,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataGreaterThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
@@ -676,7 +690,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
@@ -691,7 +706,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -710,7 +726,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataStartsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -723,7 +740,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataEndsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -736,9 +754,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataContains(
-      String value,
-      {bool caseSensitive = true}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.contains(
         property: r'metadata',
@@ -748,9 +765,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.matches(
         property: r'metadata',
@@ -760,7 +776,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> metadataIsEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      metadataIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'metadata',
@@ -769,7 +786,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       metadataIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
@@ -779,7 +796,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameEqualTo(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> nameEqualTo(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -792,7 +809,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameGreaterThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
@@ -807,7 +825,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
@@ -822,7 +841,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> nameBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -841,7 +860,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameStartsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -854,7 +874,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameEndsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -867,9 +888,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameContains(
-      String value,
-      {bool caseSensitive = true}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.contains(
         property: r'name',
@@ -879,7 +899,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameMatches(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition> nameMatches(
       String pattern,
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -891,7 +911,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameIsEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'name',
@@ -900,7 +921,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> nameIsNotEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      nameIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'name',
@@ -909,7 +931,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionIsNull() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
         property: r'partition',
@@ -917,7 +940,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       partitionIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
@@ -926,7 +949,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionEqualTo(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionEqualTo(
     String? value, {
     bool caseSensitive = true,
   }) {
@@ -939,7 +963,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       partitionGreaterThan(
     String? value, {
     bool include = false,
@@ -955,7 +979,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionLessThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
@@ -970,7 +995,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -989,7 +1015,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionStartsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -1002,7 +1029,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionEndsWith(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
@@ -1015,9 +1043,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionContains(
-      String value,
-      {bool caseSensitive = true}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.contains(
         property: r'partition',
@@ -1027,9 +1054,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.matches(
         property: r'partition',
@@ -1039,7 +1065,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> partitionIsEmpty() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      partitionIsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'partition',
@@ -1048,7 +1075,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       partitionIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
@@ -1058,8 +1085,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> syncStatusEqualTo(
-      SyncStatus value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      syncStatusEqualTo(SyncStatus value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'syncStatus',
@@ -1068,7 +1095,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       syncStatusGreaterThan(
     SyncStatus value, {
     bool include = false,
@@ -1082,7 +1109,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> syncStatusLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      syncStatusLessThan(
     SyncStatus value, {
     bool include = false,
   }) {
@@ -1095,7 +1123,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> syncStatusBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      syncStatusBetween(
     SyncStatus lower,
     SyncStatus upper, {
     bool includeLower = true,
@@ -1112,271 +1141,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
-      tableNameGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameLessThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameBetween(
-    String lower,
-    String upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'tableName',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameContains(
-      String value,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'tableName',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'tableName',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> tableNameIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'tableName',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
-      tableNameIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'tableName',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
-      teacherIdGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdLessThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdBetween(
-    String lower,
-    String upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'teacherId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdContains(
-      String value,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'teacherId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'teacherId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> teacherIdIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'teacherId',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
-      teacherIdIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'teacherId',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> updatedAtIsNull() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedAtIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNull(
         property: r'updatedAt',
@@ -1384,7 +1150,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       updatedAtIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(const FilterCondition.isNotNull(
@@ -1393,8 +1159,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> updatedAtEqualTo(
-      DateTime? value) {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedAtEqualTo(DateTime? value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'updatedAt',
@@ -1403,7 +1169,7 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
       updatedAtGreaterThan(
     DateTime? value, {
     bool include = false,
@@ -1417,7 +1183,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> updatedAtLessThan(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedAtLessThan(
     DateTime? value, {
     bool include = false,
   }) {
@@ -1430,7 +1197,8 @@ extension ClassRoomQueryFilter
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> updatedAtBetween(
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedAtBetween(
     DateTime? lower,
     DateTime? upper, {
     bool includeLower = true,
@@ -1446,562 +1214,625 @@ extension ClassRoomQueryFilter
       ));
     });
   }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'updatedFields',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'updatedFields',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'updatedFields',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'updatedFields',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'updatedFields',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterFilterCondition>
+      updatedFieldsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'updatedFields',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
 }
 
-extension ClassRoomQueryObject
-    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {}
+extension ServiceRecordQueryObject
+    on QueryBuilder<ServiceRecord, ServiceRecord, QFilterCondition> {}
 
-extension ClassRoomQueryLinks
-    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {}
+extension ServiceRecordQueryLinks
+    on QueryBuilder<ServiceRecord, ServiceRecord, QFilterCondition> {}
 
-extension ClassRoomQuerySortBy on QueryBuilder<ClassRoom, ClassRoom, QSortBy> {
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByCreatedAt() {
+extension ServiceRecordQuerySortBy
+    on QueryBuilder<ServiceRecord, ServiceRecord, QSortBy> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByCreatedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByDeletedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByDeletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'deletedAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByDeletedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByDeletedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'deletedAt', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByHasListeners() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByHasListeners() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasListeners', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByHasListenersDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByHasListenersDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasListeners', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortById() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByIdDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByMetadata() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByMetadata() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'metadata', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByMetadataDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByMetadataDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'metadata', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByName() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByNameDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByPartition() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByPartition() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'partition', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByPartitionDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByPartitionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'partition', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortBySyncStatus() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortBySyncStatusDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortBySyncStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByTableName() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'tableName', Sort.asc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByTableNameDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'tableName', Sort.desc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByTeacherId() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'teacherId', Sort.asc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByTeacherIdDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'teacherId', Sort.desc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByUpdatedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> sortByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByUpdatedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      sortByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
 }
 
-extension ClassRoomQuerySortThenBy
-    on QueryBuilder<ClassRoom, ClassRoom, QSortThenBy> {
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByCreatedAt() {
+extension ServiceRecordQuerySortThenBy
+    on QueryBuilder<ServiceRecord, ServiceRecord, QSortThenBy> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByCreatedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByDeletedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByDeletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'deletedAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByDeletedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByDeletedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'deletedAt', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByHasListeners() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByHasListeners() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasListeners', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByHasListenersDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByHasListenersDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'hasListeners', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenById() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByIdDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByLocalId() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByLocalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localId', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByLocalIdDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByLocalIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localId', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByMetadata() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByMetadata() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'metadata', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByMetadataDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByMetadataDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'metadata', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByName() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByNameDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByPartition() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByPartition() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'partition', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByPartitionDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByPartitionDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'partition', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenBySyncStatus() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenBySyncStatusDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenBySyncStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.desc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByTableName() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'tableName', Sort.asc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByTableNameDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'tableName', Sort.desc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByTeacherId() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'teacherId', Sort.asc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByTeacherIdDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'teacherId', Sort.desc);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByUpdatedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy> thenByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByUpdatedAtDesc() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterSortBy>
+      thenByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
 }
 
-extension ClassRoomQueryWhereDistinct
-    on QueryBuilder<ClassRoom, ClassRoom, QDistinct> {
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByCreatedAt() {
+extension ServiceRecordQueryWhereDistinct
+    on QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> {
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByDeletedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByDeletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'deletedAt');
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByHasListeners() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct>
+      distinctByHasListeners() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'hasListeners');
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctById(
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctById(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'id', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByMetadata(
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByMetadata(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'metadata', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByName(
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByName(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'name', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByPartition(
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByPartition(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'partition', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctBySyncStatus() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'syncStatus');
     });
   }
 
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByTableName(
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'tableName', caseSensitive: caseSensitive);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByTeacherId(
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'teacherId', caseSensitive: caseSensitive);
-    });
-  }
-
-  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByUpdatedAt() {
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct> distinctByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'updatedAt');
     });
   }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QDistinct>
+      distinctByUpdatedFields() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'updatedFields');
+    });
+  }
 }
 
-extension ClassRoomQueryProperty
-    on QueryBuilder<ClassRoom, ClassRoom, QQueryProperty> {
-  QueryBuilder<ClassRoom, int, QQueryOperations> localIdProperty() {
+extension ServiceRecordQueryProperty
+    on QueryBuilder<ServiceRecord, ServiceRecord, QQueryProperty> {
+  QueryBuilder<ServiceRecord, int, QQueryOperations> localIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'localId');
     });
   }
 
-  QueryBuilder<ClassRoom, DateTime?, QQueryOperations> createdAtProperty() {
+  QueryBuilder<ServiceRecord, DateTime?, QQueryOperations> createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'createdAt');
     });
   }
 
-  QueryBuilder<ClassRoom, DateTime?, QQueryOperations> deletedAtProperty() {
+  QueryBuilder<ServiceRecord, DateTime?, QQueryOperations> deletedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'deletedAt');
     });
   }
 
-  QueryBuilder<ClassRoom, bool, QQueryOperations> hasListenersProperty() {
+  QueryBuilder<ServiceRecord, bool, QQueryOperations> hasListenersProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'hasListeners');
     });
   }
 
-  QueryBuilder<ClassRoom, String?, QQueryOperations> idProperty() {
+  QueryBuilder<ServiceRecord, String?, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
     });
   }
 
-  QueryBuilder<ClassRoom, String, QQueryOperations> metadataProperty() {
+  QueryBuilder<ServiceRecord, String, QQueryOperations> metadataProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'metadata');
     });
   }
 
-  QueryBuilder<ClassRoom, String, QQueryOperations> nameProperty() {
+  QueryBuilder<ServiceRecord, String, QQueryOperations> nameProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'name');
     });
   }
 
-  QueryBuilder<ClassRoom, String?, QQueryOperations> partitionProperty() {
+  QueryBuilder<ServiceRecord, String?, QQueryOperations> partitionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'partition');
     });
   }
 
-  QueryBuilder<ClassRoom, SyncStatus, QQueryOperations> syncStatusProperty() {
+  QueryBuilder<ServiceRecord, SyncStatus, QQueryOperations>
+      syncStatusProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'syncStatus');
     });
   }
 
-  QueryBuilder<ClassRoom, String, QQueryOperations> tableNameProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'tableName');
-    });
-  }
-
-  QueryBuilder<ClassRoom, String, QQueryOperations> teacherIdProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'teacherId');
-    });
-  }
-
-  QueryBuilder<ClassRoom, DateTime?, QQueryOperations> updatedAtProperty() {
+  QueryBuilder<ServiceRecord, DateTime?, QQueryOperations> updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
     });
   }
-}
 
-// **************************************************************************
-// Model2Generator
-// **************************************************************************
-
-// ClassRoom model generator
-extension $ClassRoom on ClassRoom {
-  Map get map {
-    var map = {};
-    map[idKey] = id;
-    if (createdAt != null) {
-      map[createdKey] = createdAt?.millisecondsSinceEpoch;
-    }
-
-    if (updatedAt != null) {
-      map[updatedKey] = updatedAt?.millisecondsSinceEpoch;
-    }
-
-    if (deletedAt != null) {
-      map[deletedKey] = deletedAt?.millisecondsSinceEpoch;
-    }
-
-    map['name'] = name;
-    map['teacherId'] = teacherId;
-    return map;
-  }
-
-  Future<Set<String>> setMap(Map map) async {
-    final keys = <String>{};
-    id = map[idKey];
-    if (map[createdKey] is int) {
-      createdAt = DateTime.fromMillisecondsSinceEpoch(map[createdKey]);
-    }
-
-    if (map[updatedKey] is int) {
-      updatedAt = DateTime.fromMillisecondsSinceEpoch(map[updatedKey]);
-    }
-
-    if (map[deletedKey] is int) {
-      deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
-    }
-
-    if (map['name'] != null) name = map['name'];
-    keys.add('name');
-
-    if (map['teacherId'] != null) teacherId = map['teacherId'];
-    keys.add('teacherId');
-
-    return keys;
-  }
-
-  /// Save record and sync to service
-  Future<void> save(
-      {bool syncToService = true,
-      bool runInTransaction = true,
-      bool initialize = true}) async {
-    if (runInTransaction) {
-      await Sync.shared.db.local.writeTxn(() async {
-        if (initialize) {
-          await init();
-        }
-        await Sync.shared.db.local.classRooms.put(this);
-      });
-
-      if (syncToService) {
-        // ignore: unawaited_futures
-        sync();
-      }
-    } else {
-      if (initialize) {
-        await init();
-      }
-      await Sync.shared.db.local.classRooms.put(this);
-      if (syncToService) {
-        // ignore: unawaited_futures
-        sync();
-      }
-    }
-  }
-
-  /// Get all records
-  static Future<List<ClassRoom>> all() {
-    return Sync.shared.db.local.classRooms.where().findAll();
-  }
-
-  /// Find record by id
-  static Future<ClassRoom?> find(String? id) async {
-    return await Sync.shared.db.local.classRooms
-        .filter()
-        .idEqualTo(id)
-        .findFirst();
-  }
-
-  /// List records by sync status
-  static Future<List<ClassRoom>> queryStatus(SyncStatus status) async {
-    return await Sync.shared.db.local.classRooms
-        .filter()
-        .syncStatusEqualTo(status)
-        .findAll();
-  }
-
-  /// delete and sync record
-  Future<void> delete({bool syncToService = true}) async {
-    deletedAt = await NetworkTime.shared.now;
-    await save(syncToService: syncToService);
-  }
-
-  /// delete local record without syncing
-  Future<void> deleteLocal() async {
-    if (id != null) {
-      await db.writeTxn(() async {
-        await db.classRooms.delete(localId);
-      });
-    }
-  }
-
-  /// Clear all records and reset the auto increment value
-  Future<void> clear() {
-    return db.classRooms.clear();
+  QueryBuilder<ServiceRecord, List<String>, QQueryOperations>
+      updatedFieldsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'updatedFields');
+    });
   }
 }

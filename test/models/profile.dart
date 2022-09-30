@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:enum_to_string/enum_to_string.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:collection/collection.dart';
 
 import 'class.dart';
 import 'languages.dart';
@@ -16,6 +18,18 @@ enum Onboarding { intro, bookIntro, stamp }
 
 enum InviteStatus { none, invited, connected }
 
+/// What's with all the different levels?
+/// `displayLevel` refers to the level that you see in the app.
+/// This is displayed with the bot and in the ring around the bot
+/// It is not their actual reading level - it's a measurement of how much successful reading a child does.
+/// The more focus words they get right, their display level progresses.
+/// At the moment there are around 50 reading levels (see `bookbotLevelOrder`) and they have gaps in the levels.
+/// This is so new levels can be added in the future without moving other levels around.
+/// Each reading level is tied to a reading concept i.e. words with 'th' or 'silent e' e.g. 'home'
+/// The levels that you select when creating a profile are mapped to a specific `libraryLevel`
+/// When a child increases their `displayLevel` we make their `libraryLevel` complete and add that to `levelsComplete`
+/// `displayLevel` and `libraryLevel` are increased
+/// `levelsComplete` is to keep track of `libraryLevel` they have done and to skip over completed levels if the level is changed by the user
 @collection
 class Profile extends Model {
   String name = '';
@@ -23,11 +37,11 @@ class Profile extends Model {
   @ModelIgnore()
   List<ProfileProgress> progresses = [];
 
-  @enumerated
+  @Enumerated(EnumType.name)
   Bot bot = Bot.orange;
   String dob = '';
   List<String> about = [];
-  @enumerated
+  @Enumerated(EnumType.name)
   Onboarding onboarding = Onboarding.intro;
 
   bool readToMe = false;
@@ -47,7 +61,7 @@ class Profile extends Model {
   String email = '';
   String lastName = '';
 
-  @enumerated
+  @Enumerated(EnumType.name)
   InviteStatus inviteStatus = InviteStatus.none;
 
   @ModelSet()
@@ -139,7 +153,7 @@ class Profile extends Model {
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.displayLevel = item.value;
+        progresMap[language]?.displayLevel = item.value.toDouble();
       }
     }
 
@@ -150,7 +164,7 @@ class Profile extends Model {
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.libraryLevel = item.value;
+        progresMap[language]?.libraryLevel = item.value.toInt();
       }
     }
 
@@ -178,7 +192,7 @@ class Profile extends Model {
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.averageAccuracy = item.value;
+        progresMap[language]?.averageAccuracy = item.value.toDouble();
       }
     }
 
@@ -189,7 +203,7 @@ class Profile extends Model {
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.averageFluency = item.value;
+        progresMap[language]?.averageFluency = item.value.toDouble();
       }
     }
 
@@ -226,14 +240,25 @@ class Profile extends Model {
 
   @override
   Future<Profile?> find(String? id) => $Profile.find(id);
+
+  @override
+  Map<String, List<String>> remapFields() => {
+        'progresses': [
+          'displayLevels',
+          'libraryLevels',
+          'levelsCompletedAt',
+          'averageAccuracies',
+          'averageFluencies',
+        ]
+      };
 }
 
 /*
 // Embeded classes
 */
 
-@embedded
-class ProfileTeacherInfo {
+@Embedded(ignore: {'props', 'stringify'})
+class ProfileTeacherInfo with EquatableMixin {
   String id = '';
   String jsonInfo = '';
 
@@ -242,29 +267,48 @@ class ProfileTeacherInfo {
 
   ProfileTeacherInfo();
   ProfileTeacherInfo.from(this.id);
+
+  @override
+  List<Object?> get props => [id, jsonInfo];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ProfileTeacherInfo &&
+          id == other.id &&
+          jsonInfo == other.jsonInfo;
+
+  @override
+  int get hashCode => Object.hash(id, jsonInfo);
 }
 
-@embedded
-class ProfileScriptStatus {
+@Embedded(ignore: {'props', 'stringify'})
+class ProfileScriptStatus with EquatableMixin {
   String name = '';
   bool enabled = false;
 
   ProfileScriptStatus();
   ProfileScriptStatus.from(this.name, this.enabled);
+
+  @override
+  List<Object?> get props => [name, enabled];
 }
 
-@embedded
-class LevelEntry {
+@Embedded(ignore: {'props', 'stringify'})
+class LevelEntry with EquatableMixin {
   String name = '';
   int level = 0;
 
   LevelEntry();
   LevelEntry.from(this.name, this.level);
+
+  @override
+  List<Object?> get props => [name, level];
 }
 
-@embedded
-class ProfileProgress {
-  @enumerated
+@Embedded(ignore: {'props', 'stringify'})
+class ProfileProgress with EquatableMixin {
+  @Enumerated(EnumType.name)
   LibraryLanguage language = LibraryLanguage.en;
   List<LevelEntry> levelsCompletedAt = [];
   double displayLevel = 0.0;
@@ -277,4 +321,14 @@ class ProfileProgress {
 
   Map toLevelsCompletedAtMap() =>
       {for (var v in levelsCompletedAt) v.name: v.level};
+
+  @override
+  List<Object?> get props => [
+        language,
+        levelsCompletedAt,
+        displayLevel,
+        libraryLevel,
+        averageAccuracy,
+        averageFluency
+      ];
 }

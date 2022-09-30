@@ -2,9 +2,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
-import 'profile.dart';
-import 'class.dart';
 import 'dart:io' as io;
+
+import 'models/class.dart';
+import 'models/profile.dart';
 
 void main() {
   final db = IsarDatabase();

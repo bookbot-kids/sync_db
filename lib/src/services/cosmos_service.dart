@@ -107,12 +107,36 @@ class CosmosService extends Service {
       record.partition ??= servicePoint.partition;
 
       futures.add(pool.withResource(() async {
-        final recordMap = record.map;
-        recordMap.addAll(record.metadataMap);
-        recordMap[partitionKey] = record.partition;
-        final updatedRecord = await _updateDocument(servicePoint, recordMap);
-        if (updatedRecord != null) {
-          await updateRecordStatus(servicePoint, updatedRecord);
+        // find service record to get partial update fields
+        final serviceRecord =
+            await ServiceRecord().findBy(record.id, record.tableName);
+        if (serviceRecord != null && serviceRecord.updatedFields.isNotEmpty) {
+          // partial update
+          final recordMap = record.map;
+          recordMap.addAll(record.metadataMap);
+          recordMap[partitionKey] = record.partition;
+          final operations = [];
+          for (final field in serviceRecord.updatedFields) {
+            operations.add({
+              'op': 'set',
+              'path': '/$field',
+              'value': recordMap[field],
+            });
+          }
+          final updatedRecord = await _partialUpdateDocument(
+              servicePoint, {'operations': operations}, recordMap);
+          if (updatedRecord != null) {
+            await updateRecordStatus(servicePoint, updatedRecord);
+            await serviceRecord.deleteLocal();
+          }
+        } else {
+          final recordMap = record.map;
+          recordMap.addAll(record.metadataMap);
+          recordMap[partitionKey] = record.partition;
+          final updatedRecord = await _updateDocument(servicePoint, recordMap);
+          if (updatedRecord != null) {
+            await updateRecordStatus(servicePoint, updatedRecord);
+          }
         }
       }));
     }
@@ -322,5 +346,66 @@ class CosmosService extends Service {
 
     throw exception ??
         Exception('Update cosmos $record document failed without reason');
+  }
+
+  /// Cosmos api to update partial document
+  Future<dynamic> _partialUpdateDocument(
+      ServicePoint servicePoint, Map operations, Map record) async {
+    if (!await connectivity()) {
+      throw ConnectivityException(
+          'Update cosmos $record document failed because there is no connection');
+    }
+
+    Exception? exception;
+    for (var i = 0; i < _cosmosRetries; i++) {
+      try {
+        var now = HttpDate.format(await NetworkTime.shared.now);
+        _http.headers = {
+          'x-ms-date': now,
+          'authorization': Uri.encodeComponent(servicePoint.token!),
+          'content-type': 'application/json',
+          'x-ms-version': _apiVersion,
+          'x-ms-documentdb-partitionkey': '[\"${servicePoint.partition}\"]'
+        };
+        return await _http.patch(
+            'colls/${servicePoint.name}/docs/${record['id']}',
+            data: operations);
+      } on ConnectivityException catch (e, stackTrace) {
+        if (_throwOnNetworkError) {
+          throw ConnectivityException(
+              'Update partial cosmos $record document failed because of connection $e $stackTrace',
+              hasConnectionStatus: e.hasConnectionStatus);
+        }
+        return null;
+      } on UnexpectedResponseException catch (e, stackTrace) {
+        Sync.shared.logger?.e(
+            'Update partial Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            e,
+            stackTrace);
+        if (e.statusCode == 409) {
+          // Strange that this has happened. Record does not exist. Log it and try an update
+          return await _createDocument(servicePoint, record);
+        } else {
+          rethrow;
+        }
+      } on UnknownException catch (e, stackTrace) {
+        exception = e;
+        // retry if there is an exception
+        Sync.shared.logger?.e(
+            'Update partial cosmos $record document failed ${e.devDescription}',
+            e,
+            stackTrace);
+      } on Exception catch (e, stackTrace) {
+        exception = e;
+        Sync.shared.logger?.e(
+            'Update partial cosmos $record document failed without reason',
+            e,
+            stackTrace);
+      }
+    }
+
+    throw exception ??
+        Exception(
+            'Update partial cosmos $record document failed without reason');
   }
 }

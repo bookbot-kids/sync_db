@@ -30,7 +30,7 @@ const ProfileSchema = CollectionSchema(
     r'bot': PropertySchema(
       id: 2,
       name: r'bot',
-      type: IsarType.byte,
+      type: IsarType.string,
       enumMap: _ProfilebotEnumValueMap,
     ),
     r'classesIds': PropertySchema(
@@ -81,7 +81,7 @@ const ProfileSchema = CollectionSchema(
     r'inviteStatus': PropertySchema(
       id: 12,
       name: r'inviteStatus',
-      type: IsarType.byte,
+      type: IsarType.string,
       enumMap: _ProfileinviteStatusEnumValueMap,
     ),
     r'lastName': PropertySchema(
@@ -107,7 +107,7 @@ const ProfileSchema = CollectionSchema(
     r'onboarding': PropertySchema(
       id: 17,
       name: r'onboarding',
-      type: IsarType.byte,
+      type: IsarType.string,
       enumMap: _ProfileonboardingEnumValueMap,
     ),
     r'partition': PropertySchema(
@@ -192,6 +192,7 @@ int _profileEstimateSize(
       bytesCount += value.length * 3;
     }
   }
+  bytesCount += 3 + object.bot.name.length * 3;
   bytesCount += 3 + object.classesIds.length * 3;
   {
     for (var i = 0; i < object.classesIds.length; i++) {
@@ -221,9 +222,11 @@ int _profileEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.inviteStatus.name.length * 3;
   bytesCount += 3 + object.lastName.length * 3;
   bytesCount += 3 + object.metadata.length * 3;
   bytesCount += 3 + object.name.length * 3;
+  bytesCount += 3 + object.onboarding.name.length * 3;
   {
     final value = object.partition;
     if (value != null) {
@@ -276,7 +279,7 @@ void _profileSerialize(
 ) {
   writer.writeStringList(offsets[0], object.about);
   writer.writeBool(offsets[1], object.autoTurnPage);
-  writer.writeByte(offsets[2], object.bot.index);
+  writer.writeString(offsets[2], object.bot.name);
   writer.writeStringList(offsets[3], object.classesIds);
   writer.writeStringList(offsets[4], object.completedBooks);
   writer.writeDateTime(offsets[5], object.createdAt);
@@ -286,12 +289,12 @@ void _profileSerialize(
   writer.writeStringList(offsets[9], object.favourites);
   writer.writeBool(offsets[10], object.hasListeners);
   writer.writeString(offsets[11], object.id);
-  writer.writeByte(offsets[12], object.inviteStatus.index);
+  writer.writeString(offsets[12], object.inviteStatus.name);
   writer.writeString(offsets[13], object.lastName);
   writer.writeLong(offsets[14], object.lastRead);
   writer.writeString(offsets[15], object.metadata);
   writer.writeString(offsets[16], object.name);
-  writer.writeByte(offsets[17], object.onboarding.index);
+  writer.writeString(offsets[17], object.onboarding.name);
   writer.writeString(offsets[18], object.partition);
   writer.writeObjectList<ProfileProgress>(
     offsets[19],
@@ -327,8 +330,8 @@ Profile _profileDeserialize(
   final object = Profile();
   object.about = reader.readStringList(offsets[0]) ?? [];
   object.autoTurnPage = reader.readBool(offsets[1]);
-  object.bot =
-      _ProfilebotValueEnumMap[reader.readByteOrNull(offsets[2])] ?? Bot.orange;
+  object.bot = _ProfilebotValueEnumMap[reader.readStringOrNull(offsets[2])] ??
+      Bot.orange;
   object.classesIds = reader.readStringList(offsets[3]) ?? [];
   object.completedBooks = reader.readStringList(offsets[4]) ?? [];
   object.createdAt = reader.readDateTimeOrNull(offsets[5]);
@@ -338,7 +341,7 @@ Profile _profileDeserialize(
   object.favourites = reader.readStringList(offsets[9]) ?? [];
   object.id = reader.readStringOrNull(offsets[11]);
   object.inviteStatus =
-      _ProfileinviteStatusValueEnumMap[reader.readByteOrNull(offsets[12])] ??
+      _ProfileinviteStatusValueEnumMap[reader.readStringOrNull(offsets[12])] ??
           InviteStatus.none;
   object.lastName = reader.readString(offsets[13]);
   object.lastRead = reader.readLong(offsets[14]);
@@ -346,7 +349,7 @@ Profile _profileDeserialize(
   object.metadata = reader.readString(offsets[15]);
   object.name = reader.readString(offsets[16]);
   object.onboarding =
-      _ProfileonboardingValueEnumMap[reader.readByteOrNull(offsets[17])] ??
+      _ProfileonboardingValueEnumMap[reader.readStringOrNull(offsets[17])] ??
           Onboarding.intro;
   object.partition = reader.readStringOrNull(offsets[18]);
   object.progresses = reader.readObjectList<ProfileProgress>(
@@ -391,7 +394,7 @@ P _profileDeserializeProp<P>(
     case 1:
       return (reader.readBool(offset)) as P;
     case 2:
-      return (_ProfilebotValueEnumMap[reader.readByteOrNull(offset)] ??
+      return (_ProfilebotValueEnumMap[reader.readStringOrNull(offset)] ??
           Bot.orange) as P;
     case 3:
       return (reader.readStringList(offset) ?? []) as P;
@@ -412,7 +415,8 @@ P _profileDeserializeProp<P>(
     case 11:
       return (reader.readStringOrNull(offset)) as P;
     case 12:
-      return (_ProfileinviteStatusValueEnumMap[reader.readByteOrNull(offset)] ??
+      return (_ProfileinviteStatusValueEnumMap[
+              reader.readStringOrNull(offset)] ??
           InviteStatus.none) as P;
     case 13:
       return (reader.readString(offset)) as P;
@@ -423,7 +427,7 @@ P _profileDeserializeProp<P>(
     case 16:
       return (reader.readString(offset)) as P;
     case 17:
-      return (_ProfileonboardingValueEnumMap[reader.readByteOrNull(offset)] ??
+      return (_ProfileonboardingValueEnumMap[reader.readStringOrNull(offset)] ??
           Onboarding.intro) as P;
     case 18:
       return (reader.readStringOrNull(offset)) as P;
@@ -468,40 +472,40 @@ P _profileDeserializeProp<P>(
 }
 
 const _ProfilebotEnumValueMap = {
-  'orange': 0,
-  'yellow': 1,
-  'red': 2,
-  'blue': 3,
-  'green': 4,
-  'purple': 5,
+  r'orange': r'orange',
+  r'yellow': r'yellow',
+  r'red': r'red',
+  r'blue': r'blue',
+  r'green': r'green',
+  r'purple': r'purple',
 };
 const _ProfilebotValueEnumMap = {
-  0: Bot.orange,
-  1: Bot.yellow,
-  2: Bot.red,
-  3: Bot.blue,
-  4: Bot.green,
-  5: Bot.purple,
+  r'orange': Bot.orange,
+  r'yellow': Bot.yellow,
+  r'red': Bot.red,
+  r'blue': Bot.blue,
+  r'green': Bot.green,
+  r'purple': Bot.purple,
 };
 const _ProfileinviteStatusEnumValueMap = {
-  'none': 0,
-  'invited': 1,
-  'connected': 2,
+  r'none': r'none',
+  r'invited': r'invited',
+  r'connected': r'connected',
 };
 const _ProfileinviteStatusValueEnumMap = {
-  0: InviteStatus.none,
-  1: InviteStatus.invited,
-  2: InviteStatus.connected,
+  r'none': InviteStatus.none,
+  r'invited': InviteStatus.invited,
+  r'connected': InviteStatus.connected,
 };
 const _ProfileonboardingEnumValueMap = {
-  'intro': 0,
-  'bookIntro': 1,
-  'stamp': 2,
+  r'intro': r'intro',
+  r'bookIntro': r'bookIntro',
+  r'stamp': r'stamp',
 };
 const _ProfileonboardingValueEnumMap = {
-  0: Onboarding.intro,
-  1: Onboarding.bookIntro,
-  2: Onboarding.stamp,
+  r'intro': Onboarding.intro,
+  r'bookIntro': Onboarding.bookIntro,
+  r'stamp': Onboarding.stamp,
 };
 const _ProfilesyncStatusEnumValueMap = {
   'created': 0,
@@ -832,11 +836,15 @@ extension ProfileQueryFilter
     });
   }
 
-  QueryBuilder<Profile, Profile, QAfterFilterCondition> botEqualTo(Bot value) {
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botEqualTo(
+    Bot value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'bot',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -844,12 +852,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> botGreaterThan(
     Bot value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'bot',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -857,12 +867,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> botLessThan(
     Bot value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'bot',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -872,6 +884,7 @@ extension ProfileQueryFilter
     Bot upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -880,6 +893,75 @@ extension ProfileQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'bot',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'bot',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'bot',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'bot',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'bot',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> botIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'bot',
+        value: '',
       ));
     });
   }
@@ -2108,11 +2190,14 @@ extension ProfileQueryFilter
   }
 
   QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusEqualTo(
-      InviteStatus value) {
+    InviteStatus value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'inviteStatus',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2120,12 +2205,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusGreaterThan(
     InviteStatus value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'inviteStatus',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2133,12 +2220,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusLessThan(
     InviteStatus value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'inviteStatus',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2148,6 +2237,7 @@ extension ProfileQueryFilter
     InviteStatus upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -2156,6 +2246,76 @@ extension ProfileQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'inviteStatus',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'inviteStatus',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'inviteStatus',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'inviteStatus',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> inviteStatusIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'inviteStatus',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition>
+      inviteStatusIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'inviteStatus',
+        value: '',
       ));
     });
   }
@@ -2657,11 +2817,14 @@ extension ProfileQueryFilter
   }
 
   QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingEqualTo(
-      Onboarding value) {
+    Onboarding value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'onboarding',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2669,12 +2832,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingGreaterThan(
     Onboarding value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'onboarding',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2682,12 +2847,14 @@ extension ProfileQueryFilter
   QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingLessThan(
     Onboarding value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'onboarding',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -2697,6 +2864,7 @@ extension ProfileQueryFilter
     Onboarding upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -2705,6 +2873,75 @@ extension ProfileQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'onboarding',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'onboarding',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'onboarding',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'onboarding',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'onboarding',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> onboardingIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'onboarding',
+        value: '',
       ));
     });
   }
@@ -4117,9 +4354,10 @@ extension ProfileQueryWhereDistinct
     });
   }
 
-  QueryBuilder<Profile, Profile, QDistinct> distinctByBot() {
+  QueryBuilder<Profile, Profile, QDistinct> distinctByBot(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'bot');
+      return query.addDistinctBy(r'bot', caseSensitive: caseSensitive);
     });
   }
 
@@ -4180,9 +4418,10 @@ extension ProfileQueryWhereDistinct
     });
   }
 
-  QueryBuilder<Profile, Profile, QDistinct> distinctByInviteStatus() {
+  QueryBuilder<Profile, Profile, QDistinct> distinctByInviteStatus(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'inviteStatus');
+      return query.addDistinctBy(r'inviteStatus', caseSensitive: caseSensitive);
     });
   }
 
@@ -4213,9 +4452,10 @@ extension ProfileQueryWhereDistinct
     });
   }
 
-  QueryBuilder<Profile, Profile, QDistinct> distinctByOnboarding() {
+  QueryBuilder<Profile, Profile, QDistinct> distinctByOnboarding(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'onboarding');
+      return query.addDistinctBy(r'onboarding', caseSensitive: caseSensitive);
     });
   }
 
@@ -4444,13 +4684,18 @@ const ProfileTeacherInfoSchema = Schema(
   name: r'ProfileTeacherInfo',
   id: -3352710871938102796,
   properties: {
-    r'id': PropertySchema(
+    r'hashCode': PropertySchema(
       id: 0,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'id': PropertySchema(
+      id: 1,
       name: r'id',
       type: IsarType.string,
     ),
     r'jsonInfo': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'jsonInfo',
       type: IsarType.string,
     )
@@ -4478,8 +4723,9 @@ void _profileTeacherInfoSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.id);
-  writer.writeString(offsets[1], object.jsonInfo);
+  writer.writeLong(offsets[0], object.hashCode);
+  writer.writeString(offsets[1], object.id);
+  writer.writeString(offsets[2], object.jsonInfo);
 }
 
 ProfileTeacherInfo _profileTeacherInfoDeserialize(
@@ -4489,8 +4735,8 @@ ProfileTeacherInfo _profileTeacherInfoDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = ProfileTeacherInfo();
-  object.id = reader.readString(offsets[0]);
-  object.jsonInfo = reader.readString(offsets[1]);
+  object.id = reader.readString(offsets[1]);
+  object.jsonInfo = reader.readString(offsets[2]);
   return object;
 }
 
@@ -4502,8 +4748,10 @@ P _profileTeacherInfoDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 1:
+      return (reader.readString(offset)) as P;
+    case 2:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -4512,6 +4760,62 @@ P _profileTeacherInfoDeserializeProp<P>(
 
 extension ProfileTeacherInfoQueryFilter
     on QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QFilterCondition> {
+  QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QAfterFilterCondition>
+      hashCodeEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QAfterFilterCondition>
+      hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QAfterFilterCondition>
+      hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<ProfileTeacherInfo, ProfileTeacherInfo, QAfterFilterCondition>
       idEqualTo(
     String value, {
@@ -4800,8 +5104,13 @@ const ProfileScriptStatusSchema = Schema(
       name: r'enabled',
       type: IsarType.bool,
     ),
-    r'name': PropertySchema(
+    r'hashCode': PropertySchema(
       id: 1,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'name': PropertySchema(
+      id: 2,
       name: r'name',
       type: IsarType.string,
     )
@@ -4829,7 +5138,8 @@ void _profileScriptStatusSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeBool(offsets[0], object.enabled);
-  writer.writeString(offsets[1], object.name);
+  writer.writeLong(offsets[1], object.hashCode);
+  writer.writeString(offsets[2], object.name);
 }
 
 ProfileScriptStatus _profileScriptStatusDeserialize(
@@ -4840,7 +5150,7 @@ ProfileScriptStatus _profileScriptStatusDeserialize(
 ) {
   final object = ProfileScriptStatus();
   object.enabled = reader.readBool(offsets[0]);
-  object.name = reader.readString(offsets[1]);
+  object.name = reader.readString(offsets[2]);
   return object;
 }
 
@@ -4854,6 +5164,8 @@ P _profileScriptStatusDeserializeProp<P>(
     case 0:
       return (reader.readBool(offset)) as P;
     case 1:
+      return (reader.readLong(offset)) as P;
+    case 2:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -4868,6 +5180,62 @@ extension ProfileScriptStatusQueryFilter on QueryBuilder<ProfileScriptStatus,
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'enabled',
         value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileScriptStatus, ProfileScriptStatus, QAfterFilterCondition>
+      hashCodeEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileScriptStatus, ProfileScriptStatus, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileScriptStatus, ProfileScriptStatus, QAfterFilterCondition>
+      hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileScriptStatus, ProfileScriptStatus, QAfterFilterCondition>
+      hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -5019,13 +5387,18 @@ const LevelEntrySchema = Schema(
   name: r'LevelEntry',
   id: -8863335293251954764,
   properties: {
-    r'level': PropertySchema(
+    r'hashCode': PropertySchema(
       id: 0,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'level': PropertySchema(
+      id: 1,
       name: r'level',
       type: IsarType.long,
     ),
     r'name': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'name',
       type: IsarType.string,
     )
@@ -5052,8 +5425,9 @@ void _levelEntrySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeLong(offsets[0], object.level);
-  writer.writeString(offsets[1], object.name);
+  writer.writeLong(offsets[0], object.hashCode);
+  writer.writeLong(offsets[1], object.level);
+  writer.writeString(offsets[2], object.name);
 }
 
 LevelEntry _levelEntryDeserialize(
@@ -5063,8 +5437,8 @@ LevelEntry _levelEntryDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = LevelEntry();
-  object.level = reader.readLong(offsets[0]);
-  object.name = reader.readString(offsets[1]);
+  object.level = reader.readLong(offsets[1]);
+  object.name = reader.readString(offsets[2]);
   return object;
 }
 
@@ -5078,6 +5452,8 @@ P _levelEntryDeserializeProp<P>(
     case 0:
       return (reader.readLong(offset)) as P;
     case 1:
+      return (reader.readLong(offset)) as P;
+    case 2:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -5086,6 +5462,60 @@ P _levelEntryDeserializeProp<P>(
 
 extension LevelEntryQueryFilter
     on QueryBuilder<LevelEntry, LevelEntry, QFilterCondition> {
+  QueryBuilder<LevelEntry, LevelEntry, QAfterFilterCondition> hashCodeEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<LevelEntry, LevelEntry, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<LevelEntry, LevelEntry, QAfterFilterCondition> hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<LevelEntry, LevelEntry, QAfterFilterCondition> hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<LevelEntry, LevelEntry, QAfterFilterCondition> levelEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -5295,20 +5725,25 @@ const ProfileProgressSchema = Schema(
       name: r'displayLevel',
       type: IsarType.double,
     ),
-    r'language': PropertySchema(
+    r'hashCode': PropertySchema(
       id: 3,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'language': PropertySchema(
+      id: 4,
       name: r'language',
-      type: IsarType.byte,
+      type: IsarType.string,
       enumMap: _ProfileProgresslanguageEnumValueMap,
     ),
     r'levelsCompletedAt': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'levelsCompletedAt',
       type: IsarType.objectList,
       target: r'LevelEntry',
     ),
     r'libraryLevel': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'libraryLevel',
       type: IsarType.long,
     )
@@ -5325,6 +5760,7 @@ int _profileProgressEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.language.name.length * 3;
   bytesCount += 3 + object.levelsCompletedAt.length * 3;
   {
     final offsets = allOffsets[LevelEntry]!;
@@ -5345,14 +5781,15 @@ void _profileProgressSerialize(
   writer.writeDouble(offsets[0], object.averageAccuracy);
   writer.writeDouble(offsets[1], object.averageFluency);
   writer.writeDouble(offsets[2], object.displayLevel);
-  writer.writeByte(offsets[3], object.language.index);
+  writer.writeLong(offsets[3], object.hashCode);
+  writer.writeString(offsets[4], object.language.name);
   writer.writeObjectList<LevelEntry>(
-    offsets[4],
+    offsets[5],
     allOffsets,
     LevelEntrySchema.serialize,
     object.levelsCompletedAt,
   );
-  writer.writeLong(offsets[5], object.libraryLevel);
+  writer.writeLong(offsets[6], object.libraryLevel);
 }
 
 ProfileProgress _profileProgressDeserialize(
@@ -5365,17 +5802,17 @@ ProfileProgress _profileProgressDeserialize(
   object.averageAccuracy = reader.readDouble(offsets[0]);
   object.averageFluency = reader.readDouble(offsets[1]);
   object.displayLevel = reader.readDouble(offsets[2]);
-  object.language =
-      _ProfileProgresslanguageValueEnumMap[reader.readByteOrNull(offsets[3])] ??
-          LibraryLanguage.en;
+  object.language = _ProfileProgresslanguageValueEnumMap[
+          reader.readStringOrNull(offsets[4])] ??
+      LibraryLanguage.en;
   object.levelsCompletedAt = reader.readObjectList<LevelEntry>(
-        offsets[4],
+        offsets[5],
         LevelEntrySchema.deserialize,
         allOffsets,
         LevelEntry(),
       ) ??
       [];
-  object.libraryLevel = reader.readLong(offsets[5]);
+  object.libraryLevel = reader.readLong(offsets[6]);
   return object;
 }
 
@@ -5393,10 +5830,12 @@ P _profileProgressDeserializeProp<P>(
     case 2:
       return (reader.readDouble(offset)) as P;
     case 3:
-      return (_ProfileProgresslanguageValueEnumMap[
-              reader.readByteOrNull(offset)] ??
-          LibraryLanguage.en) as P;
+      return (reader.readLong(offset)) as P;
     case 4:
+      return (_ProfileProgresslanguageValueEnumMap[
+              reader.readStringOrNull(offset)] ??
+          LibraryLanguage.en) as P;
+    case 5:
       return (reader.readObjectList<LevelEntry>(
             offset,
             LevelEntrySchema.deserialize,
@@ -5404,7 +5843,7 @@ P _profileProgressDeserializeProp<P>(
             LevelEntry(),
           ) ??
           []) as P;
-    case 5:
+    case 6:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -5412,12 +5851,12 @@ P _profileProgressDeserializeProp<P>(
 }
 
 const _ProfileProgresslanguageEnumValueMap = {
-  'en': 0,
-  'id': 1,
+  r'en': r'en',
+  r'id': r'id',
 };
 const _ProfileProgresslanguageValueEnumMap = {
-  0: LibraryLanguage.en,
-  1: LibraryLanguage.id,
+  r'en': LibraryLanguage.en,
+  r'id': LibraryLanguage.id,
 };
 
 extension ProfileProgressQueryFilter
@@ -5621,11 +6060,71 @@ extension ProfileProgressQueryFilter
   }
 
   QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      languageEqualTo(LibraryLanguage value) {
+      hashCodeEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageEqualTo(
+    LibraryLanguage value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'language',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -5634,12 +6133,14 @@ extension ProfileProgressQueryFilter
       languageGreaterThan(
     LibraryLanguage value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'language',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -5648,12 +6149,14 @@ extension ProfileProgressQueryFilter
       languageLessThan(
     LibraryLanguage value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'language',
         value: value,
+        caseSensitive: caseSensitive,
       ));
     });
   }
@@ -5664,6 +6167,7 @@ extension ProfileProgressQueryFilter
     LibraryLanguage upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -5672,6 +6176,77 @@ extension ProfileProgressQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'language',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'language',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
+      languageIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'language',
+        value: '',
       ));
     });
   }
@@ -5957,12 +6532,31 @@ extension $Profile on Profile {
       {bool syncToService = true,
       bool runInTransaction = true,
       bool initialize = true}) async {
+    final callback = () async {
+      if (initialize) {
+        await init();
+      }
+
+      if (syncToService && syncStatus == SyncStatus.updated) {
+        final other = await find(id);
+        if (other != null) {
+          final diff = compare(other);
+          if (diff.isNotEmpty) {
+            var recordLog = await ServiceRecord().findBy(id, tableName);
+            recordLog ??= ServiceRecord();
+            recordLog.id = id;
+            recordLog.name = tableName;
+            recordLog.appendFields(diff);
+            await recordLog.save(runInTransaction: false);
+          }
+        }
+      }
+      await Sync.shared.db.local.profiles.put(this);
+    };
+
     if (runInTransaction) {
       await Sync.shared.db.local.writeTxn(() async {
-        if (initialize) {
-          await init();
-        }
-        await Sync.shared.db.local.profiles.put(this);
+        await callback();
       });
 
       if (syncToService) {
@@ -5970,10 +6564,7 @@ extension $Profile on Profile {
         sync();
       }
     } else {
-      if (initialize) {
-        await init();
-      }
-      await Sync.shared.db.local.profiles.put(this);
+      await callback();
       if (syncToService) {
         // ignore: unawaited_futures
         sync();
@@ -6020,5 +6611,93 @@ extension $Profile on Profile {
   /// Clear all records and reset the auto increment value
   Future<void> clear() {
     return db.profiles.clear();
+  }
+
+  Set<String> compare(Profile other) {
+    final result = <String>{};
+    if (name != other.name) {
+      result.add('name');
+    }
+
+    if (!DeepCollectionEquality().equals(progresses, other.progresses)) {
+      result.add('progresses');
+    }
+
+    if (bot != other.bot) {
+      result.add('bot');
+    }
+
+    if (dob != other.dob) {
+      result.add('dob');
+    }
+
+    if (!DeepCollectionEquality().equals(about, other.about)) {
+      result.add('about');
+    }
+
+    if (onboarding != other.onboarding) {
+      result.add('onboarding');
+    }
+
+    if (readToMe != other.readToMe) {
+      result.add('readToMe');
+    }
+
+    if (autoTurnPage != other.autoTurnPage) {
+      result.add('autoTurnPage');
+    }
+
+    if (!DeepCollectionEquality()
+        .equals(scriptStatuses, other.scriptStatuses)) {
+      result.add('scriptStatuses');
+    }
+
+    if (!DeepCollectionEquality().equals(teacherInfo, other.teacherInfo)) {
+      result.add('teacherInfo');
+    }
+
+    if (lastRead != other.lastRead) {
+      result.add('lastRead');
+    }
+
+    if (!DeepCollectionEquality().equals(favourites, other.favourites)) {
+      result.add('favourites');
+    }
+
+    if (!DeepCollectionEquality()
+        .equals(completedBooks, other.completedBooks)) {
+      result.add('completedBooks');
+    }
+
+    if (email != other.email) {
+      result.add('email');
+    }
+
+    if (lastName != other.lastName) {
+      result.add('lastName');
+    }
+
+    if (inviteStatus != other.inviteStatus) {
+      result.add('inviteStatus');
+    }
+
+    if (!DeepCollectionEquality().equals(classesIds, other.classesIds)) {
+      result.add('classesIds');
+    }
+
+    if (!DeepCollectionEquality().equals(teacherIds, other.teacherIds)) {
+      result.add('teacherIds');
+    }
+
+    final list = <String>[];
+    final remap = remapFields();
+    for (final item in result) {
+      if (remap.containsKey(item)) {
+        list.addAll(remap[item]!);
+      } else {
+        list.add(item);
+      }
+    }
+    return list.toSet();
   }
 }

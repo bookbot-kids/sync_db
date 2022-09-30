@@ -27,24 +27,24 @@ extension $Language on Language {
 Language languageStringToEnum(String language) {
   final languageEnum = EnumToString.fromString(Language.values, language);
   if (languageEnum == null) {
-    throw Exception("Unknown language $language");
+    throw Exception('Unknown language $language');
   }
   return languageEnum;
 }
 
 class LanguageGroups {
   static final _groups = {
-    "en": [Language.us, Language.gb, Language.au],
-    "vi": [Language.vi],
-    "es": [Language.es],
-    "zh": [Language.zh],
-    "ar": [Language.ar],
-    "id": [Language.id]
+    'en': [Language.us, Language.gb, Language.au],
+    'vi': [Language.vi],
+    'es': [Language.es],
+    'zh': [Language.zh],
+    'ar': [Language.ar],
+    'id': [Language.id]
   };
 
   static List<String> get groups => _groups.keys.toList();
 
-  static List<Language> get english => _groups["en"] ?? [];
+  static List<Language> get english => _groups['en'] ?? [];
 
   ///
   /// Return the Language(s) belonging to [group]

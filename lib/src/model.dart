@@ -229,4 +229,10 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
 
   @override
   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus);
+
+  Map<String, List<String>> remapFields() => {};
+
+  bool fieldEqual(dynamic a, dynamic b) {
+    return jsonEncode(a) == jsonEncode(b);
+  }
 }
