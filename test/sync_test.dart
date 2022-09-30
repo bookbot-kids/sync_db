@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:universal_io/io.dart';
 import 'dart:io' as io;
 import 'package:collection/collection.dart';
 import 'models/class.dart';
+import 'models/languages.dart';
 import 'models/profile.dart';
 import 'sync_service_helper.dart';
 
@@ -40,7 +42,7 @@ void main() {
   });
 
   group('Sync', () {
-    test('test profile read and update', () async {
+    test('test profile read and full update', () async {
       final resourceToken = await syncHelper.getResourceToken('Profile');
       // read cosmos record
       var record = await syncHelper.getCosmosDocument(
@@ -122,6 +124,92 @@ void main() {
       expect(record['name'], equals(createdRecord['name']));
       expect(record['partition'], equals(createdRecord['partition']));
       expect(record['name'], equals(profile.name));
+    });
+
+    test('test profile read and partial update', () async {
+      final resourceToken = await syncHelper.getResourceToken('Profile');
+      // read cosmos record
+      var record = await syncHelper.getCosmosDocument(
+          'Profile',
+          configs['testProfileId'],
+          resourceToken,
+          configs['testProfilePartition']);
+      assert(record != null);
+      expect(record['id'], equals(configs['testProfileId']));
+      expect(record['partition'], equals(configs['testProfilePartition']));
+
+      // save to local
+      var profile = Profile();
+      await profile.setMap(record);
+      profile.syncStatus = SyncStatus.synced;
+      await profile.save(syncToService: false, initialize: false);
+      expect(profile.syncStatus, equals(SyncStatus.synced));
+      expect(profile.localId, greaterThan(0));
+      expect(profile.createdAt, isNotNull);
+
+      // then query, update and send to cosmos by partial api
+      final localProfile = await $Profile.find(record['id']);
+      assert(localProfile != null);
+      profile = localProfile!;
+      // update properties
+      profile.bot = Bot.values[Random().nextInt(Bot.values.length)];
+      if (profile.levels.isNotEmpty) {
+        profile.levels.first.libraryLevel = Random().nextInt(7);
+      } else {
+        final item = ProfileLevel.from(LibraryLanguage.en);
+        item.libraryLevel = Random().nextInt(7);
+        item.displayLevel = Random().nextDouble() * 10;
+        profile.levels = profile.levels.addItem(item);
+      }
+      await profile.save();
+      expect(profile.syncStatus, equals(SyncStatus.updated));
+
+      final updatedMap = profile.map;
+      updatedMap.addAll(profile.metadataMap);
+      updatedMap[partitionKey] = configs['testProfilePartition'];
+      final serviceRecord =
+          await ServiceRecord().findBy(profile.id, profile.tableName);
+      expect(serviceRecord, isNotNull);
+
+      final operations = [];
+      for (final field in serviceRecord!.updatedFields) {
+        operations.add({
+          'op': 'set',
+          'path': '/$field',
+          'value': updatedMap[field],
+        });
+      }
+
+      await syncHelper.partialUpdateDocument(
+          'Profile',
+          resourceToken,
+          configs['testProfilePartition'],
+          {'operations': operations},
+          updatedMap);
+
+      // read from cosmos again
+      record = await syncHelper.getCosmosDocument(
+          'Profile',
+          configs['testProfileId'],
+          resourceToken,
+          configs['testProfilePartition']);
+      expect(record['id'], equals(configs['testProfileId']));
+      expect(record['bot'], profile.bot.name);
+      await profile.setMap(record);
+      profile.syncStatus = SyncStatus.synced;
+      await profile.save(syncToService: false, initialize: false);
+      Map libraryLevels = record['libraryLevels'];
+      expect(libraryLevels[LibraryLanguage.en.name],
+          profile.levels.first.libraryLevel);
+      expect(profile.id, equals(record['id']));
+      expect(
+          ListEquality().equals(profile.completedBooks,
+              List<String>.from(record['completedBooks'])),
+          true);
+      expect(
+          ListEquality().equals(
+              profile.classesIds, List<String>.from(record['classesIds'])),
+          true);
     });
   });
 

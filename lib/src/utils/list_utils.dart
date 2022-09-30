@@ -10,4 +10,16 @@ extension $List<E> on List<E> {
     newList.addAll(items);
     return isSet ? newList.toSet().toList() : newList;
   }
+
+  List<E> removeItem(E item) {
+    final newList = toList();
+    newList.remove(item);
+    return newList;
+  }
+
+  List<E> removeItemWhere(bool Function(E element) test) {
+    final newList = toList();
+    newList.removeWhere(test);
+    return newList;
+  }
 }

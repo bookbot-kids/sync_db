@@ -221,6 +221,11 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   Future<void> sync() async {
+    // don't sync on testing
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
+
     if (syncPermission == SyncPermission.user) {
       // ignore: unawaited_futures
       Sync.shared.service?.writeTable(tableName);

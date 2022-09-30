@@ -37,6 +37,9 @@ class Profile extends Model {
   @ModelIgnore()
   List<ProfileProgress> progresses = [];
 
+  @ModelIgnore()
+  List<ProfileLevel> levels = [];
+
   @Enumerated(EnumType.name)
   Bot bot = Bot.orange;
   String dob = '';
@@ -115,15 +118,15 @@ class Profile extends Model {
   Map get map {
     final result = $Profile(this).map;
     result['displayLevels'] = {
-      for (var v in progresses) v.language.name: v.displayLevel
+      for (var v in levels) v.language.name: v.displayLevel
     };
 
     result['libraryLevels'] = {
-      for (var v in progresses) v.language.name: v.libraryLevel
+      for (var v in levels) v.language.name: v.libraryLevel
     };
 
     result['levelsCompletedAt'] = {
-      for (var v in progresses) v.language.name: v.toLevelsCompletedAtMap()
+      for (var v in levels) v.language.name: v.toLevelsCompletedAtMap()
     };
 
     result['averageAccuracies'] = {
@@ -145,6 +148,7 @@ class Profile extends Model {
   Future<Set<String>> setMap(Map map) async {
     final keys = await $Profile(this).setMap(map);
     final progresMap = <LibraryLanguage, ProfileProgress>{};
+    final levelMap = <LibraryLanguage, ProfileLevel>{};
 
     if (map['displayLevels'] != null) {
       Map displayLevels = map['displayLevels'];
@@ -152,8 +156,8 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.displayLevel = item.value.toDouble();
+        levelMap.putIfAbsent(language, () => ProfileLevel());
+        levelMap[language]?.displayLevel = item.value.toDouble();
       }
     }
 
@@ -163,8 +167,8 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.libraryLevel = item.value.toInt();
+        levelMap.putIfAbsent(language, () => ProfileLevel());
+        levelMap[language]?.libraryLevel = item.value.toInt();
       }
     }
 
@@ -174,11 +178,11 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.levelsCompletedAt =
-            progresMap[language]?.levelsCompletedAt.toList() ?? [];
+        levelMap.putIfAbsent(language, () => ProfileLevel());
+        levelMap[language]?.levelsCompletedAt =
+            levelMap[language]?.levelsCompletedAt.toList() ?? [];
         item.value.forEach((key, value) {
-          progresMap[language]
+          levelMap[language]
               ?.levelsCompletedAt
               .add(LevelEntry.from(key, value));
         });
@@ -244,11 +248,13 @@ class Profile extends Model {
   @override
   Map<String, List<String>> remapFields() => {
         'progresses': [
+          'averageAccuracies',
+          'averageFluencies',
+        ],
+        'levels': [
           'displayLevels',
           'libraryLevels',
           'levelsCompletedAt',
-          'averageAccuracies',
-          'averageFluencies',
         ]
       };
 }
@@ -307,17 +313,15 @@ class LevelEntry with EquatableMixin {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
-class ProfileProgress with EquatableMixin {
+class ProfileLevel with EquatableMixin {
   @Enumerated(EnumType.name)
   LibraryLanguage language = LibraryLanguage.en;
   List<LevelEntry> levelsCompletedAt = [];
   double displayLevel = 0.0;
   int libraryLevel = 0;
-  double averageAccuracy = 0.0;
-  double averageFluency = 0.0;
 
-  ProfileProgress();
-  ProfileProgress.from(this.language);
+  ProfileLevel();
+  ProfileLevel.from(this.language);
 
   Map toLevelsCompletedAtMap() =>
       {for (var v in levelsCompletedAt) v.name: v.level};
@@ -328,7 +332,19 @@ class ProfileProgress with EquatableMixin {
         levelsCompletedAt,
         displayLevel,
         libraryLevel,
-        averageAccuracy,
-        averageFluency
       ];
+}
+
+@Embedded(ignore: {'props', 'stringify'})
+class ProfileProgress with EquatableMixin {
+  @Enumerated(EnumType.name)
+  LibraryLanguage language = LibraryLanguage.en;
+  double averageAccuracy = 0.0;
+  double averageFluency = 0.0;
+
+  ProfileProgress();
+  ProfileProgress.from(this.language);
+
+  @override
+  List<Object?> get props => [language, averageAccuracy, averageFluency];
 }

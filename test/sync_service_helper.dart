@@ -87,4 +87,19 @@ class SyncHelper {
   void excludePrivateFields(Map map) {
     map.removeWhere((key, value) => key.startsWith('_'));
   }
+
+  /// Cosmos api to update partial document
+  Future<dynamic> partialUpdateDocument(String table, String token,
+      String partition, Map operations, Map record) async {
+    var now = HttpDate.format(DateTime.now());
+    _http.headers = {
+      'x-ms-date': now,
+      'authorization': Uri.encodeComponent(token),
+      'content-type': 'application/json',
+      'x-ms-version': _apiVersion,
+      'x-ms-documentdb-partitionkey': '[\"$partition\"]'
+    };
+    return await _http.patch('colls/$table/docs/${record['id']}',
+        data: operations);
+  }
 }

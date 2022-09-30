@@ -94,68 +94,74 @@ const ProfileSchema = CollectionSchema(
       name: r'lastRead',
       type: IsarType.long,
     ),
-    r'metadata': PropertySchema(
+    r'levels': PropertySchema(
       id: 15,
+      name: r'levels',
+      type: IsarType.objectList,
+      target: r'ProfileLevel',
+    ),
+    r'metadata': PropertySchema(
+      id: 16,
       name: r'metadata',
       type: IsarType.string,
     ),
     r'name': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'name',
       type: IsarType.string,
     ),
     r'onboarding': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'onboarding',
       type: IsarType.string,
       enumMap: _ProfileonboardingEnumValueMap,
     ),
     r'partition': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'partition',
       type: IsarType.string,
     ),
     r'progresses': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'progresses',
       type: IsarType.objectList,
       target: r'ProfileProgress',
     ),
     r'readToMe': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'readToMe',
       type: IsarType.bool,
     ),
     r'scriptStatuses': PropertySchema(
-      id: 21,
+      id: 22,
       name: r'scriptStatuses',
       type: IsarType.objectList,
       target: r'ProfileScriptStatus',
     ),
     r'syncStatus': PropertySchema(
-      id: 22,
+      id: 23,
       name: r'syncStatus',
       type: IsarType.byte,
       enumMap: _ProfilesyncStatusEnumValueMap,
     ),
     r'tableName': PropertySchema(
-      id: 23,
+      id: 24,
       name: r'tableName',
       type: IsarType.string,
     ),
     r'teacherIds': PropertySchema(
-      id: 24,
+      id: 25,
       name: r'teacherIds',
       type: IsarType.stringList,
     ),
     r'teacherInfo': PropertySchema(
-      id: 25,
+      id: 26,
       name: r'teacherInfo',
       type: IsarType.objectList,
       target: r'ProfileTeacherInfo',
     ),
     r'updatedAt': PropertySchema(
-      id: 26,
+      id: 27,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -169,6 +175,7 @@ const ProfileSchema = CollectionSchema(
   links: {},
   embeddedSchemas: {
     r'ProfileProgress': ProfileProgressSchema,
+    r'ProfileLevel': ProfileLevelSchema,
     r'LevelEntry': LevelEntrySchema,
     r'ProfileScriptStatus': ProfileScriptStatusSchema,
     r'ProfileTeacherInfo': ProfileTeacherInfoSchema
@@ -224,6 +231,14 @@ int _profileEstimateSize(
   }
   bytesCount += 3 + object.inviteStatus.name.length * 3;
   bytesCount += 3 + object.lastName.length * 3;
+  bytesCount += 3 + object.levels.length * 3;
+  {
+    final offsets = allOffsets[ProfileLevel]!;
+    for (var i = 0; i < object.levels.length; i++) {
+      final value = object.levels[i];
+      bytesCount += ProfileLevelSchema.estimateSize(value, offsets, allOffsets);
+    }
+  }
   bytesCount += 3 + object.metadata.length * 3;
   bytesCount += 3 + object.name.length * 3;
   bytesCount += 3 + object.onboarding.name.length * 3;
@@ -292,33 +307,39 @@ void _profileSerialize(
   writer.writeString(offsets[12], object.inviteStatus.name);
   writer.writeString(offsets[13], object.lastName);
   writer.writeLong(offsets[14], object.lastRead);
-  writer.writeString(offsets[15], object.metadata);
-  writer.writeString(offsets[16], object.name);
-  writer.writeString(offsets[17], object.onboarding.name);
-  writer.writeString(offsets[18], object.partition);
+  writer.writeObjectList<ProfileLevel>(
+    offsets[15],
+    allOffsets,
+    ProfileLevelSchema.serialize,
+    object.levels,
+  );
+  writer.writeString(offsets[16], object.metadata);
+  writer.writeString(offsets[17], object.name);
+  writer.writeString(offsets[18], object.onboarding.name);
+  writer.writeString(offsets[19], object.partition);
   writer.writeObjectList<ProfileProgress>(
-    offsets[19],
+    offsets[20],
     allOffsets,
     ProfileProgressSchema.serialize,
     object.progresses,
   );
-  writer.writeBool(offsets[20], object.readToMe);
+  writer.writeBool(offsets[21], object.readToMe);
   writer.writeObjectList<ProfileScriptStatus>(
-    offsets[21],
+    offsets[22],
     allOffsets,
     ProfileScriptStatusSchema.serialize,
     object.scriptStatuses,
   );
-  writer.writeByte(offsets[22], object.syncStatus.index);
-  writer.writeString(offsets[23], object.tableName);
-  writer.writeStringList(offsets[24], object.teacherIds);
+  writer.writeByte(offsets[23], object.syncStatus.index);
+  writer.writeString(offsets[24], object.tableName);
+  writer.writeStringList(offsets[25], object.teacherIds);
   writer.writeObjectList<ProfileTeacherInfo>(
-    offsets[25],
+    offsets[26],
     allOffsets,
     ProfileTeacherInfoSchema.serialize,
     object.teacherInfo,
   );
-  writer.writeDateTime(offsets[26], object.updatedAt);
+  writer.writeDateTime(offsets[27], object.updatedAt);
 }
 
 Profile _profileDeserialize(
@@ -345,40 +366,47 @@ Profile _profileDeserialize(
           InviteStatus.none;
   object.lastName = reader.readString(offsets[13]);
   object.lastRead = reader.readLong(offsets[14]);
+  object.levels = reader.readObjectList<ProfileLevel>(
+        offsets[15],
+        ProfileLevelSchema.deserialize,
+        allOffsets,
+        ProfileLevel(),
+      ) ??
+      [];
   object.localId = id;
-  object.metadata = reader.readString(offsets[15]);
-  object.name = reader.readString(offsets[16]);
+  object.metadata = reader.readString(offsets[16]);
+  object.name = reader.readString(offsets[17]);
   object.onboarding =
-      _ProfileonboardingValueEnumMap[reader.readStringOrNull(offsets[17])] ??
+      _ProfileonboardingValueEnumMap[reader.readStringOrNull(offsets[18])] ??
           Onboarding.intro;
-  object.partition = reader.readStringOrNull(offsets[18]);
+  object.partition = reader.readStringOrNull(offsets[19]);
   object.progresses = reader.readObjectList<ProfileProgress>(
-        offsets[19],
+        offsets[20],
         ProfileProgressSchema.deserialize,
         allOffsets,
         ProfileProgress(),
       ) ??
       [];
-  object.readToMe = reader.readBool(offsets[20]);
+  object.readToMe = reader.readBool(offsets[21]);
   object.scriptStatuses = reader.readObjectList<ProfileScriptStatus>(
-        offsets[21],
+        offsets[22],
         ProfileScriptStatusSchema.deserialize,
         allOffsets,
         ProfileScriptStatus(),
       ) ??
       [];
   object.syncStatus =
-      _ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offsets[22])] ??
+      _ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offsets[23])] ??
           SyncStatus.created;
-  object.teacherIds = reader.readStringList(offsets[24]) ?? [];
+  object.teacherIds = reader.readStringList(offsets[25]) ?? [];
   object.teacherInfo = reader.readObjectList<ProfileTeacherInfo>(
-        offsets[25],
+        offsets[26],
         ProfileTeacherInfoSchema.deserialize,
         allOffsets,
         ProfileTeacherInfo(),
       ) ??
       [];
-  object.updatedAt = reader.readDateTimeOrNull(offsets[26]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[27]);
   return object;
 }
 
@@ -423,15 +451,23 @@ P _profileDeserializeProp<P>(
     case 14:
       return (reader.readLong(offset)) as P;
     case 15:
-      return (reader.readString(offset)) as P;
+      return (reader.readObjectList<ProfileLevel>(
+            offset,
+            ProfileLevelSchema.deserialize,
+            allOffsets,
+            ProfileLevel(),
+          ) ??
+          []) as P;
     case 16:
       return (reader.readString(offset)) as P;
     case 17:
+      return (reader.readString(offset)) as P;
+    case 18:
       return (_ProfileonboardingValueEnumMap[reader.readStringOrNull(offset)] ??
           Onboarding.intro) as P;
-    case 18:
-      return (reader.readStringOrNull(offset)) as P;
     case 19:
+      return (reader.readStringOrNull(offset)) as P;
+    case 20:
       return (reader.readObjectList<ProfileProgress>(
             offset,
             ProfileProgressSchema.deserialize,
@@ -439,9 +475,9 @@ P _profileDeserializeProp<P>(
             ProfileProgress(),
           ) ??
           []) as P;
-    case 20:
-      return (reader.readBool(offset)) as P;
     case 21:
+      return (reader.readBool(offset)) as P;
+    case 22:
       return (reader.readObjectList<ProfileScriptStatus>(
             offset,
             ProfileScriptStatusSchema.deserialize,
@@ -449,14 +485,14 @@ P _profileDeserializeProp<P>(
             ProfileScriptStatus(),
           ) ??
           []) as P;
-    case 22:
+    case 23:
       return (_ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
-    case 23:
-      return (reader.readString(offset)) as P;
     case 24:
-      return (reader.readStringList(offset) ?? []) as P;
+      return (reader.readString(offset)) as P;
     case 25:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 26:
       return (reader.readObjectList<ProfileTeacherInfo>(
             offset,
             ProfileTeacherInfoSchema.deserialize,
@@ -464,7 +500,7 @@ P _profileDeserializeProp<P>(
             ProfileTeacherInfo(),
           ) ??
           []) as P;
-    case 26:
+    case 27:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2503,6 +2539,90 @@ extension ProfileQueryFilter
     });
   }
 
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsLengthEqualTo(
+      int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levels',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<Profile, Profile, QAfterFilterCondition> localIdEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -3842,6 +3962,13 @@ extension ProfileQueryFilter
 
 extension ProfileQueryObject
     on QueryBuilder<Profile, Profile, QFilterCondition> {
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> levelsElement(
+      FilterQuery<ProfileLevel> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.object(q, r'levels');
+    });
+  }
+
   QueryBuilder<Profile, Profile, QAfterFilterCondition> progressesElement(
       FilterQuery<ProfileProgress> q) {
     return QueryBuilder.apply(this, (query) {
@@ -4594,6 +4721,12 @@ extension ProfileQueryProperty
   QueryBuilder<Profile, int, QQueryOperations> lastReadProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastRead');
+    });
+  }
+
+  QueryBuilder<Profile, List<ProfileLevel>, QQueryOperations> levelsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'levels');
     });
   }
 
@@ -5706,56 +5839,46 @@ extension LevelEntryQueryObject
 // coverage:ignore-file
 // ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
 
-const ProfileProgressSchema = Schema(
-  name: r'ProfileProgress',
-  id: -2314917631444206315,
+const ProfileLevelSchema = Schema(
+  name: r'ProfileLevel',
+  id: 7811787643053811869,
   properties: {
-    r'averageAccuracy': PropertySchema(
-      id: 0,
-      name: r'averageAccuracy',
-      type: IsarType.double,
-    ),
-    r'averageFluency': PropertySchema(
-      id: 1,
-      name: r'averageFluency',
-      type: IsarType.double,
-    ),
     r'displayLevel': PropertySchema(
-      id: 2,
+      id: 0,
       name: r'displayLevel',
       type: IsarType.double,
     ),
     r'hashCode': PropertySchema(
-      id: 3,
+      id: 1,
       name: r'hashCode',
       type: IsarType.long,
     ),
     r'language': PropertySchema(
-      id: 4,
+      id: 2,
       name: r'language',
       type: IsarType.string,
-      enumMap: _ProfileProgresslanguageEnumValueMap,
+      enumMap: _ProfileLevellanguageEnumValueMap,
     ),
     r'levelsCompletedAt': PropertySchema(
-      id: 5,
+      id: 3,
       name: r'levelsCompletedAt',
       type: IsarType.objectList,
       target: r'LevelEntry',
     ),
     r'libraryLevel': PropertySchema(
-      id: 6,
+      id: 4,
       name: r'libraryLevel',
       type: IsarType.long,
     )
   },
-  estimateSize: _profileProgressEstimateSize,
-  serialize: _profileProgressSerialize,
-  deserialize: _profileProgressDeserialize,
-  deserializeProp: _profileProgressDeserializeProp,
+  estimateSize: _profileLevelEstimateSize,
+  serialize: _profileLevelSerialize,
+  deserialize: _profileLevelDeserialize,
+  deserializeProp: _profileLevelDeserializeProp,
 );
 
-int _profileProgressEstimateSize(
-  ProfileProgress object,
+int _profileLevelEstimateSize(
+  ProfileLevel object,
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
@@ -5772,6 +5895,546 @@ int _profileProgressEstimateSize(
   return bytesCount;
 }
 
+void _profileLevelSerialize(
+  ProfileLevel object,
+  IsarWriter writer,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  writer.writeDouble(offsets[0], object.displayLevel);
+  writer.writeLong(offsets[1], object.hashCode);
+  writer.writeString(offsets[2], object.language.name);
+  writer.writeObjectList<LevelEntry>(
+    offsets[3],
+    allOffsets,
+    LevelEntrySchema.serialize,
+    object.levelsCompletedAt,
+  );
+  writer.writeLong(offsets[4], object.libraryLevel);
+}
+
+ProfileLevel _profileLevelDeserialize(
+  Id id,
+  IsarReader reader,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  final object = ProfileLevel();
+  object.displayLevel = reader.readDouble(offsets[0]);
+  object.language =
+      _ProfileLevellanguageValueEnumMap[reader.readStringOrNull(offsets[2])] ??
+          LibraryLanguage.en;
+  object.levelsCompletedAt = reader.readObjectList<LevelEntry>(
+        offsets[3],
+        LevelEntrySchema.deserialize,
+        allOffsets,
+        LevelEntry(),
+      ) ??
+      [];
+  object.libraryLevel = reader.readLong(offsets[4]);
+  return object;
+}
+
+P _profileLevelDeserializeProp<P>(
+  IsarReader reader,
+  int propertyId,
+  int offset,
+  Map<Type, List<int>> allOffsets,
+) {
+  switch (propertyId) {
+    case 0:
+      return (reader.readDouble(offset)) as P;
+    case 1:
+      return (reader.readLong(offset)) as P;
+    case 2:
+      return (_ProfileLevellanguageValueEnumMap[
+              reader.readStringOrNull(offset)] ??
+          LibraryLanguage.en) as P;
+    case 3:
+      return (reader.readObjectList<LevelEntry>(
+            offset,
+            LevelEntrySchema.deserialize,
+            allOffsets,
+            LevelEntry(),
+          ) ??
+          []) as P;
+    case 4:
+      return (reader.readLong(offset)) as P;
+    default:
+      throw IsarError('Unknown property with id $propertyId');
+  }
+}
+
+const _ProfileLevellanguageEnumValueMap = {
+  r'en': r'en',
+  r'id': r'id',
+};
+const _ProfileLevellanguageValueEnumMap = {
+  r'en': LibraryLanguage.en,
+  r'id': LibraryLanguage.id,
+};
+
+extension ProfileLevelQueryFilter
+    on QueryBuilder<ProfileLevel, ProfileLevel, QFilterCondition> {
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      displayLevelEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'displayLevel',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      displayLevelGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'displayLevel',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      displayLevelLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'displayLevel',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      displayLevelBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'displayLevel',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      hashCodeEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageEqualTo(
+    LibraryLanguage value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageGreaterThan(
+    LibraryLanguage value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageLessThan(
+    LibraryLanguage value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageBetween(
+    LibraryLanguage lower,
+    LibraryLanguage upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'language',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'language',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'language',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'language',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      languageIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'language',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'levelsCompletedAt',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      libraryLevelEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'libraryLevel',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      libraryLevelGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'libraryLevel',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      libraryLevelLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'libraryLevel',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      libraryLevelBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'libraryLevel',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+}
+
+extension ProfileLevelQueryObject
+    on QueryBuilder<ProfileLevel, ProfileLevel, QFilterCondition> {
+  QueryBuilder<ProfileLevel, ProfileLevel, QAfterFilterCondition>
+      levelsCompletedAtElement(FilterQuery<LevelEntry> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.object(q, r'levelsCompletedAt');
+    });
+  }
+}
+
+// coverage:ignore-file
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
+
+const ProfileProgressSchema = Schema(
+  name: r'ProfileProgress',
+  id: -2314917631444206315,
+  properties: {
+    r'averageAccuracy': PropertySchema(
+      id: 0,
+      name: r'averageAccuracy',
+      type: IsarType.double,
+    ),
+    r'averageFluency': PropertySchema(
+      id: 1,
+      name: r'averageFluency',
+      type: IsarType.double,
+    ),
+    r'hashCode': PropertySchema(
+      id: 2,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'language': PropertySchema(
+      id: 3,
+      name: r'language',
+      type: IsarType.string,
+      enumMap: _ProfileProgresslanguageEnumValueMap,
+    )
+  },
+  estimateSize: _profileProgressEstimateSize,
+  serialize: _profileProgressSerialize,
+  deserialize: _profileProgressDeserialize,
+  deserializeProp: _profileProgressDeserializeProp,
+);
+
+int _profileProgressEstimateSize(
+  ProfileProgress object,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  var bytesCount = offsets.last;
+  bytesCount += 3 + object.language.name.length * 3;
+  return bytesCount;
+}
+
 void _profileProgressSerialize(
   ProfileProgress object,
   IsarWriter writer,
@@ -5780,16 +6443,8 @@ void _profileProgressSerialize(
 ) {
   writer.writeDouble(offsets[0], object.averageAccuracy);
   writer.writeDouble(offsets[1], object.averageFluency);
-  writer.writeDouble(offsets[2], object.displayLevel);
-  writer.writeLong(offsets[3], object.hashCode);
-  writer.writeString(offsets[4], object.language.name);
-  writer.writeObjectList<LevelEntry>(
-    offsets[5],
-    allOffsets,
-    LevelEntrySchema.serialize,
-    object.levelsCompletedAt,
-  );
-  writer.writeLong(offsets[6], object.libraryLevel);
+  writer.writeLong(offsets[2], object.hashCode);
+  writer.writeString(offsets[3], object.language.name);
 }
 
 ProfileProgress _profileProgressDeserialize(
@@ -5801,18 +6456,9 @@ ProfileProgress _profileProgressDeserialize(
   final object = ProfileProgress();
   object.averageAccuracy = reader.readDouble(offsets[0]);
   object.averageFluency = reader.readDouble(offsets[1]);
-  object.displayLevel = reader.readDouble(offsets[2]);
   object.language = _ProfileProgresslanguageValueEnumMap[
-          reader.readStringOrNull(offsets[4])] ??
+          reader.readStringOrNull(offsets[3])] ??
       LibraryLanguage.en;
-  object.levelsCompletedAt = reader.readObjectList<LevelEntry>(
-        offsets[5],
-        LevelEntrySchema.deserialize,
-        allOffsets,
-        LevelEntry(),
-      ) ??
-      [];
-  object.libraryLevel = reader.readLong(offsets[6]);
   return object;
 }
 
@@ -5828,23 +6474,11 @@ P _profileProgressDeserializeProp<P>(
     case 1:
       return (reader.readDouble(offset)) as P;
     case 2:
-      return (reader.readDouble(offset)) as P;
-    case 3:
       return (reader.readLong(offset)) as P;
-    case 4:
+    case 3:
       return (_ProfileProgresslanguageValueEnumMap[
               reader.readStringOrNull(offset)] ??
           LibraryLanguage.en) as P;
-    case 5:
-      return (reader.readObjectList<LevelEntry>(
-            offset,
-            LevelEntrySchema.deserialize,
-            allOffsets,
-            LevelEntry(),
-          ) ??
-          []) as P;
-    case 6:
-      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -5984,72 +6618,6 @@ extension ProfileProgressQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'averageFluency',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      displayLevelEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'displayLevel',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      displayLevelGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'displayLevel',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      displayLevelLessThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'displayLevel',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      displayLevelBetween(
-    double lower,
-    double upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'displayLevel',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -6250,162 +6818,10 @@ extension ProfileProgressQueryFilter
       ));
     });
   }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtLengthEqualTo(int length) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        length,
-        true,
-        length,
-        true,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        0,
-        true,
-        0,
-        true,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        0,
-        false,
-        999999,
-        true,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        0,
-        true,
-        length,
-        include,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        length,
-        include,
-        999999,
-        true,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtLengthBetween(
-    int lower,
-    int upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'levelsCompletedAt',
-        lower,
-        includeLower,
-        upper,
-        includeUpper,
-      );
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      libraryLevelEqualTo(int value) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'libraryLevel',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      libraryLevelGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'libraryLevel',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      libraryLevelLessThan(
-    int value, {
-    bool include = false,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'libraryLevel',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      libraryLevelBetween(
-    int lower,
-    int upper, {
-    bool includeLower = true,
-    bool includeUpper = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'libraryLevel',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
-    });
-  }
 }
 
 extension ProfileProgressQueryObject
-    on QueryBuilder<ProfileProgress, ProfileProgress, QFilterCondition> {
-  QueryBuilder<ProfileProgress, ProfileProgress, QAfterFilterCondition>
-      levelsCompletedAtElement(FilterQuery<LevelEntry> q) {
-    return QueryBuilder.apply(this, (query) {
-      return query.object(q, r'levelsCompletedAt');
-    });
-  }
-}
+    on QueryBuilder<ProfileProgress, ProfileProgress, QFilterCondition> {}
 
 // **************************************************************************
 // Model2Generator
@@ -6621,6 +7037,10 @@ extension $Profile on Profile {
 
     if (!DeepCollectionEquality().equals(progresses, other.progresses)) {
       result.add('progresses');
+    }
+
+    if (!DeepCollectionEquality().equals(levels, other.levels)) {
+      result.add('levels');
     }
 
     if (bot != other.bot) {
