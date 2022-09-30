@@ -229,6 +229,16 @@ class Profile extends Model {
       }).toList());
     }
 
+    progresses = [];
+    for (final entry in progresMap.entries) {
+      progresses.add(entry.value);
+    }
+
+    levels = [];
+    for (final entry in levelMap.entries) {
+      levels.add(entry.value);
+    }
+
     keys.addAll([
       'displayLevels',
       'libraryLevels',
