@@ -159,20 +159,34 @@ class Model2Generator extends Generator {
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
         final listType = match.replaceAll('<', '').replaceAll('>', '');
         getterFields.add("map['${name}'] = ${name}.toSet().toList();");
-        setterFields.add('''
+        if (listType == 'double') {
+          setterFields.add('''
+        ${name} = Set<$listType>.from(map['${name}']?.map((e) => e.toDouble()).toList() ?? <$listType>[]).toList();
+        keys.add('$name');
+        ''');
+        } else {
+          setterFields.add('''
         ${name} = Set<$listType>.from(map['${name}'] ?? <$listType>[]).toList();
         keys.add('$name');
         ''');
+        }
       } else if (typeName == 'List') // list
       {
         final regex = RegExp('<[a-zA-Z0-9]*>');
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
         final listType = match.replaceAll('<', '').replaceAll('>', '');
         getterFields.add("map['${name}'] = ${name};");
-        setterFields.add('''
+        if (listType == 'double') {
+          setterFields.add('''
+        ${name} = List<$listType>.from(map['${name}']?.map((e) => e.toDouble()).toList() ?? <$listType>[]);
+        keys.add('$name');
+        ''');
+        } else {
+          setterFields.add('''
         ${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);
         keys.add('$name');
         ''');
+        }
       } else if (typeName == 'double') {
         //double
         getterFields.add("map['${name}'] = ${name};");

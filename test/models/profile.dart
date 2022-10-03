@@ -116,6 +116,7 @@ class Profile extends Model {
   @Ignore()
   @override
   Map get map {
+    // Break multiple levels properties
     final result = $Profile(this).map;
     result['displayLevels'] = {
       for (var v in levels) v.language.name: v.displayLevel

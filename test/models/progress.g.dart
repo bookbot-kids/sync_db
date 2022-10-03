@@ -158,7 +158,7 @@ const ProgressSchema = CollectionSchema(
   getId: _progressGetId,
   getLinks: _progressGetLinks,
   attach: _progressAttach,
-  version: '3.0.1',
+  version: '3.0.2',
 );
 
 int _progressEstimateSize(
@@ -4074,8 +4074,6 @@ extension $Progress on Progress {
     map['fluency'] = fluency;
     map['accuracy'] = accuracy;
     map['pageReadCount'] = pageReadCount;
-    map['correctWords'] = correctWords;
-    map['incorrectWords'] = incorrectWords;
     map['readToMeTime'] = readToMeTime;
     map['readingTime'] = readingTime;
     map['completedAt'] = completedAt;
@@ -4119,7 +4117,8 @@ extension $Progress on Progress {
     }
     keys.add('bookLanguage');
 
-    progress = List<double>.from(map['progress'] ?? <double>[]);
+    progress = List<double>.from(
+        map['progress']?.map((e) => e.toDouble()).toList() ?? <double>[]);
     keys.add('progress');
 
     correct = List<bool>.from(map['correct'] ?? <bool>[]);
@@ -4139,14 +4138,6 @@ extension $Progress on Progress {
 
     if (map['pageReadCount'] != null) pageReadCount = map['pageReadCount'];
     keys.add('pageReadCount');
-
-    correctWords = List<ProgressCorrectWords>.from(
-        map['correctWords'] ?? <ProgressCorrectWords>[]);
-    keys.add('correctWords');
-
-    incorrectWords = List<ProgressCorrectWords>.from(
-        map['incorrectWords'] ?? <ProgressCorrectWords>[]);
-    keys.add('incorrectWords');
 
     if (map['readToMeTime'] != null) readToMeTime = map['readToMeTime'];
     keys.add('readToMeTime');
