@@ -5,7 +5,9 @@ import 'package:sync_db/sync_db.dart';
 import 'dart:io' as io;
 
 import 'models/class.dart';
+import 'models/languages.dart';
 import 'models/profile.dart';
+import 'models/progress.dart';
 
 void main() {
   final db = IsarDatabase();
@@ -24,11 +26,12 @@ void main() {
     await db.init({
       ProfileSchema: () => Profile(),
       ClassRoomSchema: () => ClassRoom(),
+      ProgressSchema: () => Progress(),
     });
     Sync.shared.db = db;
   });
 
-  group('Local read/write', () {
+  group('Profile read/write', () {
     test('write data', () async {
       final profile = Profile();
       profile.email = 'test@gmail.com';
@@ -53,6 +56,44 @@ void main() {
       profile?.completedBooks = profile.completedBooks.addItem('1234');
       await profile?.save(syncToService: false);
       assert(profile!.completedBooks.isNotEmpty);
+    });
+  });
+
+  group('Progress read/write', () {
+    test('write data', () async {
+      final progress = Progress();
+      progress.id = '1234567';
+      progress.bookLanguage = LibraryLanguage.en;
+      progress.correctWords = [
+        ProgressCorrectWords.from('A', true),
+        ProgressCorrectWords.from('B', false),
+      ];
+
+      progress.incorrectWords = [
+        ProgressCorrectWords.from('C', true),
+        ProgressCorrectWords.from('D', false),
+      ];
+      await progress.save(syncToService: false);
+      assert(progress.localId > 0);
+      assert(progress.createdAt != null);
+      expect(progress.incorrectWords.length, equals(2));
+    });
+
+    test('read data', () async {
+      final progress = await $Progress.find('1234567');
+      expect(progress, isNotNull);
+      expect(progress!.localId, greaterThan(0));
+      expect(progress.syncStatus, equals(SyncStatus.created));
+      expect(progress.incorrectWords.length, equals(2));
+    });
+
+    test('update data', () async {
+      final progress = await $Progress.find('1234567');
+      expect(progress, isNotNull);
+      progress!.incorrectWords =
+          progress.incorrectWords.addItem(ProgressCorrectWords.from('E', true));
+      await progress.save(syncToService: false);
+      expect(progress.incorrectWords.length, equals(3));
     });
   });
 
