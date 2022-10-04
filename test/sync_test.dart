@@ -9,8 +9,10 @@ import 'package:universal_io/io.dart';
 import 'dart:io' as io;
 import 'package:collection/collection.dart';
 import 'models/class.dart';
+import 'models/event.dart';
 import 'models/languages.dart';
 import 'models/profile.dart';
+import 'models/progress.dart';
 import 'sync_service_helper.dart';
 
 void main() {
@@ -22,6 +24,16 @@ void main() {
   late Map configs;
   setUpAll(() async {
     print('initialize');
+    final isarFile = File('default.isar');
+    if (await isarFile.exists()) {
+      await isarFile.delete();
+    }
+
+    final isarLockFile = File('default.isar.lock');
+    if (await isarLockFile.exists()) {
+      await isarLockFile.delete();
+    }
+
     configs = jsonDecode(await File('test/keys.json').readAsString());
     syncHelper = SyncHelper(configs);
     MethodChannel('plugins.flutter.io/path_provider')
@@ -37,6 +49,8 @@ void main() {
     await db.init({
       ClassRoomSchema: () => ClassRoom(),
       ProfileSchema: () => Profile(),
+      ProgressSchema: () => Progress(),
+      EventSchema: () => Event(),
     });
     sync.db = db;
   });
@@ -199,6 +213,7 @@ void main() {
       profile.syncStatus = SyncStatus.synced;
       await profile.save(syncToService: false, initialize: false);
       Map libraryLevels = record['libraryLevels'];
+      // expect updated properties
       expect(libraryLevels[LibraryLanguage.en.name],
           profile.levels.first.libraryLevel);
       expect(profile.id, equals(record['id']));
@@ -210,6 +225,35 @@ void main() {
           ListEquality().equals(
               profile.classesIds, List<String>.from(record['classesIds'])),
           true);
+    });
+
+    test('test create event', () async {
+      final resourceToken = await syncHelper.getResourceToken('Event');
+      final event = Event();
+      event.type = 'bookRating';
+      // send event data by list
+      event.eventData.add(EventData.from('rating', '5'));
+      event.eventData.add(EventData.from('bookId', configs['testBookId']));
+      await event.save();
+      print('Create new event ${event.id}');
+
+      // create on cosmos
+      final createdMap = event.map;
+      createdMap.addAll(event.metadataMap);
+      createdMap[partitionKey] = configs['testDefaultPartition'];
+      final createdRecord = await syncHelper.createDocument(
+          'Event', resourceToken, configs['testDefaultPartition'], createdMap);
+      expect(createdRecord, isNotNull);
+      expect(event.id, isNotNull);
+      final eventId = event.id!;
+
+      // read from cosmos again
+      var record = await syncHelper.getCosmosDocument(
+          'Event', eventId, resourceToken, configs['testDefaultPartition']);
+      expect(record['id'], equals(eventId));
+      // check event data with json map
+      expect(record['eventData']['bookId'], equals(configs['testBookId']));
+      expect(record['eventData']['rating'], equals('5'));
     });
   });
 

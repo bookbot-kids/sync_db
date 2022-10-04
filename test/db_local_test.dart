@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
@@ -5,6 +7,7 @@ import 'package:sync_db/sync_db.dart';
 import 'dart:io' as io;
 
 import 'models/class.dart';
+import 'models/event.dart';
 import 'models/languages.dart';
 import 'models/profile.dart';
 import 'models/progress.dart';
@@ -27,6 +30,7 @@ void main() {
       ProfileSchema: () => Profile(),
       ClassRoomSchema: () => ClassRoom(),
       ProgressSchema: () => Progress(),
+      EventSchema: () => Event(),
     });
     Sync.shared.db = db;
   });
@@ -37,9 +41,24 @@ void main() {
       profile.email = 'test@gmail.com';
       profile.id = '1234567';
       profile.name = 'jack';
+      final rnd = Random();
+      for (var i = 0; i < 5; i++) {
+        final progressItem = ProfileProgress.from(LibraryLanguage.en);
+        progressItem.averageAccuracy = rnd.nextDouble();
+        progressItem.averageFluency = rnd.nextDouble();
+        profile.progresses.add(progressItem);
+
+        final levelItem = ProfileLevel.from(LibraryLanguage.en);
+        levelItem.displayLevel = 2.1;
+        levelItem.libraryLevel = 3;
+        profile.levels.add(levelItem);
+      }
+
       await profile.save(syncToService: false);
       assert(profile.localId > 0);
       assert(profile.createdAt != null);
+      expect(profile.progresses.length, equals(5));
+      expect(profile.levels.length, equals(5));
     });
 
     test('read data', () async {
@@ -47,15 +66,20 @@ void main() {
       assert(profile != null);
       assert(profile!.localId > 0);
       assert(profile?.createdAt != null);
-      assert(profile?.syncStatus == SyncStatus.created);
+      assert(profile!.syncStatus == SyncStatus.created);
+      expect(profile!.progresses.length, equals(5));
+      expect(profile.levels.length, equals(5));
     });
 
     test('update data', () async {
       final profile = await $Profile.find('1234567');
       assert(profile != null);
       profile?.completedBooks = profile.completedBooks.addItem('1234');
+      profile?.levels =
+          profile.levels.addItem(ProfileLevel.from(LibraryLanguage.en));
       await profile?.save(syncToService: false);
-      assert(profile!.completedBooks.isNotEmpty);
+      expect(profile!.completedBooks.length, greaterThan(0));
+      expect(profile.levels.length, equals(6));
     });
   });
 
