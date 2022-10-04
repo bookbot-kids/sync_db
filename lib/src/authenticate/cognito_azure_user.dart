@@ -237,14 +237,16 @@ class CognitoAzureUserSession extends UserSession
     _session = null;
     _cognitoUser = null;
     Sync.shared.logger!.i('signed out, then clear tables');
-    for (final table in _tablesToClearOnSignout) {
-      final servicePoints = await ServicePoint.listByName(table);
-      for (final servicePoint in servicePoints) {
-        await servicePoint.deleteLocal();
-      }
+    await Sync.shared.db.local.writeTxn(() async {
+      for (final table in _tablesToClearOnSignout) {
+        final servicePoints = await ServicePoint.listByName(table);
+        for (final servicePoint in servicePoints) {
+          await Sync.shared.db.local.servicePoints.delete(servicePoint.localId);
+        }
 
-      await Sync.shared.db.modelHandlers[table]?.clear();
-    }
+        await Sync.shared.db.modelHandlers[table]?.clear();
+      }
+    });
 
     _refreshed = refresh();
     if (notify) {
