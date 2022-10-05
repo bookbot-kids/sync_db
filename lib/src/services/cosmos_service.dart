@@ -115,8 +115,12 @@ class CosmosService extends Service {
           final recordMap = record.map;
           recordMap.addAll(record.metadataMap);
           recordMap[partitionKey] = record.partition;
+          recordMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
+              (await NetworkTime.shared.now).millisecondsSinceEpoch;
           final operations = [];
-          for (final field in serviceRecord.updatedFields) {
+          final fields = serviceRecord.updatedFields.toSet();
+          fields.add(updatedKey);
+          for (final field in fields) {
             operations.add({
               'op': 'set',
               'path': '/$field',
@@ -132,6 +136,8 @@ class CosmosService extends Service {
         } else {
           final recordMap = record.map;
           recordMap.addAll(record.metadataMap);
+          recordMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
+              (await NetworkTime.shared.now).millisecondsSinceEpoch;
           recordMap[partitionKey] = record.partition;
           final updatedRecord = await _updateDocument(servicePoint, recordMap);
           if (updatedRecord != null) {
