@@ -6990,7 +6990,7 @@ extension $Profile on Profile {
 
   /// Get all records
   static Future<List<Profile>> all() {
-    return Sync.shared.db.local.profiles.where().findAll();
+    return Sync.shared.db.local.profiles.filter().getAll();
   }
 
   /// Find record by id
@@ -6998,7 +6998,7 @@ extension $Profile on Profile {
     return await Sync.shared.db.local.profiles
         .filter()
         .idEqualTo(id)
-        .findFirst();
+        .getFirst();
   }
 
   /// List records by sync status
@@ -7006,7 +7006,7 @@ extension $Profile on Profile {
     return await Sync.shared.db.local.profiles
         .filter()
         .syncStatusEqualTo(status)
-        .findAll();
+        .getAll();
   }
 
   /// delete and sync record
@@ -7119,5 +7119,27 @@ extension $Profile on Profile {
       }
     }
     return list.toSet();
+  }
+}
+
+extension ProfileQAfterFilterCondition
+    on QueryBuilder<Profile, Profile, QAfterFilterCondition> {
+  Future<List<Profile>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Profile?> getFirst() async {
+    return deletedAtIsNull().findFirst();
+  }
+}
+
+extension ProfileQFilterCondition
+    on QueryBuilder<Profile, Profile, QFilterCondition> {
+  Future<List<Profile>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Profile?> getFirst() async {
+    return deletedAtIsNull().findFirst();
   }
 }

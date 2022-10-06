@@ -66,12 +66,15 @@ class TransferMap extends Model {
   SyncPermission get syncPermission => SyncPermission.read;
 
   Future<List<TransferMap>> all() async {
-    return db.transferMaps.where().findAll();
+    return db.transferMaps.filter().deletedAtIsNull().findAll();
   }
 
   @override
-  Future<TransferMap?> find(String? id) async =>
-      await db.transferMaps.filter().idEqualTo(id).findFirst();
+  Future<TransferMap?> find(String? id) async => await db.transferMaps
+      .filter()
+      .idEqualTo(id)
+      .deletedAtIsNull()
+      .findFirst();
 
   @override
   Future<void> deleteLocal() async {
@@ -107,8 +110,11 @@ class TransferMap extends Model {
 
   @override
   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result =
-        await db.transferMaps.filter().syncStatusEqualTo(syncStatus).findAll();
+    final result = await db.transferMaps
+        .filter()
+        .syncStatusEqualTo(syncStatus)
+        .deletedAtIsNull()
+        .findAll();
     return result.cast();
   }
 

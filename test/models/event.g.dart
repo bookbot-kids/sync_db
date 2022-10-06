@@ -2877,12 +2877,12 @@ extension $Event on Event {
 
   /// Get all records
   static Future<List<Event>> all() {
-    return Sync.shared.db.local.events.where().findAll();
+    return Sync.shared.db.local.events.filter().getAll();
   }
 
   /// Find record by id
   static Future<Event?> find(String? id) async {
-    return await Sync.shared.db.local.events.filter().idEqualTo(id).findFirst();
+    return await Sync.shared.db.local.events.filter().idEqualTo(id).getFirst();
   }
 
   /// List records by sync status
@@ -2890,7 +2890,7 @@ extension $Event on Event {
     return await Sync.shared.db.local.events
         .filter()
         .syncStatusEqualTo(status)
-        .findAll();
+        .getAll();
   }
 
   /// delete and sync record
@@ -2937,5 +2937,27 @@ extension $Event on Event {
       }
     }
     return list.toSet();
+  }
+}
+
+extension EventQAfterFilterCondition
+    on QueryBuilder<Event, Event, QAfterFilterCondition> {
+  Future<List<Event>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Event?> getFirst() async {
+    return deletedAtIsNull().findFirst();
+  }
+}
+
+extension EventQFilterCondition
+    on QueryBuilder<Event, Event, QFilterCondition> {
+  Future<List<Event>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Event?> getFirst() async {
+    return deletedAtIsNull().findFirst();
   }
 }

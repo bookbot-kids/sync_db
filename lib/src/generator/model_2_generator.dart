@@ -258,17 +258,17 @@ class Model2Generator extends Generator {
 
       /// Get all records
       static Future<List<$modelName>> all() {
-          return Sync.shared.db.local.$collectionName.where().findAll();
+          return Sync.shared.db.local.$collectionName.filter().getAll();
       }
 
       /// Find record by id
       static Future<$modelName?> find(String? id) async {
-        return await Sync.shared.db.local.$collectionName.filter().idEqualTo(id).findFirst();
+        return await Sync.shared.db.local.$collectionName.filter().idEqualTo(id).getFirst();
       }
 
       /// List records by sync status
       static Future<List<$modelName>> queryStatus(SyncStatus status) async {
-        return await Sync.shared.db.local.$collectionName.filter().syncStatusEqualTo(status).findAll();
+        return await Sync.shared.db.local.$collectionName.filter().syncStatusEqualTo(status).getAll();
       }
 
       /// delete and sync record
@@ -345,6 +345,31 @@ class Model2Generator extends Generator {
       $dbMethods
     }
       ''');
+
+    if (!element.isAbstract) {
+      output.add('''
+    extension ${modelName}QAfterFilterCondition on QueryBuilder<$modelName, $modelName, QAfterFilterCondition> {
+      Future<List<$modelName>> getAll() async {
+        return deletedAtIsNull().findAll();
+      }
+
+      Future<$modelName?> getFirst() async {
+        return deletedAtIsNull().findFirst();
+      }
+    }
+
+    extension ${modelName}QFilterCondition on QueryBuilder<$modelName, $modelName, QFilterCondition> {
+      Future<List<$modelName>> getAll() async {
+        return deletedAtIsNull().findAll();
+      }
+
+      Future<$modelName?> getFirst() async {
+        return deletedAtIsNull().findFirst();
+      }
+    }
+''');
+    }
+
     return output.join('\n');
   }
 }

@@ -1982,7 +1982,7 @@ extension $ClassRoom on ClassRoom {
 
   /// Get all records
   static Future<List<ClassRoom>> all() {
-    return Sync.shared.db.local.classRooms.where().findAll();
+    return Sync.shared.db.local.classRooms.filter().getAll();
   }
 
   /// Find record by id
@@ -1990,7 +1990,7 @@ extension $ClassRoom on ClassRoom {
     return await Sync.shared.db.local.classRooms
         .filter()
         .idEqualTo(id)
-        .findFirst();
+        .getFirst();
   }
 
   /// List records by sync status
@@ -1998,7 +1998,7 @@ extension $ClassRoom on ClassRoom {
     return await Sync.shared.db.local.classRooms
         .filter()
         .syncStatusEqualTo(status)
-        .findAll();
+        .getAll();
   }
 
   /// delete and sync record
@@ -2041,5 +2041,27 @@ extension $ClassRoom on ClassRoom {
       }
     }
     return list.toSet();
+  }
+}
+
+extension ClassRoomQAfterFilterCondition
+    on QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> {
+  Future<List<ClassRoom>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<ClassRoom?> getFirst() async {
+    return deletedAtIsNull().findFirst();
+  }
+}
+
+extension ClassRoomQFilterCondition
+    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {
+  Future<List<ClassRoom>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<ClassRoom?> getFirst() async {
+    return deletedAtIsNull().findFirst();
   }
 }

@@ -31,11 +31,18 @@ class ServicePoint extends Model {
         .servicePoints
         .filter()
         .idEqualTo(id)
+        .deletedAtIsNull()
         .findFirst();
   }
 
   static Future<List<ServicePoint>> listByName(String name) async {
-    return ServicePoint().db.servicePoints.filter().nameEqualTo(name).findAll();
+    return ServicePoint()
+        .db
+        .servicePoints
+        .filter()
+        .nameEqualTo(name)
+        .deletedAtIsNull()
+        .findAll();
   }
 
   static Future<ServicePoint?> searchBy(String name,
@@ -45,7 +52,7 @@ class ServicePoint extends Model {
       filter = filter.partitionEqualTo(partition);
     }
 
-    return filter.findFirst();
+    return filter.deletedAtIsNull().findFirst();
   }
 
   @Ignore()
@@ -84,8 +91,11 @@ class ServicePoint extends Model {
 
   @override
   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result =
-        await db.servicePoints.filter().syncStatusEqualTo(syncStatus).findAll();
+    final result = await db.servicePoints
+        .filter()
+        .syncStatusEqualTo(syncStatus)
+        .deletedAtIsNull()
+        .findAll();
     return result.cast();
   }
 

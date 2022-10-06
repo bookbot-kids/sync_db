@@ -4201,7 +4201,7 @@ extension $Progress on Progress {
 
   /// Get all records
   static Future<List<Progress>> all() {
-    return Sync.shared.db.local.progress.where().findAll();
+    return Sync.shared.db.local.progress.filter().getAll();
   }
 
   /// Find record by id
@@ -4209,7 +4209,7 @@ extension $Progress on Progress {
     return await Sync.shared.db.local.progress
         .filter()
         .idEqualTo(id)
-        .findFirst();
+        .getFirst();
   }
 
   /// List records by sync status
@@ -4217,7 +4217,7 @@ extension $Progress on Progress {
     return await Sync.shared.db.local.progress
         .filter()
         .syncStatusEqualTo(status)
-        .findAll();
+        .getAll();
   }
 
   /// delete and sync record
@@ -4317,5 +4317,27 @@ extension $Progress on Progress {
       }
     }
     return list.toSet();
+  }
+}
+
+extension ProgressQAfterFilterCondition
+    on QueryBuilder<Progress, Progress, QAfterFilterCondition> {
+  Future<List<Progress>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Progress?> getFirst() async {
+    return deletedAtIsNull().findFirst();
+  }
+}
+
+extension ProgressQFilterCondition
+    on QueryBuilder<Progress, Progress, QFilterCondition> {
+  Future<List<Progress>> getAll() async {
+    return deletedAtIsNull().findAll();
+  }
+
+  Future<Progress?> getFirst() async {
+    return deletedAtIsNull().findFirst();
   }
 }

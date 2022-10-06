@@ -34,6 +34,7 @@ class ServiceRecord extends Model {
         .filter()
         .idEqualTo(id)
         .nameEqualTo(name)
+        .deletedAtIsNull()
         .findFirst();
   }
 
@@ -44,6 +45,7 @@ class ServiceRecord extends Model {
         .serviceRecords
         .filter()
         .idEqualTo(id)
+        .deletedAtIsNull()
         .findFirst();
   }
 
@@ -52,6 +54,7 @@ class ServiceRecord extends Model {
     final result = await db.serviceRecords
         .filter()
         .syncStatusEqualTo(syncStatus)
+        .deletedAtIsNull()
         .findAll();
     return result.cast();
   }
