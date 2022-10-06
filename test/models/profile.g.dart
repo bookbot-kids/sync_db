@@ -6989,24 +6989,26 @@ extension $Profile on Profile {
   }
 
   /// Get all records
-  static Future<List<Profile>> all() {
-    return Sync.shared.db.local.profiles.filter().getAll();
+  static Future<List<Profile>> all({bool filterDeletedAt = true}) {
+    final collection = Sync.shared.db.local.profiles;
+    return filterDeletedAt
+        ? collection.filter().getAll()
+        : collection.where().findAll();
   }
 
   /// Find record by id
-  static Future<Profile?> find(String? id) async {
-    return await Sync.shared.db.local.profiles
-        .filter()
-        .idEqualTo(id)
-        .getFirst();
+  static Future<Profile?> find(String? id,
+      {bool filterDeletedAt = true}) async {
+    final filter = await Sync.shared.db.local.profiles.filter().idEqualTo(id);
+    return filterDeletedAt ? filter.getFirst() : filter.findFirst();
   }
 
   /// List records by sync status
-  static Future<List<Profile>> queryStatus(SyncStatus status) async {
-    return await Sync.shared.db.local.profiles
-        .filter()
-        .syncStatusEqualTo(status)
-        .getAll();
+  static Future<List<Profile>> queryStatus(SyncStatus status,
+      {bool filterDeletedAt = true}) async {
+    final filter =
+        await Sync.shared.db.local.profiles.filter().syncStatusEqualTo(status);
+    return filterDeletedAt ? filter.getAll() : filter.findAll();
   }
 
   /// delete and sync record

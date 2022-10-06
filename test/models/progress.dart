@@ -43,8 +43,10 @@ class Progress extends Model {
   String get tableName => 'Progress';
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await $Progress.queryStatus(syncStatus);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = await $Progress.queryStatus(syncStatus,
+        filterDeletedAt: filterDeletedAt);
     return result.cast();
   }
 
@@ -100,7 +102,8 @@ class Progress extends Model {
   }
 
   @override
-  Future<Progress?> find(String? id) => $Progress.find(id);
+  Future<Progress?> find(String? id, {bool filterDeletedAt = true}) =>
+      $Progress.find(id, filterDeletedAt: filterDeletedAt);
 }
 
 @Embedded(ignore: {'props', 'stringify'})

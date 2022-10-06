@@ -15,7 +15,8 @@ abstract class SyncDelegate {
 }
 
 abstract class ModelHandler {
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus);
-  Future<Model?> find(String? id);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true});
+  Future<Model?> find(String? id, {bool filterDeletedAt = true});
   Future<void> clear();
 }

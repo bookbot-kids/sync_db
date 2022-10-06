@@ -25,14 +25,21 @@ class ServicePoint extends Model {
   }
 
   @override
-  Future<ServicePoint?> find(String? id) async {
-    return await ServicePoint()
-        .db
-        .servicePoints
-        .filter()
-        .idEqualTo(id)
-        .deletedAtIsNull()
-        .findFirst();
+  Future<ServicePoint?> find(String? id, {bool filterDeletedAt = true}) async {
+    return filterDeletedAt
+        ? await ServicePoint()
+            .db
+            .servicePoints
+            .filter()
+            .idEqualTo(id)
+            .deletedAtIsNull()
+            .findFirst()
+        : await ServicePoint()
+            .db
+            .servicePoints
+            .filter()
+            .idEqualTo(id)
+            .findFirst();
   }
 
   static Future<List<ServicePoint>> listByName(String name) async {
@@ -90,12 +97,18 @@ class ServicePoint extends Model {
   }
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await db.servicePoints
-        .filter()
-        .syncStatusEqualTo(syncStatus)
-        .deletedAtIsNull()
-        .findAll();
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = filterDeletedAt
+        ? await db.servicePoints
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .deletedAtIsNull()
+            .findAll()
+        : await db.servicePoints
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .findAll();
     return result.cast();
   }
 

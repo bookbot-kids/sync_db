@@ -14,6 +14,8 @@ enum TrackingType {
   mixpanel,
 }
 
+/// Because isar does not support Map type,
+/// so we have to convert Map from old model into List<Embedded> in isar, and have to use getter setter map for these properties
 @collection
 class Event extends Model {
   String type = 'analytics'; // default type is for analytics purpose
@@ -26,8 +28,10 @@ class Event extends Model {
   String get tableName => 'Event';
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await $Event.queryStatus(syncStatus);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result =
+        await $Event.queryStatus(syncStatus, filterDeletedAt: filterDeletedAt);
     return result.cast();
   }
 
@@ -46,7 +50,8 @@ class Event extends Model {
   Future<void> clear() => $Event(this).clear();
 
   @override
-  Future<Event?> find(String? id) => $Event.find(id);
+  Future<Event?> find(String? id, {bool filterDeletedAt = true}) =>
+      $Event.find(id, filterDeletedAt: filterDeletedAt);
 
   @Ignore()
   @override
@@ -82,6 +87,7 @@ class Event extends Model {
       }).toList());
     }
 
+    // return custom keys here to exclude from metadata json
     keys.addAll([
       'eventData',
       'triggerAction',

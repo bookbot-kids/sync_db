@@ -257,18 +257,23 @@ class Model2Generator extends Generator {
       }
 
       /// Get all records
-      static Future<List<$modelName>> all() {
-          return Sync.shared.db.local.$collectionName.filter().getAll();
+      static Future<List<$modelName>> all({bool filterDeletedAt = true}) {
+          final collection = Sync.shared.db.local.$collectionName;
+          return filterDeletedAt
+              ? collection.filter().getAll()
+              : collection.where().findAll();
       }
 
       /// Find record by id
-      static Future<$modelName?> find(String? id) async {
-        return await Sync.shared.db.local.$collectionName.filter().idEqualTo(id).getFirst();
+      static Future<$modelName?> find(String? id, {bool filterDeletedAt = true}) async {
+        final filter = await Sync.shared.db.local.$collectionName.filter().idEqualTo(id);
+        return filterDeletedAt? filter.getFirst() : filter.findFirst();
       }
 
       /// List records by sync status
-      static Future<List<$modelName>> queryStatus(SyncStatus status) async {
-        return await Sync.shared.db.local.$collectionName.filter().syncStatusEqualTo(status).getAll();
+      static Future<List<$modelName>> queryStatus(SyncStatus status, {bool filterDeletedAt = true}) async {
+        final filter = await Sync.shared.db.local.$collectionName.filter().syncStatusEqualTo(status);
+        return filterDeletedAt? filter.getAll(): filter.findAll();
       }
 
       /// delete and sync record

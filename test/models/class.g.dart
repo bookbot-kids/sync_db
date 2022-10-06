@@ -1981,24 +1981,27 @@ extension $ClassRoom on ClassRoom {
   }
 
   /// Get all records
-  static Future<List<ClassRoom>> all() {
-    return Sync.shared.db.local.classRooms.filter().getAll();
+  static Future<List<ClassRoom>> all({bool filterDeletedAt = true}) {
+    final collection = Sync.shared.db.local.classRooms;
+    return filterDeletedAt
+        ? collection.filter().getAll()
+        : collection.where().findAll();
   }
 
   /// Find record by id
-  static Future<ClassRoom?> find(String? id) async {
-    return await Sync.shared.db.local.classRooms
-        .filter()
-        .idEqualTo(id)
-        .getFirst();
+  static Future<ClassRoom?> find(String? id,
+      {bool filterDeletedAt = true}) async {
+    final filter = await Sync.shared.db.local.classRooms.filter().idEqualTo(id);
+    return filterDeletedAt ? filter.getFirst() : filter.findFirst();
   }
 
   /// List records by sync status
-  static Future<List<ClassRoom>> queryStatus(SyncStatus status) async {
-    return await Sync.shared.db.local.classRooms
+  static Future<List<ClassRoom>> queryStatus(SyncStatus status,
+      {bool filterDeletedAt = true}) async {
+    final filter = await Sync.shared.db.local.classRooms
         .filter()
-        .syncStatusEqualTo(status)
-        .getAll();
+        .syncStatusEqualTo(status);
+    return filterDeletedAt ? filter.getAll() : filter.findAll();
   }
 
   /// delete and sync record

@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
-import 'dart:io' as io;
 import 'package:collection/collection.dart';
 import 'models/class.dart';
 import 'models/event.dart';
@@ -20,7 +19,7 @@ void main() {
   late SyncHelper syncHelper;
   TestWidgetsFlutterBinding.ensureInitialized();
   // fix dio request error https://github.com/flutter/flutter/issues/48050#issuecomment-572359109
-  io.HttpOverrides.global = null;
+  HttpOverrides.global = null;
   late Map configs;
   setUpAll(() async {
     print('initialize');
@@ -86,6 +85,8 @@ void main() {
       final updatedMap = profile.map;
       updatedMap.addAll(profile.metadataMap);
       updatedMap[partitionKey] = profile.partition;
+      updatedMap[updatedKey] = profile.updatedAt?.millisecondsSinceEpoch ??
+          (await NetworkTime.shared.now).millisecondsSinceEpoch;
       await syncHelper.updateDocument('Profile', resourceToken,
           configs['testProfilePartition'], updatedMap);
 
@@ -181,12 +182,16 @@ void main() {
       final updatedMap = profile.map;
       updatedMap.addAll(profile.metadataMap);
       updatedMap[partitionKey] = configs['testProfilePartition'];
+      updatedMap[updatedKey] = profile.updatedAt?.millisecondsSinceEpoch ??
+          (await NetworkTime.shared.now).millisecondsSinceEpoch;
       final serviceRecord =
           await ServiceRecord().findBy(profile.id, profile.tableName);
       expect(serviceRecord, isNotNull);
 
       final operations = [];
-      for (final field in serviceRecord!.updatedFields) {
+      final fields = serviceRecord!.updatedFields.toSet();
+      fields.add(updatedKey);
+      for (final field in fields) {
         operations.add({
           'op': 'set',
           'path': '/$field',

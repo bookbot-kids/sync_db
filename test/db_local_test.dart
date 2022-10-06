@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:universal_io/io.dart';
 import 'dart:io' as io;
 
 import 'models/class.dart';
@@ -19,6 +20,16 @@ void main() {
   io.HttpOverrides.global = null;
   setUpAll(() async {
     print('initialize');
+    final isarFile = File('default.isar');
+    if (await isarFile.exists()) {
+      await isarFile.delete();
+    }
+
+    final isarLockFile = File('default.isar.lock');
+    if (await isarLockFile.exists()) {
+      await isarLockFile.delete();
+    }
+
     MethodChannel('plugins.flutter.io/path_provider')
         .setMockMethodCallHandler((call) async => '.');
 

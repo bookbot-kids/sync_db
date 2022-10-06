@@ -39,23 +39,36 @@ class ServiceRecord extends Model {
   }
 
   @override
-  Future<ServiceRecord?> find(String? id) async {
-    return await ServiceRecord()
-        .db
-        .serviceRecords
-        .filter()
-        .idEqualTo(id)
-        .deletedAtIsNull()
-        .findFirst();
+  Future<ServiceRecord?> find(String? id, {bool filterDeletedAt = true}) async {
+    return filterDeletedAt
+        ? await ServiceRecord()
+            .db
+            .serviceRecords
+            .filter()
+            .idEqualTo(id)
+            .deletedAtIsNull()
+            .findFirst()
+        : await ServiceRecord()
+            .db
+            .serviceRecords
+            .filter()
+            .idEqualTo(id)
+            .findFirst();
   }
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await db.serviceRecords
-        .filter()
-        .syncStatusEqualTo(syncStatus)
-        .deletedAtIsNull()
-        .findAll();
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = filterDeletedAt
+        ? await db.serviceRecords
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .deletedAtIsNull()
+            .findAll()
+        : await db.serviceRecords
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .findAll();
     return result.cast();
   }
 

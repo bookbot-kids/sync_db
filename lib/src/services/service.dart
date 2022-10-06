@@ -178,8 +178,8 @@ abstract class Service {
       var transientRecords = <String, dynamic>{};
       // Get updating records to compare
       if (service.access == Access.all) {
-        final recentUpdatedRecords =
-            await handler.queryStatus(SyncStatus.updated);
+        final recentUpdatedRecords = await handler
+            .queryStatus(SyncStatus.updated, filterDeletedAt: false);
         transientRecords = {
           for (var record in recentUpdatedRecords) record.id!: record
         };
@@ -221,7 +221,8 @@ abstract class Service {
     }
 
     await Sync.shared.db.local.writeTxn(() async {
-      final localRecord = await handler.find(serverRecord[idKey]);
+      final localRecord =
+          await handler.find(serverRecord[idKey], filterDeletedAt: false);
       if (localRecord != null) {
         if (serverRecord[updatedKey] >=
             (localRecord.updatedAt?.millisecondsSinceEpoch ?? 0)) {

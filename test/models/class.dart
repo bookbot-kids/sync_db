@@ -11,8 +11,10 @@ class ClassRoom extends Model {
   String get tableName => 'Class';
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await $ClassRoom.queryStatus(syncStatus);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = await $ClassRoom.queryStatus(syncStatus,
+        filterDeletedAt: filterDeletedAt);
     return result.cast();
   }
 
@@ -39,5 +41,9 @@ class ClassRoom extends Model {
       await $ClassRoom(this).setMap(map);
 
   @override
-  Future<ClassRoom?> find(String? id) => $ClassRoom.find(id);
+  Future<ClassRoom?> find(String? id, {bool filterDeletedAt = true}) =>
+      $ClassRoom.find(id, filterDeletedAt: filterDeletedAt);
+
+  @override
+  Future<void> deleteLocal() => $ClassRoom(this).deleteLocal();
 }

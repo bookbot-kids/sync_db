@@ -2876,21 +2876,25 @@ extension $Event on Event {
   }
 
   /// Get all records
-  static Future<List<Event>> all() {
-    return Sync.shared.db.local.events.filter().getAll();
+  static Future<List<Event>> all({bool filterDeletedAt = true}) {
+    final collection = Sync.shared.db.local.events;
+    return filterDeletedAt
+        ? collection.filter().getAll()
+        : collection.where().findAll();
   }
 
   /// Find record by id
-  static Future<Event?> find(String? id) async {
-    return await Sync.shared.db.local.events.filter().idEqualTo(id).getFirst();
+  static Future<Event?> find(String? id, {bool filterDeletedAt = true}) async {
+    final filter = await Sync.shared.db.local.events.filter().idEqualTo(id);
+    return filterDeletedAt ? filter.getFirst() : filter.findFirst();
   }
 
   /// List records by sync status
-  static Future<List<Event>> queryStatus(SyncStatus status) async {
-    return await Sync.shared.db.local.events
-        .filter()
-        .syncStatusEqualTo(status)
-        .getAll();
+  static Future<List<Event>> queryStatus(SyncStatus status,
+      {bool filterDeletedAt = true}) async {
+    final filter =
+        await Sync.shared.db.local.events.filter().syncStatusEqualTo(status);
+    return filterDeletedAt ? filter.getAll() : filter.findAll();
   }
 
   /// delete and sync record

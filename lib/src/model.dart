@@ -117,7 +117,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
 
   /// Find record by id
   @override
-  Future<Model?> find(String? id);
+  Future<Model?> find(String? id, {bool filterDeletedAt = true});
 
   /// Storage managers and functions
   /// Readme: Files are handled in groups in the record.
@@ -233,7 +233,8 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true});
 
   Map<String, List<String>> remapFields() => {};
 

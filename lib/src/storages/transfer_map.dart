@@ -70,11 +70,12 @@ class TransferMap extends Model {
   }
 
   @override
-  Future<TransferMap?> find(String? id) async => await db.transferMaps
-      .filter()
-      .idEqualTo(id)
-      .deletedAtIsNull()
-      .findFirst();
+  Future<TransferMap?> find(String? id, {bool filterDeletedAt = true}) async =>
+      await db.transferMaps
+          .filter()
+          .idEqualTo(id)
+          .deletedAtIsNull()
+          .findFirst();
 
   @override
   Future<void> deleteLocal() async {
@@ -109,12 +110,18 @@ class TransferMap extends Model {
   }
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await db.transferMaps
-        .filter()
-        .syncStatusEqualTo(syncStatus)
-        .deletedAtIsNull()
-        .findAll();
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = filterDeletedAt
+        ? await db.transferMaps
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .deletedAtIsNull()
+            .findAll()
+        : await db.transferMaps
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .findAll();
     return result.cast();
   }
 

@@ -94,8 +94,10 @@ class Profile extends Model {
   }
 
   @override
-  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus) async {
-    final result = await $Profile.queryStatus(syncStatus);
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = await $Profile.queryStatus(syncStatus,
+        filterDeletedAt: filterDeletedAt);
     return result.cast();
   }
 
@@ -254,7 +256,8 @@ class Profile extends Model {
   }
 
   @override
-  Future<Profile?> find(String? id) => $Profile.find(id);
+  Future<Profile?> find(String? id, {bool filterDeletedAt = true}) =>
+      $Profile.find(id, filterDeletedAt: filterDeletedAt);
 
   @override
   Map<String, List<String>> remapFields() => {
