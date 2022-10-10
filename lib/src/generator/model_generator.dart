@@ -161,8 +161,16 @@ class ModelGenerator extends Generator {
             continue;
           } else if (primitiveTypes.contains(listType)) {
             getterFields.add("map['${name}'] = ${name};");
-            setterFields.add(
-                "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
+            if (listType == 'double') {
+              setterFields.add(
+                  "${name} = List<$listType>.from(map['${name}']?.toDouble() ?? <$listType>[]);");
+            } else if (listType == 'int') {
+              setterFields.add(
+                  "${name} = List<$listType>.from(map['${name}']?.toInt() ?? <$listType>[]);");
+            } else {
+              setterFields.add(
+                  "${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);");
+            }
             continue;
           }
         }
@@ -191,8 +199,16 @@ class ModelGenerator extends Generator {
             continue;
           } else if (primitiveTypes.contains(setType)) {
             getterFields.add("map['${name}'] = ${name}.toList();");
-            setterFields.add(
-                "${name} = Set<$setType>.from(map['${name}'] ?? <$setType>[]);");
+            if (setType == 'double') {
+              setterFields.add(
+                  "${name} = Set<$setType>.from(map['${name}']?.toDouble() ?? <$setType>[]);");
+            } else if (setType == 'int') {
+              setterFields.add(
+                  "${name} = Set<$setType>.from(map['${name}']?.toInt() ?? <$setType>[]);");
+            } else {
+              setterFields.add(
+                  "${name} = Set<$setType>.from(map['${name}'] ?? <$setType>[]);");
+            }
             continue;
           }
         }
