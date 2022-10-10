@@ -256,7 +256,7 @@ class ModelGenerator extends Generator {
               map['$name']?.forEach((key, value) {
                   final itemKey = EnumToString.fromString($type2.values, key ?? '');
                   if(itemKey != null) {
-                    $name[itemKey] = value;
+                    $name[itemKey] = ${type3 == 'double' ? 'value?.toDouble()' : 'value'};
                   }                  
               });
             ''');
@@ -284,7 +284,7 @@ class ModelGenerator extends Generator {
               map['$name']?.forEach((key, value) {
                   final itemKey = EnumToString.fromString($type1.values, key ?? '');
                   if(itemKey != null) {
-                    $name[itemKey] = value;
+                    $name[itemKey] = ${type2 == 'double' ? 'value?.toDouble()' : 'value'};
                   }                  
               });
             ''');
