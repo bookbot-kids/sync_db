@@ -189,7 +189,8 @@ abstract class Service {
       for (Map record in records) {
         var existingRecord = transientRecords[record[idKey]];
         if (existingRecord == null ||
-            record[updatedKey] > existingRecord.updatedAt ||
+            record[updatedKey] >
+                (existingRecord.updatedAt?.millisecondsSinceEpoch ?? 0) ||
             service.access == Access.read) {
           // save record
           existingRecord ??=
