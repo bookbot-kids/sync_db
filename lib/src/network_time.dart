@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:ntp/ntp.dart';
 import 'package:singleton/singleton.dart';
+import 'package:sync_db/sync_db.dart';
+import 'package:tuple/tuple.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 class NetworkTime {
@@ -10,6 +12,11 @@ class NetworkTime {
   static NetworkTime shared = NetworkTime();
 
   int? _offset;
+  final lookupServers = [
+    'time.google.com',
+    'pool.ntp.org',
+    'time.apple.com',
+  ];
 
   /// Get server datetime and cache the offset
   Future<int?> get offset async {
@@ -19,10 +26,22 @@ class NetworkTime {
     }
 
     if (_offset == null) {
-      try {
-        _offset = await NTP.getNtpOffset(localTime: DateTime.now().toLocal());
-      } catch (e) {
-        _offset = null;
+      for (final address in lookupServers) {
+        try {
+          _offset = await NTP
+              .getNtpOffset(
+                localTime: DateTime.now().toLocal(),
+                lookUpAddress: address,
+              )
+              .timeout(const Duration(seconds: 4));
+
+          return _offset;
+        } catch (e, stacktrace) {
+          Sync.shared.logger
+              ?.e('Can not get server time [${address}] $e', e, stacktrace);
+          Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
+          _offset = null;
+        }
       }
     }
 

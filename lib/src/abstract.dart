@@ -40,42 +40,6 @@ abstract class UserSession {
   Future<void> deleteUser(String email);
 }
 
-// abstract class Database {
-//   Future<void> save(Model model, {bool syncToService});
-
-//   Future<void> saveMap(String tableName, Map map, {dynamic transaction});
-
-//   Future<void> initTable(String tableName);
-
-//   dynamic all(String modelName, Function instantiateModel,
-//       {bool listenable = false});
-
-//   dynamic find(String modelName, String id, Model model,
-//       {bool listenable = false});
-
-//   dynamic findMap(String modelName, String id, {dynamic transaction});
-
-//   dynamic query<T extends Model>(DbQuery query,
-//       {dynamic transaction, bool listenable = false});
-
-//   dynamic queryMap(DbQuery query, {dynamic transaction});
-
-//   /// clear all data in table
-//   Future<void> clearTable(String tableName);
-
-//   /// delete table and recreate
-//   Future<void> resetTable(String tableName);
-
-//   Future<void> delete(Model model);
-
-//   Future<void> deleteLocal(String modelName, String? id);
-
-//   Future<void> runInTransaction(String tableName, Function action);
-
-//   /// clear all data in all tables
-//   Future<void> cleanDatabase();
-// }
-
 class Notifier<T> extends ChangeNotifier {
   T _value;
   Notifier(this._value);
