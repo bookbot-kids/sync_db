@@ -92,6 +92,9 @@ class CognitoAzureUserSession extends UserSession
   String role = _defaultRole;
 
   @override
+  String get email => _cognitoUser?.username;
+
+  @override
   Future<void> deleteUser(String email) async {
     var refreshToken = await token;
     var clientToken = WebServiceUtils.generateClientToken(

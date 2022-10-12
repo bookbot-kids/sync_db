@@ -51,6 +51,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return _userRole;
   }
 
+
   @override
   Future<void> refresh({bool forceRefreshToken = false}) async {
     if (forceRefreshToken) {
@@ -186,6 +187,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     _prefs.setString(userRoleKey, role);
   }
 
+  @override
   String get email => _userInfo?.email;
 
   /// Initiate user session from local storage if present

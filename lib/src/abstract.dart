@@ -29,6 +29,9 @@ abstract class UserSession {
   /// user role
   String get role;
 
+  /// get email
+  String get email;
+
   /// sign out user & clear all private keys
   Future<void> signout({bool notify = true});
 

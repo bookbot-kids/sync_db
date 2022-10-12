@@ -64,6 +64,9 @@ class AzureADB2CUserSession extends UserSession {
   @override
   String role = _defaultRole;
 
+  @override
+  String get email => throw UnimplementedError();
+
   /// The token is the ID Token. This is converted to a refresh token and save in preferences.
   /// This will then start the process of getting the resource tokens.
   /// Errors will need to be handled in the view
