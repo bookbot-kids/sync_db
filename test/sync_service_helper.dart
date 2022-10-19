@@ -1,5 +1,7 @@
+import 'package:flutter_test/flutter_test.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:collection/collection.dart';
+import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class SyncHelper {
@@ -101,5 +103,54 @@ class SyncHelper {
     };
     return await _http.patch('colls/$table/docs/${record['id']}',
         data: operations);
+  }
+
+  Future<Map<String, dynamic>?> createRecord(
+    String table,
+    Model record,
+    String partition, {
+    String? resourceToken,
+  }) async {
+    resourceToken ??= await getResourceToken(table);
+    final createdMap = record.map;
+    createdMap.addAll(record.metadataMap);
+    createdMap[partitionKey] = record.partition;
+    final createdResult =
+        await createDocument(table, resourceToken, partition, createdMap);
+    expect(createdResult, isNotNull);
+    expect(record.id, isNotNull);
+    expect(record.id, equals(createdResult!['id']));
+    return createdResult;
+  }
+
+  Future<dynamic> updateRecord(
+    String table,
+    Model record,
+    String partition, {
+    String? resourceToken,
+  }) async {
+    resourceToken ??= await getResourceToken(table);
+    final updatedMap = record.map;
+    updatedMap.addAll(record.metadataMap);
+    updatedMap[partitionKey] = partition;
+    updatedMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
+        (await NetworkTime.shared.now).millisecondsSinceEpoch;
+    final serviceRecord =
+        await ServiceRecord().findBy(record.id, record.tableName);
+    expect(serviceRecord, isNotNull);
+
+    final operations = [];
+    final fields = serviceRecord!.updatedFields.toSet();
+    fields.add(updatedKey);
+    for (final field in fields) {
+      operations.add({
+        'op': 'set',
+        'path': '/$field',
+        'value': updatedMap[field],
+      });
+    }
+
+    return await partialUpdateDocument(table, resourceToken, partition,
+        {'operations': operations}, updatedMap);
   }
 }

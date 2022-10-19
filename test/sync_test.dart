@@ -54,7 +54,7 @@ void main() {
     sync.db = db;
   });
 
-  group('Sync', () {
+  group('Sync1', () {
     test('test profile read and full update', () async {
       final resourceToken = await syncHelper.getResourceToken('Profile');
       // read cosmos record
@@ -122,13 +122,9 @@ void main() {
       await profile.save(syncToService: false);
       print('create new profile ${profile.id} $profile');
       final resourceToken = await syncHelper.getResourceToken('Profile');
-      final createdMap = profile.map;
-      createdMap.addAll(profile.metadataMap);
-      createdMap[partitionKey] = profile.partition;
-      final createdRecord = await syncHelper.createDocument('Profile',
-          resourceToken, configs['testProfilePartition'], createdMap);
-      expect(createdRecord, isNotNull);
-      expect(profile.id, isNotNull);
+      final createdRecord = await syncHelper.createRecord(
+          'Profile', profile, configs['testProfilePartition'],
+          resourceToken: resourceToken);
       final profileId = profile.id!;
 
       // read cosmos record
@@ -262,6 +258,54 @@ void main() {
     });
   });
 
+  group('Sync2', () {
+    test('test memory update', () async {
+      // create record
+      final progress = Progress();
+      progress.profileId = configs['testProfileId'];
+      progress.bookId = configs['testBookId'];
+      progress.accuracy = 0.95;
+      progress.fluency = 0.9;
+      progress.readingTime = 40;
+      progress.completedAt = DateTime.now().millisecondsSinceEpoch;
+      progress.correctWords = [
+        ProgressCorrectWords.from('test1', true),
+        ProgressCorrectWords.from('test2', true),
+      ];
+      progress.incorrectWords = [
+        ProgressCorrectWords.from('test3', true),
+        ProgressCorrectWords.from('test4', true),
+      ];
+      await progress.init();
+      progress.partition = configs['testProfilePartition'];
+      await progress.save();
+      print('create new progress ${progress.id} $progress');
+
+      // sync to cosmos
+      final resourceToken = await syncHelper.getResourceToken('Progress');
+      await syncHelper.createRecord(
+          'Progress', progress, configs['testProfilePartition'],
+          resourceToken: resourceToken);
+
+      // save record to updated state
+      progress.readingTime = 20;
+      progress.syncStatus = SyncStatus.synced;
+      await progress.save();
+      expect(progress.syncStatus, equals(SyncStatus.updated));
+
+      // update record in memory
+      progress.readingTime = 30;
+      progress.fluency = 0.2;
+
+      // sync to cosmos again
+      final updateResponse = await syncHelper.updateRecord(
+          'Progress', progress, configs['testProfilePartition'],
+          resourceToken: resourceToken);
+      // and validate result
+      expect(progress.readingTime != updateResponse['readingTime'], true);
+      expect(progress.fluency != updateResponse['fluency'], true);
+    });
+  });
   tearDownAll(() {
     print('tearDown');
     db.close(deleteFromDisk: true);
