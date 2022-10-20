@@ -10,7 +10,7 @@ abstract class Service {
   final pool = Pool(8, timeout: Duration(seconds: 60));
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
-  Queue _syncQueue;
+  late Queue _syncQueue;
   List<String> ignoreTables = [];
 
   Service(Map config) {
@@ -24,7 +24,7 @@ abstract class Service {
       return;
     }
 
-    var servicePoints = await Sync.shared.userSession.servicePoints();
+    var servicePoints = await Sync.shared.userSession?.servicePoints() ?? [];
     await _syncServicePoints(servicePoints);
     if (syncDelegate) {
       await syncDelegates();
@@ -40,7 +40,7 @@ abstract class Service {
       if (!Sync.shared.networkAvailable) {
         return;
       }
-      final token = await Sync.shared.userSession.token;
+      final token = await Sync.shared.userSession?.token;
       final records = await delegate.syncRead(token);
       // create a fake service point with read only permission to save records
       final servicePoint = ServicePoint(
@@ -54,7 +54,7 @@ abstract class Service {
   /// Sync a table to service
   Future<void> syncTable(String table) async {
     await _syncServicePoints(
-        await Sync.shared.userSession.servicePointsForTable(table));
+        await Sync.shared.userSession?.servicePointsForTable(table) ?? []);
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
@@ -109,7 +109,7 @@ abstract class Service {
     }
 
     final servicePoints =
-        await Sync.shared.userSession.servicePointsForTable(table);
+        await Sync.shared.userSession?.servicePointsForTable(table) ?? [];
     var futures = <Future>[];
     Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
@@ -168,31 +168,43 @@ abstract class Service {
   /// Compare and save record coming from services
   Future<void> saveLocalRecords(ServicePoint service, List records) async {
     if (records.isEmpty) return;
-    final database = Sync.shared.local;
-    //var lastTimestamp = DateTime.utc(0);
+    final handler = Sync.shared.db.modelHandlers[service.name];
+    if (handler == null) {
+      Sync.shared.logger?.w('${service.name} does not register handler');
+      return;
+    }
 
-    await database.runInTransaction(service.name, (transaction) async {
+    await Sync.shared.db.local.writeTxn(() async {
+      var transientRecords = <String, dynamic>{};
       // Get updating records to compare
-      var transientRecords = <String, Map>{};
       if (service.access == Access.all) {
-        final query =
-            Query(service.name).where({statusKey: SyncStatus.updated.name});
-        final recentUpdatedRecords =
-            await database.queryMap(query, transaction: transaction);
+        final recentUpdatedRecords = await handler
+            .queryStatus(SyncStatus.updated, filterDeletedAt: false);
         transientRecords = {
-          for (var record in recentUpdatedRecords) record[idKey]: record
+          for (var record in recentUpdatedRecords) record.id!: record
         };
       }
 
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
-      for (final record in records) {
-        final existingRecord = transientRecords[record[idKey]];
+      for (Map record in records) {
+        var existingRecord = transientRecords[record[idKey]];
         if (existingRecord == null ||
-            record[updatedKey] > existingRecord[updatedKey] ||
+            record[updatedKey] >
+                (existingRecord.updatedAt?.millisecondsSinceEpoch ?? 0) ||
             service.access == Access.read) {
-          record[statusKey] = SyncStatus.synced.name;
-          await database.saveMap(service.name, record,
-              transaction: transaction);
+          // save record
+          existingRecord ??=
+              Sync.shared.db.modelInstances[service.name]?.call();
+          await existingRecord.init();
+          existingRecord.syncStatus = SyncStatus.synced;
+          final keys = await existingRecord.setMap(record);
+          existingRecord.setMetadata(keys, record);
+          if (existingRecord?.partition == null &&
+              record['partition'] != null) {
+            existingRecord.partition = record['partition'];
+          }
+          await existingRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
         }
       }
     });
@@ -202,20 +214,32 @@ abstract class Service {
   /// if there has, do not update record to synced
   Future<void> updateRecordStatus(
       ServicePoint service, Map serverRecord) async {
-    final database = Sync.shared.local;
+    if (serverRecord.isEmpty) return;
+    final handler = Sync.shared.db.modelHandlers[service.name];
+    if (handler == null) {
+      Sync.shared.logger?.w('${service.name} does not register handler');
+      return;
+    }
 
-    await database.runInTransaction(service.name, (transaction) async {
-      final localRecord = await database
-          .findMap(service.name, serverRecord[idKey], transaction: transaction);
-      if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
-        serverRecord[statusKey] = SyncStatus.synced.name;
-        await database.saveMap(service.name, serverRecord,
-            transaction: transaction);
-      } else {
-        // in case local is newer, mark it as updated and sync again next time
-        localRecord[statusKey] = SyncStatus.updated.name;
-        await database.saveMap(service.name, localRecord,
-            transaction: transaction);
+    await Sync.shared.db.local.writeTxn(() async {
+      final localRecord =
+          await handler.find(serverRecord[idKey], filterDeletedAt: false);
+      if (localRecord != null) {
+        if (serverRecord[updatedKey] >=
+            (localRecord.updatedAt?.millisecondsSinceEpoch ?? 0)) {
+          localRecord.syncStatus = SyncStatus.synced;
+          final keys = await localRecord.setMap(serverRecord);
+          localRecord.setMetadata(keys, serverRecord);
+          await localRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
+        } else {
+          // in case local is newer, mark it as updated and sync again next time
+          localRecord.syncStatus = SyncStatus.updated;
+          final keys = await localRecord.setMap(serverRecord);
+          localRecord.setMetadata(keys, serverRecord);
+          await localRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
+        }
       }
     });
   }

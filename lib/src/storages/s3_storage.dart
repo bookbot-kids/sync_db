@@ -8,8 +8,8 @@ import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';
 
 class S3StorageUntrustedClient extends Storage {
-  HttpClient httpClient;
-  String _baseUrl;
+  late HttpClient httpClient;
+  String? _baseUrl;
 
   S3StorageUntrustedClient(Map config) : super(config) {
     _baseUrl = config['s3UploadRemoteUrl'];
@@ -29,22 +29,22 @@ class S3StorageUntrustedClient extends Storage {
 
   @override
   Future<void> writeToRemote(TransferMap transferMap) async {
-    if (await Sync.shared.userSession.hasSignedIn() != true) {
+    if (await Sync.shared.userSession?.hasSignedIn() != true) {
       Sync.shared.logger?.i('Guest user does not have upload permission');
       return;
     }
     // upload file by stream
-    await _uploadFileToS3Bucket(transferMap.localPath, transferMap.remotePath);
+    await _uploadFileToS3Bucket(transferMap.localPath!, transferMap.remotePath);
   }
 
   Future<void> _uploadFileToS3Bucket(
-      String localPath, String remotePath) async {
+      String localPath, String? remotePath) async {
     var localFile = File(localPath);
     if (localFile.existsSync()) {
       final mimeType = mime(localPath) ?? '*/*';
       final totalByteLength = localFile.lengthSync();
-      final url =
-          _baseUrl + (remotePath.startsWith('/') ? remotePath : '/$remotePath');
+      final url = _baseUrl! +
+          (remotePath!.startsWith('/') ? remotePath : '/$remotePath');
       final request = await httpClient.putUrl(Uri.parse(url));
       request.headers.set(HttpHeaders.contentTypeHeader, mimeType);
       request.headers.set(HttpHeaders.contentLengthHeader, totalByteLength);

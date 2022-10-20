@@ -8,9 +8,9 @@ class WebServiceUtils {
   /// Issuer: Authority issuing the token, like the business name, e.g. Bookbot
   /// Audience: The audience that uses this authentication e.g. com.bookbot.bookbotapp
   /// The secret is the key used for encoding
-  static String generateClientToken(String azureSecret, String azureSubject,
-      String azureIssuer, String azureAudience, DateTime notBefore,
-      {String jwtId, Duration maxAge = const Duration(minutes: 10)}) {
+  static String generateClientToken(String azureSecret, String? azureSubject,
+      String? azureIssuer, String azureAudience, DateTime notBefore,
+      {String? jwtId, Duration maxAge = const Duration(minutes: 10)}) {
     var encodedKey = base64.encode(utf8.encode(azureSecret));
     final claimSet = JwtClaim(
         subject: azureSubject,

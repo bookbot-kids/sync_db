@@ -2,18 +2,16 @@ import 'dart:convert';
 
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:robust_http/exceptions.dart';
-import 'package:sync_db/src/authenticate/cognito_user.dart';
 import 'package:sync_db/src/utils/string_utils.dart';
 import '../../sync_db.dart';
-import '../database/query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
-  List _rolePermissions;
-  Map _schema;
-  CognitoUserSession user;
-  GraphQLClient _graphClient;
-  HttpLink _httpLink;
+  List? _rolePermissions;
+  Map? _schema;
+  late CognitoUserSession user;
+  GraphQLClient? _graphClient;
+  late HttpLink _httpLink;
 
   /// Max error retry
   int _maxRetry = 2;
@@ -32,7 +30,7 @@ class GraphQLService extends Service {
     var fields = _getFields(table);
     // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
     final limit = 1000;
-    String nextToken;
+    String? nextToken;
     final start = service.from;
 
     // ignore: unawaited_futures
@@ -55,7 +53,7 @@ class GraphQLService extends Service {
 
       var response = await _queryDocuments(select, variables);
       if (response != null) {
-        List docs = response['list${table}s']['items'];
+        List? docs = response['list${table}s']['items'];
         nextToken = response['list${table}s']['nextToken'];
         if (docs != null && docs.isNotEmpty) {
           // get the max timestamp
@@ -82,18 +80,23 @@ class GraphQLService extends Service {
   Future<void> writeToService(ServicePoint service) async {
     var futures = <Future>[];
     final table = service.name;
+
+    final modelHandler = Sync.shared.db.modelHandlers[service.tableName];
+    if (modelHandler == null) {
+      return;
+    }
+
     // get created records and create in appsync
-    var query = q.Query(table)
-        .where('_status = ${SyncStatus.created.name}')
-        .order('createdAt asc');
-    var records = await Sync.shared.local.queryMap(query);
+    var records = await modelHandler.queryStatus(SyncStatus.created);
 
     for (final record in records) {
       var fields = _getFields(table);
 
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
-        var serverRecord = await _createDocument(table, fields, record);
+        final recordMap = record.map;
+        recordMap.addAll(record.metadataMap);
+        var serverRecord = await _createDocument(table, fields, recordMap);
         if (serverRecord != null) {
           _fixCreatedDate(serverRecord);
           await updateRecordStatus(service, serverRecord);
@@ -104,15 +107,14 @@ class GraphQLService extends Service {
     }
 
     // Get records that have been updated and update to appsync
-    query = q.Query(table)
-        .where('_status = ${SyncStatus.updated.name}')
-        .order('updatedAt asc');
-    records = await Sync.shared.local.queryMap(query);
+    records = await modelHandler.queryStatus(SyncStatus.updated);
     for (var record in records) {
       var fields = _getFields(table);
 
       futures.add(pool.withResource(() async {
-        var serverRecord = await _updateDocument(table, fields, record);
+        final recordMap = record.map;
+        recordMap.addAll(record.metadataMap);
+        var serverRecord = await _updateDocument(table, fields, recordMap);
         if (serverRecord != null) {
           await updateRecordStatus(service, serverRecord);
         } else {
@@ -134,6 +136,7 @@ class GraphQLService extends Service {
   }
 
   /// Get document by id
+  // ignore: unused_element
   Future<dynamic> _getDocument(String table, String fields, String id) async {
     var query = '''
           query get$table {
@@ -147,7 +150,7 @@ class GraphQLService extends Service {
   }
 
   /// Create new document and return a new document
-  Future<dynamic> _createDocument(String table, String fields, Map record,
+  Future<dynamic> _createDocument(String? table, String fields, Map record,
       {bool callUpdateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
@@ -169,7 +172,7 @@ class GraphQLService extends Service {
     );
     var result = await client.mutate(options);
     if (!result.hasException) {
-      return result.data['create${table}'];
+      return result.data!['create${table}'];
     } else {
       Sync.shared.logger?.e('createDocument error [$query] [$variables] error',
           result.exception, StackTrace.current);
@@ -181,7 +184,7 @@ class GraphQLService extends Service {
   }
 
   /// Update a document and return an updated document
-  Future<dynamic> _updateDocument(String table, String fields, Map record,
+  Future<dynamic> _updateDocument(String? table, String fields, Map record,
       {bool callCreateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
@@ -204,7 +207,7 @@ class GraphQLService extends Service {
     );
     var result = await client.mutate(options);
     if (!result.hasException) {
-      return result.data['update${table}'];
+      return result.data!['update${table}'];
     } else {
       Sync.shared.logger?.e('updateDocument error [$query] [$variables] error',
           result.exception, StackTrace.current);
@@ -217,12 +220,12 @@ class GraphQLService extends Service {
 
   /// Query documents
   Future<dynamic> _queryDocuments(String query,
-      [Map<String, dynamic> variables]) async {
+      [Map<String, dynamic>? variables]) async {
     for (var i = 1; i <= _maxRetry; i++) {
       var client = await graphClient;
       var options = QueryOptions(
         document: gql(query),
-        variables: variables,
+        variables: variables!,
         errorPolicy: ErrorPolicy.all,
         fetchPolicy: FetchPolicy.noCache,
       );
@@ -250,13 +253,13 @@ class GraphQLService extends Service {
       );
     }
 
-    return _graphClient;
+    return _graphClient!;
   }
 
   /// Get defined schema table
   Future<Map> get schema async {
     if (_schema != null) {
-      return _schema;
+      return _schema!;
     }
 
     var query = '''
@@ -283,7 +286,7 @@ class GraphQLService extends Service {
       throw SyncDataException('Can not get schema');
     }
 
-    return _schema;
+    return _schema!;
   }
 
   /// Get defined role permissions
@@ -317,7 +320,7 @@ class GraphQLService extends Service {
     }
   }
 
-  bool hasPermission(String role, String table, String checkedPermission) {
+  bool hasPermission(String role, String? table, String checkedPermission) {
     if (_rolePermissions == null) {
       return false;
     }
@@ -327,9 +330,9 @@ class GraphQLService extends Service {
       return true;
     }
 
-    for (var item in _rolePermissions) {
+    for (var item in _rolePermissions!) {
       if (StringUtils.equalsIgnoreCase(item['role'], role) &&
-          StringUtils.equalsIgnoreCase(item['table'], table) &&
+          StringUtils.equalsIgnoreCase(item['table'], table!) &&
           item['permission'] != null &&
           item['permission'].contains(checkedPermission)) {
         return true;
@@ -353,12 +356,12 @@ class GraphQLService extends Service {
   }
 
   /// List available fields from schema for graphql query
-  String _getFields(String table) {
-    if (_schema == null || !_schema.containsKey(table)) {
+  String _getFields(String? table) {
+    if (_schema == null || !_schema!.containsKey(table)) {
       return 'lastSynced\n id';
     }
 
-    var schemaData = _schema[table];
+    var schemaData = _schema![table];
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');

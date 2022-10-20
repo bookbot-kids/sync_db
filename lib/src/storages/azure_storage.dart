@@ -9,8 +9,8 @@ import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 
 class AzureStorage extends Storage {
-  AzureStorageTrustedClient _trustedClient;
-  AzureStorageUntrustedClient _untrustedClient;
+  late AzureStorageTrustedClient _trustedClient;
+  late AzureStorageUntrustedClient _untrustedClient;
   bool _isTrusted = false;
 
   /// If there is `storageConnectionString` in config, then it means this is trusted client with full permission on storage
@@ -48,8 +48,8 @@ class AzureStorage extends Storage {
 /// Azure Storage Client with full permission to storage account, using REST api
 /// https://docs.microsoft.com/en-us/rest/api/storageservices/
 class AzureStorageTrustedClient extends Storage {
-  Map<String, String> _config;
-  Uint8List _accountKey;
+  late Map<String?, String?> _config;
+  late Uint8List _accountKey;
 
   static final String DefaultEndpointsProtocol = 'DefaultEndpointsProtocol';
   static final String EndpointSuffix = 'EndpointSuffix';
@@ -62,7 +62,7 @@ class AzureStorageTrustedClient extends Storage {
   AzureStorageTrustedClient(Map config) : super(config) {
     final connection = config['storageConnectionString'];
     try {
-      var m = <String, String>{};
+      var m = <String?, String?>{};
       var items = connection.split(';');
       for (var item in items) {
         var i = item.indexOf('=');
@@ -71,7 +71,7 @@ class AzureStorageTrustedClient extends Storage {
         m[key] = val;
       }
       _config = m;
-      _accountKey = base64Decode(_config[AccountKey]);
+      _accountKey = base64Decode(_config[AccountKey]!);
     } catch (e) {
       throw Exception('Parse error.');
     }
@@ -79,8 +79,8 @@ class AzureStorageTrustedClient extends Storage {
 
   @override
   Future<void> readFromRemote(TransferMap transferMap) async {
-    var localFile = File(transferMap.localPath);
-    IOSink ios;
+    var localFile = File(transferMap.localPath!);
+    IOSink? ios;
     var hasError = false;
     try {
       // delete previous download file
@@ -94,7 +94,7 @@ class AzureStorageTrustedClient extends Storage {
         final bytes = await response.stream.toBytes();
         Sync.shared.logger?.i(
             'Download ${transferMap.remoteUrl} into ${transferMap.localPath} bytes size = ${bytes.length}');
-        ios?.add(bytes);
+        ios.add(bytes);
       } else if (response.statusCode == 404) {
         throw FileNotFoundException('404 error on ${transferMap.remotePath}');
       } else {
@@ -122,7 +122,7 @@ class AzureStorageTrustedClient extends Storage {
   @override
   Future<void> writeToRemote(TransferMap transferMap) async {
     try {
-      var localFile = File(transferMap.localPath);
+      var localFile = File(transferMap.localPath!);
       if (!localFile.existsSync()) {
         throw FileNotFoundException(
             'Local file ${transferMap.localPath} does not exist');
@@ -142,7 +142,7 @@ class AzureStorageTrustedClient extends Storage {
   }
 
   /// build uri from connection string
-  Uri _uri({String path = '/', Map<String, String> queryParameters}) {
+  Uri _uri({String? path = '/', Map<String, String>? queryParameters}) {
     var scheme = _config[DefaultEndpointsProtocol] ?? 'https';
     var suffix = _config[EndpointSuffix] ?? 'core.windows.net';
     var name = _config[AccountName];
@@ -200,7 +200,7 @@ class AzureStorageTrustedClient extends Storage {
   }
 
   /// Get Blob.
-  Future<http.StreamedResponse> getBlob(String path) async {
+  Future<http.StreamedResponse> getBlob(String? path) async {
     var request = http.Request('GET', _uri(path: path));
     request.headers[HttpHeaders.connectionHeader] = 'keep-alive';
     sign(request);
@@ -210,10 +210,10 @@ class AzureStorageTrustedClient extends Storage {
   /// Put Blob.
   ///
   /// `body` and `bodyBytes` are exclusive and mandatory.
-  Future<void> putBlob(String path,
-      {String body,
-      Uint8List bodyBytes,
-      String contentType,
+  Future<void> putBlob(String? path,
+      {String? body,
+      Uint8List? bodyBytes,
+      String? contentType,
       BlobType type = BlobType.BlockBlob}) async {
     var request = http.Request('PUT', _uri(path: path));
     request.headers['x-ms-blob-type'] =
@@ -249,8 +249,8 @@ class AzureStorageTrustedClient extends Storage {
   }
 
   /// Append block to blob.
-  Future<void> appendBlock(String path,
-      {String body, Uint8List bodyBytes}) async {
+  Future<void> appendBlock(String? path,
+      {String? body, Uint8List? bodyBytes}) async {
     var request = http.Request(
         'PUT', _uri(path: path, queryParameters: {'comp': 'appendblock'}));
     if (bodyBytes != null) {
@@ -274,19 +274,19 @@ class AzureStorageTrustedClient extends Storage {
 /// For download, it requires full public url of the file
 /// For upload, it uses SAS url from server api with format: https://{storageAccount}.blob.core.windows.net/{container}/{blob_path}?signature
 class AzureStorageUntrustedClient extends Storage {
-  HTTP http;
+  late HTTP http;
   AzureStorageUntrustedClient(Map config) : super(config) {
-    http = HTTP(null, config);
+    http = HTTP(null, config as Map<String, dynamic>);
   }
   @override
   Future<void> writeToRemote(TransferMap transferMap) async {
-    if (await Sync.shared.userSession.hasSignedIn() != true) {
+    if (await Sync.shared.userSession?.hasSignedIn() != true) {
       Sync.shared.logger?.i('Guest user does not have upload permission');
       return;
     }
 
-    final sasUri = await Sync.shared.userSession.storageToken;
-    if (sasUri?.isNotEmpty != true) {
+    final sasUri = await Sync.shared.userSession?.storageToken ?? '';
+    if (sasUri.isNotEmpty != true) {
       throw Exception('sas uri must not be null');
     }
 
@@ -294,7 +294,7 @@ class AzureStorageUntrustedClient extends Storage {
     final query = uri.query; // include signature
     final domain = sasUri.replaceFirst('?$query', '');
     final uploadPath = '$domain/${transferMap.remotePath}?$query';
-    var localFile = File(transferMap.localPath);
+    var localFile = File(transferMap.localPath!);
     http.headers = {
       'x-ms-blob-type': 'BlockBlob',
       HttpHeaders.contentLengthHeader: localFile.lengthSync(),

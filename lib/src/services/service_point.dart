@@ -1,67 +1,121 @@
+import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
+part 'service_point.g.dart';
 
 /// The ServicePoint class keeps a record of access and the timestamp of where to sync from
+@collection
 class ServicePoint extends Model {
-  ServicePoint({this.name, this.access});
+  ServicePoint({this.name = '', this.access = Access.read});
 
-  String name; // The table name
-  int from = 0; // From is the timestamp the sync point in time
-  String partition;
-  Access access;
-  String token;
+  String name = ''; // The table name
+  int? from = 0; // From is the timestamp the sync point in time
+  @enumerated
+  Access access = Access.read;
+  String? token;
 
+  @Ignore()
   @override
   SyncPermission get syncPermission => SyncPermission.read;
 
   @override
-  Map<String, dynamic> get map {
-    var map = super.map;
-    map['name'] = name;
-    map['from'] = from;
-    map['partition'] = partition;
-    map['access'] = access.name;
-    map['token'] = token;
-    return map;
-  }
-
-  @override
   String get tableName => 'ServicePoint';
 
-  @override
-  Future<void> setMap(Map<String, dynamic> map) async {
-    await super.setMap(map);
-    name = map['name'];
-    from = map['from'];
-    partition = map['partition'];
-    access = $Access.fromString(map['access']);
-    token = map['token'];
-  }
-
   static Future<List<ServicePoint>> all() async {
-    var all = await ServicePoint().database.all('ServicePoint', () {
-      return ServicePoint();
-    });
-
-    return List<ServicePoint>.from(all);
+    return ServicePoint().db.servicePoints.where().findAll();
   }
 
-  static Future<ServicePoint> find(String id) async =>
-      await ServicePoint().database.find('ServicePoint', id, ServicePoint());
-
-  static Query where(dynamic condition) {
-    return Query('ServicePoint').where(condition, ServicePoint().database, () {
-      return ServicePoint();
-    });
+  @override
+  Future<ServicePoint?> find(String? id, {bool filterDeletedAt = true}) async {
+    return filterDeletedAt
+        ? await ServicePoint()
+            .db
+            .servicePoints
+            .filter()
+            .idEqualTo(id)
+            .deletedAtIsNull()
+            .findFirst()
+        : await ServicePoint()
+            .db
+            .servicePoints
+            .filter()
+            .idEqualTo(id)
+            .findFirst();
   }
 
-  static Future<ServicePoint> searchBy(String name, {String partition}) async {
-    var partitionQuery = partition != null ? ' and partition = $partition' : '';
-    var list = List<ServicePoint>.from(
-        await where('name = $name${partitionQuery}').limit(1).load());
-    return list.isNotEmpty ? list.first : null;
+  static Future<List<ServicePoint>> listByName(String name) async {
+    return ServicePoint()
+        .db
+        .servicePoints
+        .filter()
+        .nameEqualTo(name)
+        .deletedAtIsNull()
+        .findAll();
   }
 
+  static Future<ServicePoint?> searchBy(String name,
+      {String? partition}) async {
+    var filter = ServicePoint().db.servicePoints.filter().nameEqualTo(name);
+    if (partition != null) {
+      filter = filter.partitionEqualTo(partition);
+    }
+
+    return filter.deletedAtIsNull().findFirst();
+  }
+
+  @Ignore()
   String get key => '$name-$partition';
+
+  @override
+  Future<void> deleteLocal() async {
+    if (id != null) {
+      await db.writeTxn(() async {
+        await db.servicePoints.delete(localId);
+      });
+    }
+  }
+
+  @override
+  Future<void> save({
+    bool syncToService = true,
+    bool runInTransaction = true,
+    bool initialize = true,
+  }) async {
+    final func = () async {
+      if (initialize) {
+        await init();
+      }
+      await db.servicePoints.put(this);
+    };
+
+    if (runInTransaction) {
+      return db.writeTxn(() async {
+        await func();
+      });
+    } else {
+      await func();
+    }
+  }
+
+  @override
+  Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
+      {bool filterDeletedAt = true}) async {
+    final result = filterDeletedAt
+        ? await db.servicePoints
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .deletedAtIsNull()
+            .findAll()
+        : await db.servicePoints
+            .filter()
+            .syncStatusEqualTo(syncStatus)
+            .findAll();
+    return result.cast();
+  }
+
+  @override
+  Future<void> clear() async {
+    await db.servicePoints.clear();
+  }
 }
 
 enum Access { all, read, write }
@@ -79,11 +133,11 @@ extension $Access on Access {
     'write': Access.write,
   };
 
-  String get name => $Access.string[this];
-  static Access fromString(String value) => $Access.toEnum[value];
+  String? get name => $Access.string[this];
+  static Access? fromString(String? value) => $Access.toEnum[value!];
 }
 
-enum SyncStatus { created, updated, synced }
+enum SyncStatus { created, updated, synced, none }
 
 extension $SyncStatus on SyncStatus {
   static final string = {
@@ -98,6 +152,6 @@ extension $SyncStatus on SyncStatus {
     'synced': SyncStatus.synced,
   };
 
-  String get name => $SyncStatus.string[this];
-  static SyncStatus fromString(String value) => $SyncStatus.toEnum[value];
+  String? get name => $SyncStatus.string[this];
+  static SyncStatus? fromString(String value) => $SyncStatus.toEnum[value];
 }

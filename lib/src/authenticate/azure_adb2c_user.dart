@@ -31,7 +31,7 @@ class AzureADB2CUserSession extends UserSession {
     _sharePrefInstance.then((prefs) {
       if (!prefs.containsKey(_userRoleKey) &&
           prefs.getString('user_role') != null) {
-        prefs.setString(_userRoleKey, prefs.getString('user_role'));
+        prefs.setString(_userRoleKey, prefs.getString('user_role')!);
         role = prefs.getString('user_role');
       } else {
         role = prefs.getString(_userRoleKey) ?? _defaultRole;
@@ -44,25 +44,25 @@ class AzureADB2CUserSession extends UserSession {
     }
   }
 
-  HTTP _http;
-  String _azureKey;
-  String _azureSecret;
-  String _azureSubject;
-  String _azureIssuer;
-  String _azureAudience;
+  late HTTP _http;
+  String? _azureKey;
+  late String _azureSecret;
+  String? _azureSubject;
+  String? _azureIssuer;
+  late String _azureAudience;
   DateTime _tokenExpiry = DateTime.utc(0);
-  Future<void> _refreshed;
-  List<String> _tablesToClearOnSignout;
+  Future<void>? _refreshed;
+  late List<String> _tablesToClearOnSignout;
   Notifier signoutNotifier = Notifier(Object());
   static const _defaultRole = 'guest';
   static const _refreshTokenKey = 'refreshToken';
   static const _storageUriKey = 'storageUri';
   static const _userRoleKey = 'userRole';
-  SharedPreferences _sharePref;
+  SharedPreferences? _sharePref;
   final _lock = Lock();
 
   @override
-  String role = _defaultRole;
+  String? role = _defaultRole;
 
   @override
   String get email => throw UnimplementedError();
@@ -100,7 +100,7 @@ class AzureADB2CUserSession extends UserSession {
     // migrate data from old keys
     if (!prefs.containsKey(_userRoleKey) &&
         prefs.getString('user_role') != null) {
-      await prefs.setString(_userRoleKey, prefs.getString('user_role'));
+      await prefs.setString(_userRoleKey, prefs.getString('user_role')!);
     }
 
     var refreshToken = prefs.getString(_refreshTokenKey);
@@ -127,21 +127,20 @@ class AzureADB2CUserSession extends UserSession {
           tableName = tableName.split('-shared')[0];
         }
 
-        await Sync.shared.local.initTable(tableName);
-
         final servicePoint = mappedServicePoints.putIfAbsent(
             tableName, () => ServicePoint(name: tableName));
         servicePoint.id = permission['id'];
         servicePoint.partition = permission['resourcePartitionKey'].first;
         servicePoint.token = permission['_token'];
         servicePoint.access =
-            $Access.fromString(permission['permissionMode'].toLowerCase());
-        await servicePoint.save();
+            $Access.fromString(permission['permissionMode'].toLowerCase()) ??
+                Access.read;
+        await servicePoint.save(syncToService: false);
       }
 
       // set role along with the resource tokens
       role = response['group'];
-      await prefs.setString(_userRoleKey, role);
+      await prefs.setString(_userRoleKey, role!);
       refreshToken = (response['refreshToken'] != null)
           ? response['refreshToken']
           : refreshToken;
@@ -181,8 +180,7 @@ class AzureADB2CUserSession extends UserSession {
   Future<List<ServicePoint>> servicePointsForTable(String table) async {
     Sync.shared.logger?.i('servicePointsForTable $table');
     await _refreshIfExpired();
-    return List<ServicePoint>.from(
-        await ServicePoint.where('name = $table').load());
+    return await ServicePoint.listByName(table);
   }
 
   // check to refresh the refresh token
@@ -219,12 +217,11 @@ class AzureADB2CUserSession extends UserSession {
     role = 'guest';
 
     for (final table in _tablesToClearOnSignout) {
-      final servicePoints = await ServicePoint.where('name = $table').load();
+      final servicePoints = await ServicePoint.listByName(table);
       for (final servicePoint in servicePoints) {
-        await servicePoint.database
-            .deleteLocal(servicePoint.tableName, servicePoint.id);
+        await servicePoint.deleteLocal();
       }
-      await Sync.shared.local.clearTable(table);
+      await Sync.shared.db.modelHandlers[table]?.clear();
     }
 
     _refreshed = refresh();
@@ -234,7 +231,7 @@ class AzureADB2CUserSession extends UserSession {
   }
 
   @override
-  Future<String> get storageToken async {
+  Future<String?> get storageToken async {
     await _refreshStorageIfExpired();
     return (await _sharePrefInstance).getString(_storageUriKey);
   }
@@ -273,9 +270,9 @@ class AzureADB2CUserSession extends UserSession {
     }
   }
 
-  Future<Map<String, ServicePoint>> _mappedServicePoints() async {
+  Future<Map<String?, ServicePoint>> _mappedServicePoints() async {
     final servicePoints = await ServicePoint.all();
-    final map = <String, ServicePoint>{};
+    final map = <String?, ServicePoint>{};
     for (final servicePoint in servicePoints) {
       map[servicePoint.name] = servicePoint;
     }
@@ -295,7 +292,7 @@ class AzureADB2CUserSession extends UserSession {
       final uri = Uri.parse(storageUri);
 
       // then check for expiration
-      final expired = uri.queryParameters['se'];
+      final expired = uri.queryParameters['se']!;
       final expiredDate = DateTime.parse(expired);
       final now = await NetworkTime.shared.now;
       // The token is expired in 24 hours, but we just check 23 hours because of uploading time
@@ -311,10 +308,8 @@ class AzureADB2CUserSession extends UserSession {
     var refreshToken = prefs.getString(_refreshTokenKey);
     if (refreshToken != null) {
       try {
-        final response = await _http.get('/GetStorageToken', parameters: {
-          'refresh_token': refreshToken ?? '',
-          'code': _azureKey
-        });
+        final response = await _http.get('/GetStorageToken',
+            parameters: {'refresh_token': refreshToken, 'code': _azureKey});
         final uri = response['uri'];
         await prefs.setString(_storageUriKey, uri);
       } catch (e, stackTrace) {
@@ -328,10 +323,10 @@ class AzureADB2CUserSession extends UserSession {
 
   Future<SharedPreferences> get _sharePrefInstance async {
     _sharePref ??= await SharedPreferences.getInstance();
-    return _sharePref;
+    return _sharePref!;
   }
 
   @override
-  Future<String> get token async =>
+  Future<String?> get token async =>
       (await _sharePrefInstance).getString(_refreshTokenKey);
 }
