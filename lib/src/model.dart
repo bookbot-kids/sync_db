@@ -21,6 +21,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   Id localId = Isar.autoIncrement;
   DateTime? createdAt;
   DateTime? deletedAt;
+  @Index(unique: true, replace: true)
   String? id;
   DateTime? updatedAt;
   String metadata = '';
