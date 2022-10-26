@@ -222,7 +222,8 @@ class CosmosService extends Service {
 
   /// Cosmos api to create document
   Future<Map<String, dynamic>?> _createDocument(
-      ServicePoint servicePoint, Map record) async {
+      ServicePoint servicePoint, Map record,
+      {bool retryUpdate = true}) async {
     if (!await connectivity()) {
       throw ConnectivityException(
           'Create cosmos $record document failed because there is no connection');
@@ -261,7 +262,7 @@ class CosmosService extends Service {
             'Create cosmos document $record failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
             e,
             stackTrace);
-        if (e.statusCode == 409) {
+        if (e.statusCode == 409 && retryUpdate) {
           // Strange that this has happened. Record is already created. Log it and try an update.
           return await (_updateDocument(servicePoint, record));
         } else {
@@ -328,9 +329,10 @@ class CosmosService extends Service {
             'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
             e,
             stackTrace);
-        if (e.statusCode == 409) {
-          // Strange that this has happened. Record does not exist. Log it and try an update
-          return await _createDocument(servicePoint, record);
+        if (e.statusCode == 409 || e.statusCode == 404) {
+          // Strange that this has happened. Record does not exist. Log it and try to create
+          return await _createDocument(servicePoint, record,
+              retryUpdate: false);
         } else {
           rethrow;
         }
@@ -388,9 +390,10 @@ class CosmosService extends Service {
             'Update partial Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
             e,
             stackTrace);
-        if (e.statusCode == 409) {
-          // Strange that this has happened. Record does not exist. Log it and try an update
-          return await _createDocument(servicePoint, record);
+        if (e.statusCode == 409 || e.statusCode == 404) {
+          // Strange that this has happened. Record does not exist. Log it and try to create
+          return await _createDocument(servicePoint, record,
+              retryUpdate: false);
         } else {
           rethrow;
         }
