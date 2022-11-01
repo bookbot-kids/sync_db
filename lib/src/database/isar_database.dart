@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:isar/isar.dart';
 import 'package:path/path.dart';
@@ -145,5 +147,34 @@ class IsarDatabase {
         Sync.shared.logger?.i('save done $tableName ${entry.id}');
       }
     });
+  }
+
+  Future<void> copySnapShotTables(
+      List<String> tableNames, String dbAssetPath) async {
+    if (UniversalPlatform.isWeb || dbAssetPath.isNotEmpty != true) {
+      return;
+    }
+    // get document directory
+    final documentPath = await getApplicationSupportDirectory();
+    await documentPath.create(recursive: true);
+    final dir = documentPath.path;
+
+    final futures = <Future>[];
+    for (final tableName in tableNames) {
+      final fileName = '${tableName}.db';
+      final targetPath = dir.isEmpty ? fileName : join(dir, fileName);
+      final tableAssetPath = '$dbAssetPath$fileName';
+      // copy asset to file dir
+      final assetContent = await rootBundle.load(tableAssetPath);
+      final targetFile = File(targetPath);
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+      final bytes = assetContent.buffer.asUint8List(
+          assetContent.offsetInBytes, assetContent.lengthInBytes);
+      await targetFile.writeAsBytes(bytes);
+      futures.add(copySnapshotTable(targetFile, tableName));
+    }
+    await Future.wait(futures);
   }
 }
