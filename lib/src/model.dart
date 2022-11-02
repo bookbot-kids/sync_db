@@ -244,7 +244,8 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> exportJson() async {
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) async {
     return [];
   }
 

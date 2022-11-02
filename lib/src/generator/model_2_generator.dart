@@ -312,8 +312,15 @@ class Model2Generator extends Generator {
       }
 
        /// Export all data into json
-      Future<List<Map<String, dynamic>>> exportJson() async {
-        return Sync.shared.db.local.$collectionName.where().exportJson();
+      Future<List<Map<String, dynamic>>> exportJson(
+        {Function(Uint8List)? callback}) async {
+        final where = Sync.shared.db.local.$collectionName.where();
+        if (callback != null) {
+          await where.exportJsonRaw(callback);
+          return [];
+        }
+
+        return where.exportJson();
       }
 
       /// Import json into this collection

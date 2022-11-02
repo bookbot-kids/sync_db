@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
 
@@ -19,6 +21,7 @@ abstract class ModelHandler {
       {bool filterDeletedAt = true});
   Future<Model?> find(String? id, {bool filterDeletedAt = true});
   Future<void> clear();
-  Future<List<Map<String, dynamic>>> exportJson();
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback});
   Future<void> importJson(dynamic jsonData);
 }
