@@ -310,6 +310,22 @@ class Model2Generator extends Generator {
         }
         return list.toSet();
       }
+
+       /// Export all data into json
+      Future<List<Map<String, dynamic>>> exportJson() async {
+        return Sync.shared.db.local.$collectionName.where().exportJson();
+      }
+
+      /// Import json into this collection
+      Future<void> importJson(dynamic jsonData) async {
+        if (jsonData is Uint8List) {
+          await Sync.shared.db.local.$collectionName.importJsonRaw(jsonData);
+        } else if (jsonData is List<Map<String, dynamic>>) {
+          await Sync.shared.db.local.$collectionName.importJson(jsonData);
+        } else {
+          throw UnsupportedError('Json type is not supported');
+        }
+      }
 ''';
 
     if (element.isAbstract) {

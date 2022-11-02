@@ -242,4 +242,12 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   bool fieldEqual(dynamic a, dynamic b) {
     return jsonEncode(a) == jsonEncode(b);
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> exportJson() async {
+    return [];
+  }
+
+  @override
+  Future<void> importJson(dynamic jsonData) async {}
 }

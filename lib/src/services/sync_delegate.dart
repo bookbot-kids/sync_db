@@ -19,4 +19,6 @@ abstract class ModelHandler {
       {bool filterDeletedAt = true});
   Future<Model?> find(String? id, {bool filterDeletedAt = true});
   Future<void> clear();
+  Future<List<Map<String, dynamic>>> exportJson();
+  Future<void> importJson(dynamic jsonData);
 }

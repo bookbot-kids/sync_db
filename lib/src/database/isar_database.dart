@@ -17,6 +17,8 @@ import 'package:universal_io/io.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'package:sembast/sembast.dart' as sembast;
 
+enum DBImportType { sembast, isar }
+
 class IsarDatabase {
   static const appVersionKey = 'app_version';
   Map<String, ModelHandler> modelHandlers = {};
@@ -29,6 +31,7 @@ class IsarDatabase {
     String dbAssetPath = 'assets/db',
     String? version,
     List<String>? manifest,
+    DBImportType dbImportType = DBImportType.sembast,
   }) async {
     models[ServicePointSchema] = () => ServicePoint();
     models[TransferMapSchema] = () => TransferMap();
@@ -83,16 +86,25 @@ class IsarDatabase {
 
           // copy asset to file dir
           final assetContent = await rootBundle.load(asset);
-          final targetFile = File(targetPath);
-          if (await targetFile.exists()) {
-            await targetFile.delete();
-          }
-          final bytes = assetContent.buffer.asUint8List(
-              assetContent.offsetInBytes, assetContent.lengthInBytes);
-          await targetFile.writeAsBytes(bytes);
+          final tableName = basenameWithoutExtension(asset);
 
-          futures.add(
-              copySnapshotTable(targetFile, basenameWithoutExtension(asset)));
+          switch (dbImportType) {
+            case DBImportType.sembast:
+              final targetFile = File(targetPath);
+              if (await targetFile.exists()) {
+                await targetFile.delete();
+              }
+              final bytes = assetContent.buffer.asUint8List(
+                  assetContent.offsetInBytes, assetContent.lengthInBytes);
+              await targetFile.writeAsBytes(bytes);
+
+              futures.add(copySnapshotTable(targetFile, tableName));
+              break;
+            case DBImportType.isar:
+              futures.add(importJsonSnapshotTable(
+                  assetContent.buffer.asUint8List(), tableName));
+              break;
+          }
         }
       }
 
@@ -106,6 +118,23 @@ class IsarDatabase {
     local.close(deleteFromDisk: deleteFromDisk);
   }
 
+  /// Import isar json
+  Future<void> importJsonSnapshotTable(
+      Uint8List jsonData, String tableName) async {
+    final modelHandler = modelInstances[tableName];
+    if (modelHandler == null) {
+      print('model handler $tableName not exist');
+      return;
+    }
+
+    await local.writeTxn(() async {
+      await modelHandler.call().clear();
+      Sync.shared.logger?.i('Clear table $tableName');
+      final entry = modelHandler.call();
+      await entry.importJson(jsonData);
+    });
+  }
+
   // Copy sembast database into isar
   Future<void> migrateTableData(String tableName) async {
     final documentPath = await getApplicationSupportDirectory();
@@ -117,7 +146,7 @@ class IsarDatabase {
     }
   }
 
-// Copy snapshot sembast database into isar
+  // Copy snapshot sembast database into isar
   Future<void> copySnapshotTable(File targetFile, String tableName) async {
     final db = await databaseFactoryIo.openDatabase(targetFile.path);
     final store = sembast.StoreRef.main();
