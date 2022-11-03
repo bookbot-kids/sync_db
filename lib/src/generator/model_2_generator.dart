@@ -166,9 +166,9 @@ class Model2Generator extends Generator {
         keys.add('$name');
         ''');
         } else {
-          final filter = isNullableType ? '' : '?.whereType<$listType>()';
+          final filter = isNullableType ? '' : '?.whereNotNull()';
           setterFields.add('''
-        ${name} = Set<$listType>.from(map['${name}']$filter ?? <$listType>[]).toList();
+        ${name} = Set<$listType>.from((map['${name}'] as List?)$filter ?? <$listType>[]).toList();
         keys.add('$name');
         ''');
         }
