@@ -24,11 +24,9 @@ class IsarDatabase {
   static const appVersionKey = 'app_version';
   Map<String, ModelHandler> modelHandlers = {};
   Map<String, Model Function()> modelInstances = {};
+  late Isar local;
   bool _isInitialized = false;
-  static final Lock? _lock = Lock();
-
-  static Isar? _isarInstance;
-  Isar get local => _isarInstance!;
+  static final _lock = Lock();
 
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
@@ -50,14 +48,11 @@ class IsarDatabase {
     }
 
     if (!_isInitialized) {
-      await _lock?.synchronized(() async {
-        if (_isarInstance == null) {
-          final isar = await Isar.open(
-            models.keys.toList(),
-            directory: dir,
-          );
-          _isarInstance = isar;
-        }
+      await _lock.synchronized(() async {
+        local = Isar.getInstance() ?? await Isar.open(
+          models.keys.toList(),
+          directory: dir,
+        );
         _isInitialized = true;
       });
     }
