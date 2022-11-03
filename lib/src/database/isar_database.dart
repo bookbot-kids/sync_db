@@ -13,6 +13,7 @@ import 'package:sync_db/src/services/service_record.dart';
 import 'package:sync_db/src/services/sync_delegate.dart';
 import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/sync_db.dart';
+import 'package:synchronized/synchronized.dart';
 import 'package:universal_io/io.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'package:sembast/sembast.dart' as sembast;
@@ -25,6 +26,7 @@ class IsarDatabase {
   Map<String, Model Function()> modelInstances = {};
   late Isar local;
   bool _isInitialized = false;
+  final _lock = Lock();
 
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
@@ -46,13 +48,14 @@ class IsarDatabase {
     }
 
     if (!_isInitialized) {
-      final isar = await Isar.open(
-        models.keys.toList(),
-        directory: dir,
-      );
-
-      local = isar;
-      _isInitialized = true;
+      await _lock.synchronized(() async {
+        final isar = await Isar.open(
+          models.keys.toList(),
+          directory: dir,
+        );
+        local = isar;
+        _isInitialized = true;
+      });
     }
 
     modelHandlers = {for (var v in models.values) v().tableName: v()};
@@ -139,7 +142,7 @@ class IsarDatabase {
   Future<void> migrateTableData(String tableName) async {
     final documentPath = await getApplicationSupportDirectory();
     await documentPath.create(recursive: true);
-    final targetFile = File(join(documentPath.path, tableName));
+    final targetFile = File(join(documentPath.path, '$tableName.db'));
     if (await targetFile.exists()) {
       await copySnapshotTable(targetFile, tableName);
       await targetFile.delete();
