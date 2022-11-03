@@ -158,6 +158,7 @@ class Model2Generator extends Generator {
         final regex = RegExp('<[a-zA-Z0-9]*>');
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
         final listType = match.replaceAll('<', '').replaceAll('>', '');
+        final isNullableType = listType.contains('?');
         getterFields.add("map['${name}'] = ${name}.toSet().toList();");
         if (listType == 'double') {
           setterFields.add('''
@@ -165,8 +166,9 @@ class Model2Generator extends Generator {
         keys.add('$name');
         ''');
         } else {
+          final filter = isNullableType ? '' : '?.whereType<$listType>()';
           setterFields.add('''
-        ${name} = Set<$listType>.from(map['${name}'] ?? <$listType>[]).toList();
+        ${name} = Set<$listType>.from(map['${name}']$filter ?? <$listType>[]).toList();
         keys.add('$name');
         ''');
         }
@@ -175,6 +177,7 @@ class Model2Generator extends Generator {
         final regex = RegExp('<[a-zA-Z0-9]*>');
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
         final listType = match.replaceAll('<', '').replaceAll('>', '');
+        final isNullableType = listType.contains('?');
         getterFields.add("map['${name}'] = ${name};");
         if (listType == 'double') {
           setterFields.add('''
@@ -182,8 +185,9 @@ class Model2Generator extends Generator {
         keys.add('$name');
         ''');
         } else {
+          final filter = isNullableType ? '' : '?.whereType<$listType>()';
           setterFields.add('''
-        ${name} = List<$listType>.from(map['${name}'] ?? <$listType>[]);
+        ${name} = List<$listType>.from(map['${name}']$filter ?? <$listType>[]);
         keys.add('$name');
         ''');
         }
