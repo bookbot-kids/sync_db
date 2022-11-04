@@ -191,7 +191,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   /// e.g. {'default': Paths(localPath: '/path/123.txt',
   /// remotePath: '/remote/path/123.txt', remoteUrl: 'htts://storage.azure.com/bucket/file.txt')}
   Map<String, Paths> filePaths() {
-    return {};
+    return Sync.shared.storage?.pathDelegate?.call(this, tableName) ?? {};
   }
 
   /// For the purpose of keeping track of where the associated files are

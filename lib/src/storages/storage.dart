@@ -1,7 +1,6 @@
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
-import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/utils/file_utils.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:pool/pool.dart';
@@ -29,6 +28,7 @@ class Storage {
   var _delayedPool = Pool(8);
   var _initRetryTime = 1;
   late Map _config;
+  Map<String, Paths> Function(Model model, String tableName)? pathDelegate;
 
   /// Whether to retry when the path is 404
   var _retryWhenNotFound = true;
