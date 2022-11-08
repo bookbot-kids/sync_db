@@ -226,7 +226,7 @@ class Model2Generator extends Generator {
           }
 
           if (syncToService && syncStatus == SyncStatus.updated) {
-              final other = await find(id, filterDeletedAt: true);
+              final other = await find(id, filterDeletedAt: false);
               if (other != null) {
                 final diff = compare(other);
                 if (diff.isNotEmpty) {
