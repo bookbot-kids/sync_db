@@ -87,6 +87,11 @@ class Model2Generator extends Generator {
     final setterFields = [];
 
     final comparisonFields = [];
+    comparisonFields.add('''
+if (deletedAt != other.deletedAt) {
+      result.add('deletedAt');
+}
+''');
 
     // loop through fields
     for (var field in element.fields) {

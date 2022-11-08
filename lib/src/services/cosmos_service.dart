@@ -74,7 +74,8 @@ class CosmosService extends Service {
       return;
     }
 
-    final createdRecords = await handler.queryStatus(SyncStatus.created);
+    final createdRecords =
+        await handler.queryStatus(SyncStatus.created, filterDeletedAt: false);
     for (final record in createdRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
       if (record.partition != null &&
@@ -97,7 +98,8 @@ class CosmosService extends Service {
       }));
     }
 
-    final updatedRecords = await handler.queryStatus(SyncStatus.updated);
+    final updatedRecords =
+        await handler.queryStatus(SyncStatus.updated, filterDeletedAt: false);
     for (final record in updatedRecords) {
       // If record has a partion and it doesn't match service point partition, then skip
       if (record.partition != null &&
