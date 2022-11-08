@@ -127,10 +127,23 @@ class CosmosService extends Service {
               'value': recordMap[field],
             });
           }
-          final updatedRecord = await _partialUpdateDocument(
-              servicePoint, {'operations': operations}, recordMap);
-          if (updatedRecord != null) {
-            await updateRecordStatus(servicePoint, updatedRecord);
+
+          // paging operations (limit = 10)
+          final size = operations.length;
+          const maxPage = 9;
+          var shouldDeleteServiceRecord = false;
+          for (var i = 0; i < size; i += maxPage) {
+            final pack = operations.sublist(
+                i, (i + maxPage) > size ? size : (i + maxPage));
+            final updatedRecord = await _partialUpdateDocument(
+                servicePoint, {'operations': pack}, recordMap);
+            if (updatedRecord != null) {
+              await updateRecordStatus(servicePoint, updatedRecord);
+              shouldDeleteServiceRecord = true;
+            }
+          }
+
+          if (shouldDeleteServiceRecord) {
             await serviceRecord.deleteLocal();
           }
         } else {
