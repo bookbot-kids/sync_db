@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:enum_to_string/enum_to_string.dart';
 import 'package:equatable/equatable.dart';
 import 'package:isar/isar.dart';

@@ -152,13 +152,27 @@ const ProgressSchema = CollectionSchema(
   deserialize: _progressDeserialize,
   deserializeProp: _progressDeserializeProp,
   idName: r'localId',
-  indexes: {},
+  indexes: {
+    r'id': IndexSchema(
+      id: -3268401673993471357,
+      name: r'id',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'id',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {r'ProgressCorrectWords': ProgressCorrectWordsSchema},
   getId: _progressGetId,
   getLinks: _progressGetLinks,
   attach: _progressAttach,
-  version: '3.0.2',
+  version: '3.0.3',
 );
 
 int _progressEstimateSize(
@@ -427,6 +441,60 @@ void _progressAttach(IsarCollection<dynamic> col, Id id, Progress object) {
   object.localId = id;
 }
 
+extension ProgressByIndex on IsarCollection<Progress> {
+  Future<Progress?> getById(String? id) {
+    return getByIndex(r'id', [id]);
+  }
+
+  Progress? getByIdSync(String? id) {
+    return getByIndexSync(r'id', [id]);
+  }
+
+  Future<bool> deleteById(String? id) {
+    return deleteByIndex(r'id', [id]);
+  }
+
+  bool deleteByIdSync(String? id) {
+    return deleteByIndexSync(r'id', [id]);
+  }
+
+  Future<List<Progress?>> getAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndex(r'id', values);
+  }
+
+  List<Progress?> getAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'id', values);
+  }
+
+  Future<int> deleteAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'id', values);
+  }
+
+  int deleteAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'id', values);
+  }
+
+  Future<Id> putById(Progress object) {
+    return putByIndex(r'id', object);
+  }
+
+  Id putByIdSync(Progress object, {bool saveLinks = true}) {
+    return putByIndexSync(r'id', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllById(List<Progress> objects) {
+    return putAllByIndex(r'id', objects);
+  }
+
+  List<Id> putAllByIdSync(List<Progress> objects, {bool saveLinks = true}) {
+    return putAllByIndexSync(r'id', objects, saveLinks: saveLinks);
+  }
+}
+
 extension ProgressQueryWhereSort on QueryBuilder<Progress, Progress, QWhere> {
   QueryBuilder<Progress, Progress, QAfterWhere> anyLocalId() {
     return QueryBuilder.apply(this, (query) {
@@ -502,6 +570,69 @@ extension ProgressQueryWhere on QueryBuilder<Progress, Progress, QWhereClause> {
         upper: upperLocalId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterWhereClause> idIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterWhereClause> idIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'id',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterWhereClause> idEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [id],
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterWhereClause> idNotEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }
@@ -4121,7 +4252,8 @@ extension $Progress on Progress {
         map['progress']?.map((e) => e.toDouble()).toList() ?? <double>[]);
     keys.add('progress');
 
-    correct = List<bool>.from(map['correct'] ?? <bool>[]);
+    correct =
+        List<bool>.from((map['correct'] as List?)?.whereNotNull() ?? <bool>[]);
     keys.add('correct');
 
     if (map['fluency'] != null) {
@@ -4148,7 +4280,8 @@ extension $Progress on Progress {
     if (map['completedAt'] != null) completedAt = map['completedAt'];
     keys.add('completedAt');
 
-    markers = List<String>.from(map['markers'] ?? <String>[]);
+    markers = List<String>.from(
+        (map['markers'] as List?)?.whereNotNull() ?? <String>[]);
     keys.add('markers');
 
     return keys;
@@ -4165,7 +4298,7 @@ extension $Progress on Progress {
       }
 
       if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id);
+        final other = await find(id, filterDeletedAt: false);
         if (other != null) {
           final diff = compare(other);
           if (diff.isNotEmpty) {
@@ -4244,6 +4377,10 @@ extension $Progress on Progress {
 
   Set<String> compare(Progress other) {
     final result = <String>{};
+    if (deletedAt != other.deletedAt) {
+      result.add('deletedAt');
+    }
+
     if (profileId != other.profileId) {
       result.add('profileId');
     }
@@ -4319,6 +4456,29 @@ extension $Progress on Progress {
       }
     }
     return list.toSet();
+  }
+
+  /// Export all data into json
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) async {
+    final where = Sync.shared.db.local.progress.where();
+    if (callback != null) {
+      await where.exportJsonRaw(callback);
+      return [];
+    }
+
+    return where.exportJson();
+  }
+
+  /// Import json into this collection
+  Future<void> importJson(dynamic jsonData) async {
+    if (jsonData is Uint8List) {
+      await Sync.shared.db.local.progress.importJsonRaw(jsonData);
+    } else if (jsonData is List<Map<String, dynamic>>) {
+      await Sync.shared.db.local.progress.importJson(jsonData);
+    } else {
+      throw UnsupportedError('Json type is not supported');
+    }
   }
 }
 

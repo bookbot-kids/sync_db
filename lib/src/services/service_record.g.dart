@@ -74,13 +74,27 @@ const ServiceRecordSchema = CollectionSchema(
   deserialize: _serviceRecordDeserialize,
   deserializeProp: _serviceRecordDeserializeProp,
   idName: r'localId',
-  indexes: {},
+  indexes: {
+    r'id': IndexSchema(
+      id: -3268401673993471357,
+      name: r'id',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'id',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _serviceRecordGetId,
   getLinks: _serviceRecordGetLinks,
   attach: _serviceRecordAttach,
-  version: '3.0.2',
+  version: '3.0.3',
 );
 
 int _serviceRecordEstimateSize(
@@ -213,6 +227,61 @@ void _serviceRecordAttach(
   object.localId = id;
 }
 
+extension ServiceRecordByIndex on IsarCollection<ServiceRecord> {
+  Future<ServiceRecord?> getById(String? id) {
+    return getByIndex(r'id', [id]);
+  }
+
+  ServiceRecord? getByIdSync(String? id) {
+    return getByIndexSync(r'id', [id]);
+  }
+
+  Future<bool> deleteById(String? id) {
+    return deleteByIndex(r'id', [id]);
+  }
+
+  bool deleteByIdSync(String? id) {
+    return deleteByIndexSync(r'id', [id]);
+  }
+
+  Future<List<ServiceRecord?>> getAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndex(r'id', values);
+  }
+
+  List<ServiceRecord?> getAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'id', values);
+  }
+
+  Future<int> deleteAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'id', values);
+  }
+
+  int deleteAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'id', values);
+  }
+
+  Future<Id> putById(ServiceRecord object) {
+    return putByIndex(r'id', object);
+  }
+
+  Id putByIdSync(ServiceRecord object, {bool saveLinks = true}) {
+    return putByIndexSync(r'id', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllById(List<ServiceRecord> objects) {
+    return putAllByIndex(r'id', objects);
+  }
+
+  List<Id> putAllByIdSync(List<ServiceRecord> objects,
+      {bool saveLinks = true}) {
+    return putAllByIndexSync(r'id', objects, saveLinks: saveLinks);
+  }
+}
+
 extension ServiceRecordQueryWhereSort
     on QueryBuilder<ServiceRecord, ServiceRecord, QWhere> {
   QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhere> anyLocalId() {
@@ -289,6 +358,71 @@ extension ServiceRecordQueryWhere
         upper: upperLocalId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> idIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> idIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'id',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> idEqualTo(
+      String? id) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [id],
+      ));
+    });
+  }
+
+  QueryBuilder<ServiceRecord, ServiceRecord, QAfterWhereClause> idNotEqualTo(
+      String? id) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }

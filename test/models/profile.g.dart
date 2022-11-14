@@ -171,7 +171,21 @@ const ProfileSchema = CollectionSchema(
   deserialize: _profileDeserialize,
   deserializeProp: _profileDeserializeProp,
   idName: r'localId',
-  indexes: {},
+  indexes: {
+    r'id': IndexSchema(
+      id: -3268401673993471357,
+      name: r'id',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'id',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {
     r'ProfileProgress': ProfileProgressSchema,
@@ -183,7 +197,7 @@ const ProfileSchema = CollectionSchema(
   getId: _profileGetId,
   getLinks: _profileGetLinks,
   attach: _profileAttach,
-  version: '3.0.2',
+  version: '3.0.3',
 );
 
 int _profileEstimateSize(
@@ -568,6 +582,60 @@ void _profileAttach(IsarCollection<dynamic> col, Id id, Profile object) {
   object.localId = id;
 }
 
+extension ProfileByIndex on IsarCollection<Profile> {
+  Future<Profile?> getById(String? id) {
+    return getByIndex(r'id', [id]);
+  }
+
+  Profile? getByIdSync(String? id) {
+    return getByIndexSync(r'id', [id]);
+  }
+
+  Future<bool> deleteById(String? id) {
+    return deleteByIndex(r'id', [id]);
+  }
+
+  bool deleteByIdSync(String? id) {
+    return deleteByIndexSync(r'id', [id]);
+  }
+
+  Future<List<Profile?>> getAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndex(r'id', values);
+  }
+
+  List<Profile?> getAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'id', values);
+  }
+
+  Future<int> deleteAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'id', values);
+  }
+
+  int deleteAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'id', values);
+  }
+
+  Future<Id> putById(Profile object) {
+    return putByIndex(r'id', object);
+  }
+
+  Id putByIdSync(Profile object, {bool saveLinks = true}) {
+    return putByIndexSync(r'id', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllById(List<Profile> objects) {
+    return putAllByIndex(r'id', objects);
+  }
+
+  List<Id> putAllByIdSync(List<Profile> objects, {bool saveLinks = true}) {
+    return putAllByIndexSync(r'id', objects, saveLinks: saveLinks);
+  }
+}
+
 extension ProfileQueryWhereSort on QueryBuilder<Profile, Profile, QWhere> {
   QueryBuilder<Profile, Profile, QAfterWhere> anyLocalId() {
     return QueryBuilder.apply(this, (query) {
@@ -641,6 +709,69 @@ extension ProfileQueryWhere on QueryBuilder<Profile, Profile, QWhereClause> {
         upper: upperLocalId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterWhereClause> idIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterWhereClause> idIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'id',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterWhereClause> idEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [id],
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterWhereClause> idNotEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }
@@ -6891,7 +7022,8 @@ extension $Profile on Profile {
     if (map['dob'] != null) dob = map['dob'];
     keys.add('dob');
 
-    about = List<String>.from(map['about'] ?? <String>[]);
+    about = List<String>.from(
+        (map['about'] as List?)?.whereNotNull() ?? <String>[]);
     keys.add('about');
 
     if (map['onboarding'] != null) {
@@ -6912,11 +7044,14 @@ extension $Profile on Profile {
     if (map['lastRead'] != null) lastRead = map['lastRead'];
     keys.add('lastRead');
 
-    favourites = Set<String>.from(map['favourites'] ?? <String>[]).toList();
+    favourites = Set<String>.from(
+            (map['favourites'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
     keys.add('favourites');
 
-    completedBooks =
-        Set<String>.from(map['completedBooks'] ?? <String>[]).toList();
+    completedBooks = Set<String>.from(
+            (map['completedBooks'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
     keys.add('completedBooks');
 
     if (map['email'] != null) email = map['email'];
@@ -6934,10 +7069,14 @@ extension $Profile on Profile {
     }
     keys.add('inviteStatus');
 
-    classesIds = Set<String>.from(map['classesIds'] ?? <String>[]).toList();
+    classesIds = Set<String>.from(
+            (map['classesIds'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
     keys.add('classesIds');
 
-    teacherIds = Set<String>.from(map['teacherIds'] ?? <String>[]).toList();
+    teacherIds = Set<String>.from(
+            (map['teacherIds'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
     keys.add('teacherIds');
 
     return keys;
@@ -6954,7 +7093,7 @@ extension $Profile on Profile {
       }
 
       if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id);
+        final other = await find(id, filterDeletedAt: false);
         if (other != null) {
           final diff = compare(other);
           if (diff.isNotEmpty) {
@@ -7033,6 +7172,10 @@ extension $Profile on Profile {
 
   Set<String> compare(Profile other) {
     final result = <String>{};
+    if (deletedAt != other.deletedAt) {
+      result.add('deletedAt');
+    }
+
     if (name != other.name) {
       result.add('name');
     }
@@ -7121,6 +7264,29 @@ extension $Profile on Profile {
       }
     }
     return list.toSet();
+  }
+
+  /// Export all data into json
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) async {
+    final where = Sync.shared.db.local.profiles.where();
+    if (callback != null) {
+      await where.exportJsonRaw(callback);
+      return [];
+    }
+
+    return where.exportJson();
+  }
+
+  /// Import json into this collection
+  Future<void> importJson(dynamic jsonData) async {
+    if (jsonData is Uint8List) {
+      await Sync.shared.db.local.profiles.importJsonRaw(jsonData);
+    } else if (jsonData is List<Map<String, dynamic>>) {
+      await Sync.shared.db.local.profiles.importJson(jsonData);
+    } else {
+      throw UnsupportedError('Json type is not supported');
+    }
   }
 }
 

@@ -86,7 +86,21 @@ const EventSchema = CollectionSchema(
   deserialize: _eventDeserialize,
   deserializeProp: _eventDeserializeProp,
   idName: r'localId',
-  indexes: {},
+  indexes: {
+    r'id': IndexSchema(
+      id: -3268401673993471357,
+      name: r'id',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'id',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {
     r'EventData': EventDataSchema,
@@ -95,7 +109,7 @@ const EventSchema = CollectionSchema(
   getId: _eventGetId,
   getLinks: _eventGetLinks,
   attach: _eventAttach,
-  version: '3.0.2',
+  version: '3.0.3',
 );
 
 int _eventEstimateSize(
@@ -278,6 +292,60 @@ void _eventAttach(IsarCollection<dynamic> col, Id id, Event object) {
   object.localId = id;
 }
 
+extension EventByIndex on IsarCollection<Event> {
+  Future<Event?> getById(String? id) {
+    return getByIndex(r'id', [id]);
+  }
+
+  Event? getByIdSync(String? id) {
+    return getByIndexSync(r'id', [id]);
+  }
+
+  Future<bool> deleteById(String? id) {
+    return deleteByIndex(r'id', [id]);
+  }
+
+  bool deleteByIdSync(String? id) {
+    return deleteByIndexSync(r'id', [id]);
+  }
+
+  Future<List<Event?>> getAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndex(r'id', values);
+  }
+
+  List<Event?> getAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'id', values);
+  }
+
+  Future<int> deleteAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'id', values);
+  }
+
+  int deleteAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'id', values);
+  }
+
+  Future<Id> putById(Event object) {
+    return putByIndex(r'id', object);
+  }
+
+  Id putByIdSync(Event object, {bool saveLinks = true}) {
+    return putByIndexSync(r'id', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllById(List<Event> objects) {
+    return putAllByIndex(r'id', objects);
+  }
+
+  List<Id> putAllByIdSync(List<Event> objects, {bool saveLinks = true}) {
+    return putAllByIndexSync(r'id', objects, saveLinks: saveLinks);
+  }
+}
+
 extension EventQueryWhereSort on QueryBuilder<Event, Event, QWhere> {
   QueryBuilder<Event, Event, QAfterWhere> anyLocalId() {
     return QueryBuilder.apply(this, (query) {
@@ -349,6 +417,69 @@ extension EventQueryWhere on QueryBuilder<Event, Event, QWhereClause> {
         upper: upperLocalId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterWhereClause> idIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterWhereClause> idIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'id',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterWhereClause> idEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [id],
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterWhereClause> idNotEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }
@@ -2841,7 +2972,7 @@ extension $Event on Event {
       }
 
       if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id);
+        final other = await find(id, filterDeletedAt: false);
         if (other != null) {
           final diff = compare(other);
           if (diff.isNotEmpty) {
@@ -2919,6 +3050,10 @@ extension $Event on Event {
 
   Set<String> compare(Event other) {
     final result = <String>{};
+    if (deletedAt != other.deletedAt) {
+      result.add('deletedAt');
+    }
+
     if (type != other.type) {
       result.add('type');
     }
@@ -2941,6 +3076,29 @@ extension $Event on Event {
       }
     }
     return list.toSet();
+  }
+
+  /// Export all data into json
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) async {
+    final where = Sync.shared.db.local.events.where();
+    if (callback != null) {
+      await where.exportJsonRaw(callback);
+      return [];
+    }
+
+    return where.exportJson();
+  }
+
+  /// Import json into this collection
+  Future<void> importJson(dynamic jsonData) async {
+    if (jsonData is Uint8List) {
+      await Sync.shared.db.local.events.importJsonRaw(jsonData);
+    } else if (jsonData is List<Map<String, dynamic>>) {
+      await Sync.shared.db.local.events.importJson(jsonData);
+    } else {
+      throw UnsupportedError('Json type is not supported');
+    }
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
 part 'class.g.dart';

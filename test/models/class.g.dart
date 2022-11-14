@@ -79,13 +79,27 @@ const ClassRoomSchema = CollectionSchema(
   deserialize: _classRoomDeserialize,
   deserializeProp: _classRoomDeserializeProp,
   idName: r'localId',
-  indexes: {},
+  indexes: {
+    r'id': IndexSchema(
+      id: -3268401673993471357,
+      name: r'id',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'id',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    )
+  },
   links: {},
   embeddedSchemas: {},
   getId: _classRoomGetId,
   getLinks: _classRoomGetLinks,
   attach: _classRoomAttach,
-  version: '3.0.2',
+  version: '3.0.3',
 );
 
 int _classRoomEstimateSize(
@@ -214,6 +228,60 @@ void _classRoomAttach(IsarCollection<dynamic> col, Id id, ClassRoom object) {
   object.localId = id;
 }
 
+extension ClassRoomByIndex on IsarCollection<ClassRoom> {
+  Future<ClassRoom?> getById(String? id) {
+    return getByIndex(r'id', [id]);
+  }
+
+  ClassRoom? getByIdSync(String? id) {
+    return getByIndexSync(r'id', [id]);
+  }
+
+  Future<bool> deleteById(String? id) {
+    return deleteByIndex(r'id', [id]);
+  }
+
+  bool deleteByIdSync(String? id) {
+    return deleteByIndexSync(r'id', [id]);
+  }
+
+  Future<List<ClassRoom?>> getAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndex(r'id', values);
+  }
+
+  List<ClassRoom?> getAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'id', values);
+  }
+
+  Future<int> deleteAllById(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'id', values);
+  }
+
+  int deleteAllByIdSync(List<String?> idValues) {
+    final values = idValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'id', values);
+  }
+
+  Future<Id> putById(ClassRoom object) {
+    return putByIndex(r'id', object);
+  }
+
+  Id putByIdSync(ClassRoom object, {bool saveLinks = true}) {
+    return putByIndexSync(r'id', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllById(List<ClassRoom> objects) {
+    return putAllByIndex(r'id', objects);
+  }
+
+  List<Id> putAllByIdSync(List<ClassRoom> objects, {bool saveLinks = true}) {
+    return putAllByIndexSync(r'id', objects, saveLinks: saveLinks);
+  }
+}
+
 extension ClassRoomQueryWhereSort
     on QueryBuilder<ClassRoom, ClassRoom, QWhere> {
   QueryBuilder<ClassRoom, ClassRoom, QAfterWhere> anyLocalId() {
@@ -291,6 +359,70 @@ extension ClassRoomQueryWhere
         upper: upperLocalId,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> idIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [null],
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> idIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'id',
+        lower: [null],
+        includeLower: false,
+        upper: [],
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> idEqualTo(String? id) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'id',
+        value: [id],
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterWhereClause> idNotEqualTo(
+      String? id) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [id],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'id',
+              lower: [],
+              upper: [id],
+              includeUpper: false,
+            ));
+      }
     });
   }
 }
@@ -1946,7 +2078,7 @@ extension $ClassRoom on ClassRoom {
       }
 
       if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id);
+        final other = await find(id, filterDeletedAt: false);
         if (other != null) {
           final diff = compare(other);
           if (diff.isNotEmpty) {
@@ -2026,6 +2158,10 @@ extension $ClassRoom on ClassRoom {
 
   Set<String> compare(ClassRoom other) {
     final result = <String>{};
+    if (deletedAt != other.deletedAt) {
+      result.add('deletedAt');
+    }
+
     if (name != other.name) {
       result.add('name');
     }
@@ -2044,6 +2180,29 @@ extension $ClassRoom on ClassRoom {
       }
     }
     return list.toSet();
+  }
+
+  /// Export all data into json
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) async {
+    final where = Sync.shared.db.local.classRooms.where();
+    if (callback != null) {
+      await where.exportJsonRaw(callback);
+      return [];
+    }
+
+    return where.exportJson();
+  }
+
+  /// Import json into this collection
+  Future<void> importJson(dynamic jsonData) async {
+    if (jsonData is Uint8List) {
+      await Sync.shared.db.local.classRooms.importJsonRaw(jsonData);
+    } else if (jsonData is List<Map<String, dynamic>>) {
+      await Sync.shared.db.local.classRooms.importJson(jsonData);
+    } else {
+      throw UnsupportedError('Json type is not supported');
+    }
   }
 }
 
