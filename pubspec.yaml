@@ -4,7 +4,7 @@ description: A syncronising database that automatically gets and saves data to a
 environment:
   sdk: '>=2.12.0 <3.0.0'
 
-isar_version: &isar_version ^3.0.3
+isar_version: &isar_version ^3.0.4
 dependencies:
   flutter:
     sdk: flutter

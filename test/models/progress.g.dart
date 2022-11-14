@@ -172,7 +172,7 @@ const ProgressSchema = CollectionSchema(
   getId: _progressGetId,
   getLinks: _progressGetLinks,
   attach: _progressAttach,
-  version: '3.0.3',
+  version: '3.0.4',
 );
 
 int _progressEstimateSize(

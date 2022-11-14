@@ -99,7 +99,7 @@ const ClassRoomSchema = CollectionSchema(
   getId: _classRoomGetId,
   getLinks: _classRoomGetLinks,
   attach: _classRoomAttach,
-  version: '3.0.3',
+  version: '3.0.4',
 );
 
 int _classRoomEstimateSize(
