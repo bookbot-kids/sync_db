@@ -28,13 +28,12 @@ class IsarDatabase {
   bool _isInitialized = false;
   static final _lock = Lock();
 
-  Future<void> init(
-    Map<CollectionSchema<dynamic>, Model Function()> models, {
-    String dbAssetPath = 'assets/db',
-    String? version,
-    List<String>? manifest,
-    DBImportType dbImportType = DBImportType.sembast,
-  }) async {
+  Future<void> init(Map<CollectionSchema<dynamic>, Model Function()> models,
+      {String dbAssetPath = 'assets/db',
+      String? version,
+      List<String>? manifest,
+      DBImportType dbImportType = DBImportType.sembast,
+      List<String> fileTypes = const ['.db', '.json']}) async {
     models[ServicePointSchema] = () => ServicePoint();
     models[TransferMapSchema] = () => TransferMap();
     models[ServiceRecordSchema] = () => ServiceRecord();
@@ -49,10 +48,11 @@ class IsarDatabase {
 
     if (!_isInitialized) {
       await _lock.synchronized(() async {
-        local = Isar.getInstance() ?? await Isar.open(
-          models.keys.toList(),
-          directory: dir,
-        );
+        local = Isar.getInstance() ??
+            await Isar.open(
+              models.keys.toList(),
+              directory: dir,
+            );
         _isInitialized = true;
       });
     }
@@ -81,7 +81,8 @@ class IsarDatabase {
       // do copy from asset
       final futures = <Future>[];
       for (final asset in manifest!) {
-        if (asset.startsWith(dbAssetPath)) {
+        if (asset.startsWith(dbAssetPath) &&
+            fileTypes.any((element) => asset.toLowerCase().endsWith(element))) {
           final fileName = basename(asset);
           Sync.shared.logger?.i('copy database $fileName');
           final targetPath = dir == null ? fileName : join(dir, fileName);
@@ -201,8 +202,8 @@ class IsarDatabase {
       if (await targetFile.exists()) {
         await targetFile.delete();
       }
-      final bytes = assetContent.buffer.asUint8List(
-          assetContent.offsetInBytes, assetContent.lengthInBytes);
+      final bytes = assetContent.buffer
+          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
       await targetFile.writeAsBytes(bytes);
       futures.add(copySnapshotTable(targetFile, tableName));
     }
