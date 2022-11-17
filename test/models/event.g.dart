@@ -109,7 +109,7 @@ const EventSchema = CollectionSchema(
   getId: _eventGetId,
   getLinks: _eventGetLinks,
   attach: _eventAttach,
-  version: '3.0.4',
+  version: '3.0.5',
 );
 
 int _eventEstimateSize(
