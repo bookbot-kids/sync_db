@@ -44,6 +44,7 @@ class CognitoAzureUserSession extends UserSession
     _azureIssuer = config['azureIssuer'] ?? '';
     _azureAudience = config['azureAudience'] ?? '';
 
+    _tablesToSync = config['tablesToSync'] ?? <String>[];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
 
     final initializeListener = (SharedPreferences? prefs) {
@@ -87,6 +88,7 @@ class CognitoAzureUserSession extends UserSession
   cognito.CognitoUserSession? _session;
   late cognito.CognitoUserPool _userPool;
   Future? _initializeTask;
+  var _tablesToSync = <String>[];
 
   @override
   String? role = _defaultRole;
@@ -152,11 +154,17 @@ class CognitoAzureUserSession extends UserSession
     try {
       Sync.shared.logger?.i('Start to request GetResourceTokens');
       final response = await _lock.synchronized(() async {
-        return await _http.get('/GetResourceTokens', parameters: {
+        final params = <String, dynamic>{
           'refresh_token': refreshToken ?? '',
           'code': _azureKey,
-          'source': 'cognito'
-        });
+          'source': 'cognito',
+        };
+
+        if (_tablesToSync.isNotEmpty) {
+          params['sync_tables'] = _tablesToSync.join(',');
+        }
+
+        return await _http.get('/GetResourceTokens', parameters: params);
       });
       Sync.shared.logger?.i('Finished request GetResourceTokens');
       _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));
