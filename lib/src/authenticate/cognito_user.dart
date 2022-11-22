@@ -52,7 +52,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<void> refresh({bool forceRefreshToken = false}) async {
+  Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
     if (forceRefreshToken) {
       await _invalidateToken();
     }

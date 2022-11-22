@@ -26,6 +26,7 @@ class AzureADB2CUserSession extends UserSession {
     _azureSubject = config['azureSubject'] ?? '';
     _azureIssuer = config['azureIssuer'] ?? '';
     _azureAudience = config['azureAudience'] ?? '';
+    _tablesToSync = config['tablesToSync'] ?? <String>[];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     // try to load role first
     _sharePrefInstance.then((prefs) {
@@ -60,6 +61,7 @@ class AzureADB2CUserSession extends UserSession {
   static const _userRoleKey = 'userRole';
   SharedPreferences? _sharePref;
   final _lock = Lock();
+  var _tablesToSync = <String>[];
 
   @override
   String? role = _defaultRole;
@@ -92,7 +94,7 @@ class AzureADB2CUserSession extends UserSession {
   /// Get resource tokens from Cosmos
   /// If there is no refresh token, guest resource tokens are returned
   @override
-  Future<void> refresh({bool forceRefreshToken = false}) async {
+  Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
@@ -111,10 +113,17 @@ class AzureADB2CUserSession extends UserSession {
     try {
       Sync.shared.logger?.i('Start to request GetResourceTokens');
       final response = await _lock.synchronized(() async {
-        return await _http.get('/GetResourceTokens', parameters: {
-          'refresh_token': refreshToken ?? '',
-          'code': _azureKey
-        });
+        final params = {'refresh_token': refreshToken ?? '', 'code': _azureKey};
+
+        if (_tablesToSync.isNotEmpty) {
+          params['sync_tables'] = _tablesToSync.join(',');
+        }
+
+        if (userId != null) {
+          params['user_id'] = userId;
+        }
+
+        return await _http.get('/GetResourceTokens', parameters: params);
       });
       Sync.shared.logger?.i('Finished request GetResourceTokens');
       _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));

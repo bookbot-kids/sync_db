@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:ntp/ntp.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
+import 'package:tuple/tuple.dart';
 import 'package:universal_platform/universal_platform.dart';
+import 'package:collection/collection.dart';
 
 class NetworkTime {
   factory NetworkTime() =>
@@ -14,6 +16,7 @@ class NetworkTime {
   final lookupServers = [
     'time.google.com',
     'time.apple.com',
+    'time.windows.com'
   ];
 
   /// Get server datetime and cache the offset
@@ -24,23 +27,28 @@ class NetworkTime {
     }
 
     if (_offset == null) {
+      final futures = <Future<int?>>[];
       for (final address in lookupServers) {
-        try {
-          _offset = await NTP
-              .getNtpOffset(
-                localTime: DateTime.now().toLocal(),
-                lookUpAddress: address,
-              )
-              .timeout(const Duration(seconds: 10));
+        futures.add(Future.sync(() async {
+          try {
+            return await NTP
+                .getNtpOffset(
+                  localTime: DateTime.now().toLocal(),
+                  lookUpAddress: address,
+                )
+                .timeout(const Duration(seconds: 7));
+          } catch (e, stacktrace) {
+            Sync.shared.logger
+                ?.e('Can not get server time [${address}] $e', e, stacktrace);
+            Sync.shared.exceptionNotifier.value = Tuple3(false, e, stacktrace);
+          }
 
-          return _offset;
-        } catch (e, stacktrace) {
-          Sync.shared.logger
-              ?.e('Can not get server time [${address}] $e', e, stacktrace);
-          // Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
-          _offset = null;
-        }
+          return null;
+        }));
       }
+
+      final results = await Future.wait(futures);
+      _offset = results.whereNotNull().firstOrNull;
     }
 
     return _offset;

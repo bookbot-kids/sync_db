@@ -17,7 +17,7 @@ class Sync {
   late IsarDatabase db;
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =
-      Notifier<Tuple2<dynamic, dynamic>>(Tuple2(null, null));
+      Notifier<Tuple3<bool, dynamic, dynamic>>(Tuple3(false, null, null));
 
   bool _hasConnection = true;
   bool _hasInternet = true;

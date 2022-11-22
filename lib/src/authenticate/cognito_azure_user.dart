@@ -137,7 +137,7 @@ class CognitoAzureUserSession extends UserSession
   }
 
   @override
-  Future<void> refresh({bool forceRefreshToken = false}) async {
+  Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
     if (_initializeTask != null) {
       await _initializeTask;
     }
@@ -162,6 +162,10 @@ class CognitoAzureUserSession extends UserSession
 
         if (_tablesToSync.isNotEmpty) {
           params['sync_tables'] = _tablesToSync.join(',');
+        }
+
+        if (userId != null) {
+          params['user_id'] = userId;
         }
 
         return await _http.get('/GetResourceTokens', parameters: params);
@@ -379,7 +383,7 @@ class CognitoAzureUserSession extends UserSession
     } on CognitoClientException catch (e, stacktrace) {
       if (await ConnectionHelper.shared.hasConnection()) {
         Sync.shared.logger?.e('initiate cognito error $e', e, stacktrace);
-        Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
+        Sync.shared.exceptionNotifier.value = Tuple3(true, e, stacktrace);
       }
     }
   }
