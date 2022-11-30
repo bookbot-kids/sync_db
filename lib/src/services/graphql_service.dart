@@ -79,7 +79,7 @@ class GraphQLService extends Service {
         break;
       }
     } while (nextToken != null &&
-        (previousToken != nextToken || lastDocumentCount == 0));
+        (previousToken != nextToken || lastDocumentCount != 0));
   }
 
   @override
