@@ -32,7 +32,6 @@ class GraphQLService extends Service {
     var fields = _getFields(table);
     // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
     final limit = 1000;
-    String previousToken;
     var lastDocumentCount = 0;
     String nextToken;
     final start = service.from;
@@ -54,7 +53,6 @@ class GraphQLService extends Service {
             }
         }
         ''';
-      previousToken = nextToken;
       var response = await _queryDocuments(select, variables);
       if (response != null) {
         List docs = response['list${table}s']['items'];
@@ -78,8 +76,7 @@ class GraphQLService extends Service {
       } else {
         break;
       }
-    } while (nextToken != null &&
-        (previousToken != nextToken || lastDocumentCount != 0));
+    } while (nextToken != null && lastDocumentCount != 0);
   }
 
   @override
