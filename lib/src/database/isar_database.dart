@@ -26,17 +26,22 @@ class IsarDatabase {
   Map<String, Model Function()> modelInstances = {};
   late Isar local;
   bool _isInitialized = false;
+  late int _maxSizeMiB;
   static final _lock = Lock();
 
-  Future<void> init(Map<CollectionSchema<dynamic>, Model Function()> models,
-      {String dbAssetPath = 'assets/db',
-      String? version,
-      List<String>? manifest,
-      DBImportType dbImportType = DBImportType.sembast,
-      List<String> fileTypes = const ['.db', '.json']}) async {
+  Future<void> init(
+    Map<CollectionSchema<dynamic>, Model Function()> models, {
+    String dbAssetPath = 'assets/db',
+    String? version,
+    List<String>? manifest,
+    DBImportType dbImportType = DBImportType.sembast,
+    List<String> fileTypes = const ['.db', '.json'],
+    int? maxSizeMiB,
+  }) async {
     models[ServicePointSchema] = () => ServicePoint();
     models[TransferMapSchema] = () => TransferMap();
     models[ServiceRecordSchema] = () => ServiceRecord();
+    _maxSizeMiB = maxSizeMiB ?? Isar.defaultMaxSizeMiB;
 
     String? dir;
     if (!UniversalPlatform.isWeb) {
@@ -52,6 +57,7 @@ class IsarDatabase {
             await Isar.open(
               models.keys.toList(),
               directory: dir,
+              maxSizeMiB: _maxSizeMiB,
             );
         _isInitialized = true;
       });
