@@ -12,10 +12,12 @@ abstract class Service {
   final Map<String, Lock> _serviceLock = {};
   late Queue _syncQueue;
   List<String> ignoreTables = [];
+  var _logDebugCloud = false;
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
     ignoreTables = config['tablesToIgnore'] ?? [];
+    _logDebugCloud = config['logDebugCloud'] ?? false;
   }
 
   /// Sync everything
@@ -53,6 +55,9 @@ abstract class Service {
 
   /// Sync a table to service
   Future<void> syncTable(String table) async {
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf('[sync_db][DEBUG] syncTable');
+    }
     await _syncServicePoints(
         await Sync.shared.userSession?.servicePointsForTable(table) ?? []);
   }
@@ -65,6 +70,10 @@ abstract class Service {
     // Once connectivity is returned restart the sync here, and for storage
     // If can connect to google, but not our servers - log this
 
+    if (_logDebugCloud) {
+      Sync.shared.logger
+          ?.wtf('[sync_db][DEBUG] _syncServicePoints start $servicePoints');
+    }
     for (final servicePoint in servicePoints) {
       if (!Sync.shared.networkAvailable) {
         return;
@@ -72,11 +81,23 @@ abstract class Service {
       // ignore: unawaited_futures
       _syncQueue.add(() async {
         if (!Sync.shared.networkAvailable) {
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} network not available');
+          }
           return;
         }
         try {
           await readServicePoint(servicePoint);
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName}');
+          }
         } catch (e) {
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} error $e');
+          }
           await Sync.shared.listenInternetChangedIfNeeded();
           rethrow;
         }
@@ -84,12 +105,24 @@ abstract class Service {
       // ignore: unawaited_futures
       _syncQueue.add(() async {
         if (!Sync.shared.networkAvailable) {
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} network not available');
+          }
           return;
         }
 
         try {
           await writeServicePoint(servicePoint);
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName}');
+          }
         } catch (e) {
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} error $e');
+          }
           // listen internet change when there is network error
           await Sync.shared.listenInternetChangedIfNeeded();
           rethrow;
@@ -99,7 +132,15 @@ abstract class Service {
 
     // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
     unawaited(_syncQueue.add(() => Future.value()));
+    if (_logDebugCloud) {
+      Sync.shared.logger
+          ?.wtf('[sync_db][DEBUG] _syncServicePoints queue starts');
+    }
     await _syncQueue.onComplete;
+
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf('[sync_db][DEBUG] _syncServicePoints completed');
+    }
   }
 
   /// Write created or updated records in this table

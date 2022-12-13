@@ -46,6 +46,7 @@ class CognitoAzureUserSession extends UserSession
 
     _tablesToSync = config['tablesToSync'] ?? <String>[];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
+    _logDebugCloud = config['logDebugCloud'] ?? false;
 
     final initializeListener = (SharedPreferences? prefs) {
       _userPool.storage = SharedPreferenceStorage(prefs);
@@ -89,6 +90,7 @@ class CognitoAzureUserSession extends UserSession
   late cognito.CognitoUserPool _userPool;
   Future? _initializeTask;
   var _tablesToSync = <String>[];
+  var _logDebugCloud = false;
 
   @override
   String? role = _defaultRole;
@@ -138,21 +140,42 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh start');
+    }
+
     if (_initializeTask != null) {
       await _initializeTask;
+    }
+
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh initialized');
     }
 
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
+
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh start token');
+    }
     final prefs = await _sharePrefInstance;
     var refreshToken = await token;
     role = prefs.getString(_userRoleKey) ?? _defaultRole;
+    if (_logDebugCloud) {
+      Sync.shared.logger?.wtf(
+          '[sync_db][DEBUG] refresh refreshToken = $refreshToken, role $role');
+    }
 
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
     try {
       Sync.shared.logger?.i('Start to request GetResourceTokens');
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG] refresh Start to request GetResourceTokens');
+      }
+
       final response = await _lock.synchronized(() async {
         final params = <String, dynamic>{
           'refresh_token': refreshToken ?? '',
@@ -170,11 +193,23 @@ class CognitoAzureUserSession extends UserSession
 
         return await _http.get('/GetResourceTokens', parameters: params);
       });
+
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG] refresh Finished request GetResourceTokens $response');
+      }
+
       Sync.shared.logger?.i('Finished request GetResourceTokens');
       _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));
 
       // Setup or update ServicePoints
       final mappedServicePoints = await asyncMapped;
+
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG] refresh get mapped service point $mappedServicePoints');
+      }
+
       for (final permission in response['permissions']) {
         String tableName = permission['id'];
         if (tableName.contains('-shared')) {
@@ -190,12 +225,25 @@ class CognitoAzureUserSession extends UserSession
             $Access.fromString(permission['permissionMode'].toLowerCase()) ??
                 Access.read;
         await servicePoint.save(syncToService: false);
+
+        if (_logDebugCloud) {
+          Sync.shared.logger?.wtf(
+              '[sync_db][DEBUG] refresh save service point $servicePoint');
+        }
       }
 
+      if (_logDebugCloud) {
+        Sync.shared.logger
+            ?.wtf('[sync_db][DEBUG] refresh set role ${response['group']}');
+      }
       // set role along with the resource tokens
       if (response['group'] != null) {
         role = response['group'];
         await prefs.setString(_userRoleKey, role!);
+      }
+
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh completed');
       }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
@@ -211,10 +259,18 @@ class CognitoAzureUserSession extends UserSession
         rethrow;
       }
     } on ConnectivityException catch (e, stackTrace) {
+      if (_logDebugCloud) {
+        Sync.shared.logger
+            ?.wtf('[sync_db][DEBUG] Resource tokens connection error $e');
+      }
       Sync.shared.logger
           ?.w('Resource tokens connection error $e', e, stackTrace);
       rethrow;
     } on Exception catch (e, stackTrace) {
+      if (_logDebugCloud) {
+        Sync.shared.logger
+            ?.wtf('[sync_db][DEBUG] Resource tokens unknown error $e');
+      }
       Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
       rethrow;
     }

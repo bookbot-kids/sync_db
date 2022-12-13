@@ -14,12 +14,14 @@ class CosmosService extends Service {
         httpConfig);
     _pageSize = config['pageSize'] ?? 1000;
     _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
+    _logDebugCloud = config['logDebugCloud'] ?? false;
   }
 
   late HTTP _http;
   int? _pageSize;
   int _cosmosRetries = 3;
   var _throwOnNetworkError = true;
+  var _logDebugCloud = false;
 
   final _apiVersion = '2018-12-31';
 
@@ -38,14 +40,27 @@ class CosmosService extends Service {
     // Query the document with paging
     // loop while we have a `paginationToken`
     do {
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, $query');
+      }
       final response = await _queryDocuments(servicePoint, query,
           paginationToken: paginationToken);
       final docs = response['response'] ?? [];
-
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, docs $docs');
+      }
       await saveLocalRecords(servicePoint, docs);
       paginationToken = response['paginationToken'];
-      Sync.shared.logger?.i(
-          'readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
+      if (_logDebugCloud) {
+        Sync.shared.logger?.wtf(
+            '[sync_db][DEBUG]  readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
+      } else {
+        Sync.shared.logger?.i(
+            'readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
+      }
+
       if (docs.isNotEmpty) {
         int? lastTimestamp = 0;
         if (docs.last[updatedKey] is int) {

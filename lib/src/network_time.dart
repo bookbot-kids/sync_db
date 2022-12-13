@@ -13,11 +13,7 @@ class NetworkTime {
   static NetworkTime shared = NetworkTime();
 
   int? _offset;
-  final lookupServers = [
-    'time.google.com',
-    'time.apple.com',
-    'time.windows.com'
-  ];
+  final lookupServers = ['time.google.com', 'time.windows.com'];
 
   /// Get server datetime and cache the offset
   Future<int?> get offset async {
