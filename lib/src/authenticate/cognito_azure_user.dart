@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
+import 'package:queue/queue.dart';
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
@@ -47,6 +49,7 @@ class CognitoAzureUserSession extends UserSession
     _tablesToSync = config['tablesToSync'] ?? <String>[];
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
     _logDebugCloud = config['logDebugCloud'] ?? false;
+    _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
 
     final initializeListener = (SharedPreferences? prefs) {
       _userPool.storage = SharedPreferenceStorage(prefs);
@@ -91,6 +94,7 @@ class CognitoAzureUserSession extends UserSession
   Future? _initializeTask;
   var _tablesToSync = <String>[];
   var _logDebugCloud = false;
+  late Queue _syncQueue;
 
   @override
   String? role = _defaultRole;
@@ -211,26 +215,38 @@ class CognitoAzureUserSession extends UserSession
       }
 
       for (final permission in response['permissions']) {
-        String tableName = permission['id'];
-        if (tableName.contains('-shared')) {
-          tableName = tableName.split('-shared')[0];
-        }
+        // ignore: unawaited_futures
+        _syncQueue.add(() async {
+          String tableName = permission['id'];
+          if (tableName.contains('-shared')) {
+            tableName = tableName.split('-shared')[0];
+          }
 
-        final servicePoint = mappedServicePoints.putIfAbsent(
-            tableName, () => ServicePoint(name: tableName));
-        servicePoint.id = permission['id'];
-        servicePoint.partition = permission['resourcePartitionKey'].first;
-        servicePoint.token = permission['_token'];
-        servicePoint.access =
-            $Access.fromString(permission['permissionMode'].toLowerCase()) ??
-                Access.read;
-        await servicePoint.save(syncToService: false);
+          final servicePoint = await _lock.synchronized(() =>
+              mappedServicePoints.putIfAbsent(
+                  tableName, () => ServicePoint(name: tableName)));
+          servicePoint.id = permission['id'];
+          servicePoint.partition = permission['resourcePartitionKey'].first;
+          servicePoint.token = permission['_token'];
+          servicePoint.access =
+              $Access.fromString(permission['permissionMode'].toLowerCase()) ??
+                  Access.read;
+          await servicePoint.save(syncToService: false);
 
-        if (_logDebugCloud) {
-          Sync.shared.logger?.wtf(
-              '[sync_db][DEBUG] refresh save service point $servicePoint');
-        }
+          if (_logDebugCloud) {
+            Sync.shared.logger?.wtf(
+                '[sync_db][DEBUG] refresh save service point $servicePoint');
+          }
+        });
       }
+
+      if (_logDebugCloud) {
+        Sync.shared.logger
+            ?.wtf('[sync_db][DEBUG] refresh waiting for queue to complete');
+      }
+      // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
+      unawaited(_syncQueue.add(() => Future.value()));
+      await _syncQueue.onComplete;
 
       if (_logDebugCloud) {
         Sync.shared.logger

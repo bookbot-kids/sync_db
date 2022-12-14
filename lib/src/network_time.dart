@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:ntp/ntp.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
-import 'package:tuple/tuple.dart';
+import 'package:universal_io/io.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'package:collection/collection.dart';
 
@@ -13,7 +13,12 @@ class NetworkTime {
   static NetworkTime shared = NetworkTime();
 
   int? _offset;
-  final lookupServers = ['time.google.com', 'time.windows.com'];
+  final lookupServers = [
+    'time.google.com',
+    'time.windows.com',
+    'time.apple.com',
+    '1.pool.ntp.org',
+  ];
 
   /// Get server datetime and cache the offset
   Future<int?> get offset async {
@@ -32,11 +37,11 @@ class NetworkTime {
                   localTime: DateTime.now().toLocal(),
                   lookUpAddress: address,
                 )
-                .timeout(const Duration(seconds: 7));
+                .timeout(const Duration(seconds: 5));
           } catch (e, stacktrace) {
             Sync.shared.logger
                 ?.e('Can not get server time [${address}] $e', e, stacktrace);
-            Sync.shared.exceptionNotifier.value = Tuple3(false, e, stacktrace);
+            // Sync.shared.exceptionNotifier.value = Tuple3(false, e, stacktrace);
           }
 
           return null;
@@ -44,7 +49,8 @@ class NetworkTime {
       }
 
       final results = await Future.wait(futures);
-      _offset = results.whereNotNull().firstOrNull;
+      _offset = results.whereNotNull().firstOrNull ?? 0;
+      Sync.shared.logger?.i('Get ntp offset $_offset');
     }
 
     return _offset;
@@ -57,8 +63,8 @@ class NetworkTime {
       return DateTime.now();
     }
 
-    var offsetValue = await offset;
-    if (offsetValue == null) {
+    final offsetValue = await offset;
+    if (offsetValue == null || offsetValue == 0) {
       return DateTime.now();
     }
 
@@ -72,7 +78,7 @@ class NetworkTime {
       return DateTime.now();
     }
 
-    if (_offset == null) {
+    if (_offset == null || _offset == 0) {
       return DateTime.now();
     }
 
@@ -86,6 +92,11 @@ class NetworkTime {
 
   /// Reset the offset
   void reset() {
-    _offset = null;
+    // just set 0 for iOS (to use local)
+    if (Platform.isIOS && _offset != null) {
+      _offset = 0;
+    } else {
+      _offset = null;
+    }
   }
 }
