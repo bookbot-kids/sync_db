@@ -161,9 +161,14 @@ class IsarDatabase {
     final store = sembast.StoreRef.main();
     final finder = sembast.Finder();
     final records = await store.find(db, finder: finder);
-    final recordMaps = records
-        .map((e) => Map<dynamic, dynamic>.from(cloneMap(e.value)))
-        .toList();
+    final recordMaps = records.map((e) {
+      final value = e.value;
+      if (value is Map) {
+        return Map<dynamic, dynamic>.from(cloneMap(value));
+      }
+
+      return {};
+    }).toList();
     await db.close();
     final modelHandler = modelInstances[tableName];
     if (modelHandler == null) {
