@@ -189,7 +189,7 @@ class SembastDatabase extends Database {
     final store = sembast.StoreRef.main();
     var recordRef = await store.record(id);
     final record = await recordRef.get(await _getDatabse(modelName));
-    if (record != null && record[deletedKey] == null) {
+    if (record != null && (record is Map) && record[deletedKey] == null) {
       await model.setMap(sembast_utils.cloneValue(record));
       if (listenable) {
         model.stream = recordRef.onSnapshot(await _getDatabse(modelName));
