@@ -32,7 +32,6 @@ class GraphQLService extends Service {
     var fields = _getFields(table);
     // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
     final limit = 1000;
-    var lastDocumentCount = 0;
     String nextToken;
     final start = service.from;
 
@@ -57,7 +56,6 @@ class GraphQLService extends Service {
       if (response != null) {
         List docs = response['list${table}s']['items'];
         nextToken = response['list${table}s']['nextToken'];
-        lastDocumentCount = docs?.length ?? 0;
         if (docs != null && docs.isNotEmpty) {
           // get the max timestamp
           var max = docs.first;
@@ -76,7 +74,7 @@ class GraphQLService extends Service {
       } else {
         break;
       }
-    } while (nextToken != null && lastDocumentCount != 0);
+    } while (nextToken != null);
   }
 
   @override
