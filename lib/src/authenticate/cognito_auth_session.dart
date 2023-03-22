@@ -17,5 +17,5 @@ abstract class CognitoAuthSession {
       String confirmationCode, String newPassword);
 
   Future<CognitoUserInfo> confirmEmailPasscode(
-      String email, String passcode);
+      String email, String passcode, {String session});
 }

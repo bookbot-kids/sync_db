@@ -383,7 +383,7 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<CognitoUserInfo> confirmEmailPasscode(
-      String email, String passcode) async {
+      String email, String passcode, {String session}) async {
     if (_cognitoUser == null || _cognitoUser.username != email) {
       _cognitoUser = CognitoUser(email, _userPool);
     }

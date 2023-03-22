@@ -51,7 +51,6 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return _userRole;
   }
 
-
   @override
   Future<void> refresh({bool forceRefreshToken = false}) async {
     if (forceRefreshToken) {
@@ -203,6 +202,18 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return _session.isValid();
   }
 
+  Future<void> authenticateUserSession(String email, String accessToken,
+      String idToken, String refreshToken) async {
+    _session = cognito.CognitoUserSession(
+        cognito.CognitoIdToken(idToken), CognitoAccessToken(accessToken),
+        refreshToken: cognito.CognitoRefreshToken(refreshToken));
+    _cognitoUser = CognitoUser(email, _userPool,
+        signInUserSession: _session, storage: _userPool.storage,
+    );
+    _cognitoUser.setAuthenticationFlowType('CUSTOM_AUTH');
+    await _cognitoUser.cacheTokens();
+  }
+
   /// Check if user's current session is valid
   Future<bool> _checkAuthenticated() async {
     if (_cognitoUser == null || _session == null) {
@@ -310,8 +321,11 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<CognitoUserInfo> confirmEmailPasscode(
-      String email, String passcode) async {
+  Future<CognitoUserInfo> confirmEmailPasscode(String email, String passcode,
+      {String session}) async {
+    if (_cognitoUser == null || _userInfo?.email != email.toLowerCase()) {
+      _cognitoUser = CognitoUser(email, _userPool, storage: _userPool.storage);
+    }
     _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
 
     if (!_session.isValid()) {
