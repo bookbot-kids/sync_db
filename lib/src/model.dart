@@ -219,6 +219,12 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
         syncStatus = SyncStatus.updated;
       }
     }
+
+    final newPartition =
+        await Sync.shared.modelDelegate?.partitionForModel(this);
+    if (partition == null && newPartition != null) {
+      partition = newPartition;
+    }
   }
 
   Future<void> sync() async {

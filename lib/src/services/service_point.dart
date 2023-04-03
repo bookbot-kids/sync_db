@@ -116,6 +116,10 @@ class ServicePoint extends Model {
   Future<void> clear() async {
     await db.servicePoints.clear();
   }
+
+  static String sharedKey(String name, String partition) {
+    return '$name-$partition';
+  }
 }
 
 enum Access { all, read, write }

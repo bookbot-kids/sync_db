@@ -13,7 +13,8 @@ class Sync {
   UserSession? userSession;
   Logger? logger;
   Storage? storage;
-  List<SyncDelegate> delegates = [];
+  List<SyncDelegate> syncDelegates = [];
+  ModelDelegate? modelDelegate;
   late IsarDatabase db;
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =

@@ -35,22 +35,51 @@ abstract class Service {
 
   // Sync external data from delegates
   Future<void> syncDelegates() async {
-    if (!Sync.shared.networkAvailable) {
+    if (!Sync.shared.networkAvailable || Sync.shared.syncDelegates.isEmpty) {
       return;
     }
-    for (final delegate in Sync.shared.delegates) {
-      if (!Sync.shared.networkAvailable) {
-        return;
-      }
-      final token = await Sync.shared.userSession?.token;
-      final records = await delegate.syncRead(token);
-      // create a fake service point with read only permission to save records
-      final servicePoint = ServicePoint(
-        name: delegate.tableName,
-        access: Access.read,
-      );
-      await saveLocalRecords(servicePoint, records);
+
+    for (final delegate in Sync.shared.syncDelegates) {
+      // ignore: unawaited_futures
+      _syncQueue.add(() async {
+        if (!Sync.shared.networkAvailable) {
+          return;
+        }
+
+        final token = await Sync.shared.userSession?.token;
+        final data = await delegate.syncRead(token);
+        final records = data.item1;
+        final permissions = data.item2;
+        if (records.isNotEmpty && permissions.isNotEmpty) {
+          for (final item in permissions.entries) {
+            final partitionKey = item.key;
+            final permission = item.value[0];
+            String tableName = permission['id'];
+            String token = permission['_token'];
+            final access = $Access
+                    .fromString(permission['permissionMode'].toLowerCase()) ??
+                Access.read;
+            // create service point for each user
+            final servicePoint = ServicePoint(
+              name: tableName,
+              access: access,
+            );
+            servicePoint.token = token;
+            servicePoint.id = ServicePoint.sharedKey(tableName, partitionKey);
+            servicePoint.partition = partitionKey;
+            await servicePoint.save();
+
+            final savingRecords = records
+                .where((element) => element['partition'] == partitionKey)
+                .toList();
+            await saveLocalRecords(servicePoint, savingRecords);
+          }
+        }
+      });
     }
+
+    unawaited(_syncQueue.add(() => Future.value()));
+    await _syncQueue.onComplete;
   }
 
   /// Sync a table to service

@@ -92,10 +92,16 @@ class CosmosService extends Service {
     final createdRecords =
         await handler.queryStatus(SyncStatus.created, filterDeletedAt: false);
     for (final record in createdRecords) {
-      // If record has a partion and it doesn't match service point partition, then skip
+      // If record has a partion and it doesn't match service point partition, then user shared service point
       if (record.partition != null &&
           servicePoint.partition != record.partition) {
-        continue;
+        final sharedServicePoint = await ServicePoint().find(
+            ServicePoint.sharedKey(record.tableName, record.partition ?? ''));
+        if (sharedServicePoint != null) {
+          servicePoint = sharedServicePoint;
+        } else {
+          continue;
+        }
       }
 
       // if a record does not have partition, then use it from service point
@@ -116,9 +122,17 @@ class CosmosService extends Service {
     final updatedRecords =
         await handler.queryStatus(SyncStatus.updated, filterDeletedAt: false);
     for (final record in updatedRecords) {
-      // If record has a partion and it doesn't match service point partition, then skip
+      // If record has a partion and it doesn't match service point partition, then user shared service point
       if (record.partition != null &&
-          servicePoint.partition != record.partition) continue;
+          servicePoint.partition != record.partition) {
+        final sharedServicePoint = await ServicePoint().find(
+            ServicePoint.sharedKey(record.tableName, record.partition ?? ''));
+        if (sharedServicePoint != null) {
+          servicePoint = sharedServicePoint;
+        } else {
+          continue;
+        }
+      }
 
       // if a record does not have partition, then use it from service point
       record.partition ??= servicePoint.partition;

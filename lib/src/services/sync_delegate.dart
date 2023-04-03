@@ -2,18 +2,16 @@ import 'dart:typed_data';
 
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
+import 'package:tuple/tuple.dart';
 
 /// The external sync delegate
 /// Client app uses this one to inject data with the same format into database
 abstract class SyncDelegate {
   /// Sync read data for a table.
   /// The `token` param can be null.
-  /// Return a list of records (must not be null)
+  /// Return a list of records (must not be null) and map of resource token permissions
   /// Make sure the data list is correct format
-  Future<List> syncRead(String? token);
-
-  /// The sync table name
-  String get tableName;
+  Future<Tuple2<List, Map>> syncRead(String? token);
 }
 
 abstract class ModelHandler {
@@ -24,4 +22,8 @@ abstract class ModelHandler {
   Future<List<Map<String, dynamic>>> exportJson(
       {Function(Uint8List)? callback});
   Future<void> importJson(dynamic jsonData);
+}
+
+abstract class ModelDelegate {
+  Future<String?> partitionForModel(Model model);
 }
