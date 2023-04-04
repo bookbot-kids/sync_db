@@ -12,6 +12,9 @@ abstract class SyncDelegate {
   /// Return a list of records (must not be null) and map of resource token permissions
   /// Make sure the data list is correct format
   Future<Tuple2<List, Map>> syncRead(String? token);
+
+  bool get readOnly => false;
+  String get tableName => '';
 }
 
 abstract class ModelHandler {

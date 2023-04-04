@@ -50,29 +50,37 @@ abstract class Service {
         final data = await delegate.syncRead(token);
         final records = data.item1;
         final permissions = data.item2;
-        if (records.isNotEmpty && permissions.isNotEmpty) {
-          for (final item in permissions.entries) {
-            final partitionKey = item.key;
-            final permission = item.value[0];
-            String tableName = permission['id'];
-            String token = permission['_token'];
-            final access = $Access
-                    .fromString(permission['permissionMode'].toLowerCase()) ??
-                Access.read;
-            // create service point for each user
-            final servicePoint = ServicePoint(
-              name: tableName,
-              access: access,
-            );
-            servicePoint.token = token;
-            servicePoint.id = ServicePoint.sharedKey(tableName, partitionKey);
-            servicePoint.partition = partitionKey;
-            await servicePoint.save();
+        if (delegate.readOnly) {
+          final servicePoint = ServicePoint(
+            name: delegate.tableName,
+            access: Access.read,
+          );
+          await saveLocalRecords(servicePoint, records);
+        } else {
+          if (records.isNotEmpty && permissions.isNotEmpty) {
+            for (final item in permissions.entries) {
+              final partitionKey = item.key;
+              final permission = item.value[0];
+              String tableName = permission['id'];
+              String token = permission['_token'];
+              final access = $Access
+                      .fromString(permission['permissionMode'].toLowerCase()) ??
+                  Access.read;
+              // create service point for each user
+              final servicePoint = ServicePoint(
+                name: tableName,
+                access: access,
+              );
+              servicePoint.token = token;
+              servicePoint.id = ServicePoint.sharedKey(tableName, partitionKey);
+              servicePoint.partition = partitionKey;
+              await servicePoint.save();
 
-            final savingRecords = records
-                .where((element) => element['partition'] == partitionKey)
-                .toList();
-            await saveLocalRecords(servicePoint, savingRecords);
+              final savingRecords = records
+                  .where((element) => element['partition'] == partitionKey)
+                  .toList();
+              await saveLocalRecords(servicePoint, savingRecords);
+            }
           }
         }
       });
