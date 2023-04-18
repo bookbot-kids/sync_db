@@ -194,7 +194,7 @@ class CognitoAzureUserSession extends UserSession
       if (e.statusCode == 401) {
         // token is expired -> sign out user
         Sync.shared.logger.i('Token expired, sign out user');
-        await signout();
+        await signOut();
       } else {
         Sync.shared.logger?.e(
             'Resource tokens error ${e.url} [${e.statusCode}] ${e.errorMessage}',
@@ -232,7 +232,7 @@ class CognitoAzureUserSession extends UserSession
   }
 
   @override
-  Future<void> signout({bool notify = true}) async {
+  Future<void> signOut({bool notify = true}) async {
     final pref = await _sharePrefInstance;
     await pref.remove(_userRoleKey);
     await pref.remove(_storageUriKey);

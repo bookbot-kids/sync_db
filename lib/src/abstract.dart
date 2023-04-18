@@ -33,7 +33,7 @@ abstract class UserSession {
   String get email;
 
   /// sign out user & clear all private keys
-  Future<void> signout({bool notify = true});
+  Future<void> signOut({bool notify = true});
 
   /// provide storage token to upload/download file
   Future<String> get storageToken;

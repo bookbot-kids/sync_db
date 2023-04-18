@@ -133,12 +133,13 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
   }
 
   @override
-  Future<void> signout({bool notify = true}) async {
+  Future<void> signOut({bool notify = true}) async {
     if (_cognitoUser != null) {
       await _cognitoUser.signOut();
       await _cognitoUser.storage.clear();
     }
     _userRole = null;
+    _userInfo = null;
     for (final table in _tablesToClearOnSignOut) {
       final servicePoints = await ServicePoint.where('name = $table').load();
       for (final servicePoint in servicePoints) {
@@ -244,7 +245,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     } on CognitoClientException catch (e) {
       if (e.code == 'UserNotFoundException') {
         await _prefs.clear();
-        await signout();
+        await signOut();
         _cognitoUser = null;
         _session = null;
       }
