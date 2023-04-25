@@ -43,12 +43,14 @@ class IsarDatabase {
     models[ServiceRecordSchema] = () => ServiceRecord();
     _maxSizeMiB = maxSizeMiB ?? Isar.defaultMaxSizeMiB;
 
-    String? dir;
+    String dir;
     if (!UniversalPlatform.isWeb) {
       // get document directory
       final documentPath = await getApplicationSupportDirectory();
       await documentPath.create(recursive: true);
       dir = documentPath.path;
+    } else {
+      dir = '';
     }
 
     if (!_isInitialized) {
@@ -91,7 +93,7 @@ class IsarDatabase {
             fileTypes.any((element) => asset.toLowerCase().endsWith(element))) {
           final fileName = basename(asset);
           Sync.shared.logger?.i('copy database $fileName');
-          final targetPath = dir == null ? fileName : join(dir, fileName);
+          final targetPath = join(dir, fileName);
 
           // copy asset to file dir
           final assetContent = await rootBundle.load(asset);

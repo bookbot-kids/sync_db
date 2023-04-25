@@ -7,7 +7,7 @@ part of 'class.dart';
 // **************************************************************************
 
 // coverage:ignore-file
-// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
 
 extension GetClassRoomCollection on Isar {
   IsarCollection<ClassRoom> get classRooms => this.collection();
@@ -37,39 +37,55 @@ const ClassRoomSchema = CollectionSchema(
       name: r'id',
       type: IsarType.string,
     ),
-    r'metadata': PropertySchema(
+    r'level': PropertySchema(
       id: 4,
+      name: r'level',
+      type: IsarType.long,
+    ),
+    r'metadata': PropertySchema(
+      id: 5,
       name: r'metadata',
       type: IsarType.string,
     ),
     r'name': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'name',
       type: IsarType.string,
     ),
     r'partition': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'partition',
       type: IsarType.string,
     ),
+    r'readingBookIds': PropertySchema(
+      id: 8,
+      name: r'readingBookIds',
+      type: IsarType.stringList,
+    ),
+    r'rewards': PropertySchema(
+      id: 9,
+      name: r'rewards',
+      type: IsarType.objectList,
+      target: r'ClassReward',
+    ),
     r'syncStatus': PropertySchema(
-      id: 7,
+      id: 10,
       name: r'syncStatus',
       type: IsarType.byte,
       enumMap: _ClassRoomsyncStatusEnumValueMap,
     ),
     r'tableName': PropertySchema(
-      id: 8,
+      id: 11,
       name: r'tableName',
       type: IsarType.string,
     ),
     r'teacherId': PropertySchema(
-      id: 9,
+      id: 12,
       name: r'teacherId',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 10,
+      id: 13,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -95,11 +111,11 @@ const ClassRoomSchema = CollectionSchema(
     )
   },
   links: {},
-  embeddedSchemas: {},
+  embeddedSchemas: {r'ClassReward': ClassRewardSchema},
   getId: _classRoomGetId,
   getLinks: _classRoomGetLinks,
   attach: _classRoomAttach,
-  version: '3.0.5',
+  version: '3.1.0',
 );
 
 int _classRoomEstimateSize(
@@ -122,6 +138,21 @@ int _classRoomEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.readingBookIds.length * 3;
+  {
+    for (var i = 0; i < object.readingBookIds.length; i++) {
+      final value = object.readingBookIds[i];
+      bytesCount += value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.rewards.length * 3;
+  {
+    final offsets = allOffsets[ClassReward]!;
+    for (var i = 0; i < object.rewards.length; i++) {
+      final value = object.rewards[i];
+      bytesCount += ClassRewardSchema.estimateSize(value, offsets, allOffsets);
+    }
+  }
   bytesCount += 3 + object.tableName.length * 3;
   bytesCount += 3 + object.teacherId.length * 3;
   return bytesCount;
@@ -137,13 +168,21 @@ void _classRoomSerialize(
   writer.writeDateTime(offsets[1], object.deletedAt);
   writer.writeBool(offsets[2], object.hasListeners);
   writer.writeString(offsets[3], object.id);
-  writer.writeString(offsets[4], object.metadata);
-  writer.writeString(offsets[5], object.name);
-  writer.writeString(offsets[6], object.partition);
-  writer.writeByte(offsets[7], object.syncStatus.index);
-  writer.writeString(offsets[8], object.tableName);
-  writer.writeString(offsets[9], object.teacherId);
-  writer.writeDateTime(offsets[10], object.updatedAt);
+  writer.writeLong(offsets[4], object.level);
+  writer.writeString(offsets[5], object.metadata);
+  writer.writeString(offsets[6], object.name);
+  writer.writeString(offsets[7], object.partition);
+  writer.writeStringList(offsets[8], object.readingBookIds);
+  writer.writeObjectList<ClassReward>(
+    offsets[9],
+    allOffsets,
+    ClassRewardSchema.serialize,
+    object.rewards,
+  );
+  writer.writeByte(offsets[10], object.syncStatus.index);
+  writer.writeString(offsets[11], object.tableName);
+  writer.writeString(offsets[12], object.teacherId);
+  writer.writeDateTime(offsets[13], object.updatedAt);
 }
 
 ClassRoom _classRoomDeserialize(
@@ -156,15 +195,24 @@ ClassRoom _classRoomDeserialize(
   object.createdAt = reader.readDateTimeOrNull(offsets[0]);
   object.deletedAt = reader.readDateTimeOrNull(offsets[1]);
   object.id = reader.readStringOrNull(offsets[3]);
+  object.level = reader.readLong(offsets[4]);
   object.localId = id;
-  object.metadata = reader.readString(offsets[4]);
-  object.name = reader.readString(offsets[5]);
-  object.partition = reader.readStringOrNull(offsets[6]);
+  object.metadata = reader.readString(offsets[5]);
+  object.name = reader.readString(offsets[6]);
+  object.partition = reader.readStringOrNull(offsets[7]);
+  object.readingBookIds = reader.readStringList(offsets[8]) ?? [];
+  object.rewards = reader.readObjectList<ClassReward>(
+        offsets[9],
+        ClassRewardSchema.deserialize,
+        allOffsets,
+        ClassReward(),
+      ) ??
+      [];
   object.syncStatus =
-      _ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offsets[7])] ??
+      _ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offsets[10])] ??
           SyncStatus.created;
-  object.teacherId = reader.readString(offsets[9]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[10]);
+  object.teacherId = reader.readString(offsets[12]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[13]);
   return object;
 }
 
@@ -184,19 +232,31 @@ P _classRoomDeserializeProp<P>(
     case 3:
       return (reader.readStringOrNull(offset)) as P;
     case 4:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
     case 6:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 7:
+      return (reader.readStringOrNull(offset)) as P;
+    case 8:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 9:
+      return (reader.readObjectList<ClassReward>(
+            offset,
+            ClassRewardSchema.deserialize,
+            allOffsets,
+            ClassReward(),
+          ) ??
+          []) as P;
+    case 10:
       return (_ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
-    case 8:
+    case 11:
       return (reader.readString(offset)) as P;
-    case 9:
+    case 12:
       return (reader.readString(offset)) as P;
-    case 10:
+    case 13:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -727,6 +787,59 @@ extension ClassRoomQueryFilter
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> levelEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> levelGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> levelLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> levelBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'level',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> localIdEqualTo(
       Id value) {
     return QueryBuilder.apply(this, (query) {
@@ -1190,6 +1303,320 @@ extension ClassRoomQueryFilter
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'readingBookIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'readingBookIds',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementMatches(String pattern,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'readingBookIds',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readingBookIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'readingBookIds',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      readingBookIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readingBookIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      rewardsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> rewardsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      rewardsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      rewardsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      rewardsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition>
+      rewardsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'rewards',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> syncStatusEqualTo(
       SyncStatus value) {
     return QueryBuilder.apply(this, (query) {
@@ -1581,7 +2008,14 @@ extension ClassRoomQueryFilter
 }
 
 extension ClassRoomQueryObject
-    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {}
+    on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> rewardsElement(
+      FilterQuery<ClassReward> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.object(q, r'rewards');
+    });
+  }
+}
 
 extension ClassRoomQueryLinks
     on QueryBuilder<ClassRoom, ClassRoom, QFilterCondition> {}
@@ -1632,6 +2066,18 @@ extension ClassRoomQuerySortBy on QueryBuilder<ClassRoom, ClassRoom, QSortBy> {
   QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortByLevelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.desc);
     });
   }
 
@@ -1770,6 +2216,18 @@ extension ClassRoomQuerySortThenBy
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByLevelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenByLocalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localId', Sort.asc);
@@ -1894,6 +2352,12 @@ extension ClassRoomQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'level');
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByMetadata(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -1912,6 +2376,12 @@ extension ClassRoomQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'partition', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctByReadingBookIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'readingBookIds');
     });
   }
 
@@ -1974,6 +2444,12 @@ extension ClassRoomQueryProperty
     });
   }
 
+  QueryBuilder<ClassRoom, int, QQueryOperations> levelProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'level');
+    });
+  }
+
   QueryBuilder<ClassRoom, String, QQueryOperations> metadataProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'metadata');
@@ -1989,6 +2465,20 @@ extension ClassRoomQueryProperty
   QueryBuilder<ClassRoom, String?, QQueryOperations> partitionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'partition');
+    });
+  }
+
+  QueryBuilder<ClassRoom, List<String>, QQueryOperations>
+      readingBookIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'readingBookIds');
+    });
+  }
+
+  QueryBuilder<ClassRoom, List<ClassReward>, QQueryOperations>
+      rewardsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'rewards');
     });
   }
 
@@ -2018,6 +2508,355 @@ extension ClassRoomQueryProperty
 }
 
 // **************************************************************************
+// IsarEmbeddedGenerator
+// **************************************************************************
+
+// coverage:ignore-file
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
+
+const ClassRewardSchema = Schema(
+  name: r'ClassReward',
+  id: -3136041855463881631,
+  properties: {
+    r'enabled': PropertySchema(
+      id: 0,
+      name: r'enabled',
+      type: IsarType.bool,
+    ),
+    r'hashCode': PropertySchema(
+      id: 1,
+      name: r'hashCode',
+      type: IsarType.long,
+    ),
+    r'name': PropertySchema(
+      id: 2,
+      name: r'name',
+      type: IsarType.string,
+    ),
+    r'token': PropertySchema(
+      id: 3,
+      name: r'token',
+      type: IsarType.long,
+    )
+  },
+  estimateSize: _classRewardEstimateSize,
+  serialize: _classRewardSerialize,
+  deserialize: _classRewardDeserialize,
+  deserializeProp: _classRewardDeserializeProp,
+);
+
+int _classRewardEstimateSize(
+  ClassReward object,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  var bytesCount = offsets.last;
+  bytesCount += 3 + object.name.length * 3;
+  return bytesCount;
+}
+
+void _classRewardSerialize(
+  ClassReward object,
+  IsarWriter writer,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  writer.writeBool(offsets[0], object.enabled);
+  writer.writeLong(offsets[1], object.hashCode);
+  writer.writeString(offsets[2], object.name);
+  writer.writeLong(offsets[3], object.token);
+}
+
+ClassReward _classRewardDeserialize(
+  Id id,
+  IsarReader reader,
+  List<int> offsets,
+  Map<Type, List<int>> allOffsets,
+) {
+  final object = ClassReward();
+  object.enabled = reader.readBool(offsets[0]);
+  object.name = reader.readString(offsets[2]);
+  object.token = reader.readLong(offsets[3]);
+  return object;
+}
+
+P _classRewardDeserializeProp<P>(
+  IsarReader reader,
+  int propertyId,
+  int offset,
+  Map<Type, List<int>> allOffsets,
+) {
+  switch (propertyId) {
+    case 0:
+      return (reader.readBool(offset)) as P;
+    case 1:
+      return (reader.readLong(offset)) as P;
+    case 2:
+      return (reader.readString(offset)) as P;
+    case 3:
+      return (reader.readLong(offset)) as P;
+    default:
+      throw IsarError('Unknown property with id $propertyId');
+  }
+}
+
+extension ClassRewardQueryFilter
+    on QueryBuilder<ClassReward, ClassReward, QFilterCondition> {
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> enabledEqualTo(
+      bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'enabled',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> hashCodeEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition>
+      hashCodeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition>
+      hashCodeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'hashCode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> hashCodeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'hashCode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'name',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'name',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> nameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'name',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition>
+      nameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'name',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> tokenEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'token',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition>
+      tokenGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'token',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> tokenLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'token',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassReward, ClassReward, QAfterFilterCondition> tokenBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'token',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+}
+
+extension ClassRewardQueryObject
+    on QueryBuilder<ClassReward, ClassReward, QFilterCondition> {}
+
+// **************************************************************************
 // Model2Generator
 // **************************************************************************
 
@@ -2040,6 +2879,8 @@ extension $ClassRoom on ClassRoom {
 
     map['name'] = name;
     map['teacherId'] = teacherId;
+    map['readingBookIds'] = readingBookIds.toSet().toList();
+    map['level'] = level;
     return map;
   }
 
@@ -2063,6 +2904,14 @@ extension $ClassRoom on ClassRoom {
 
     if (map['teacherId'] != null) teacherId = map['teacherId'];
     keys.add('teacherId');
+
+    readingBookIds = Set<String>.from(
+            (map['readingBookIds'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
+    keys.add('readingBookIds');
+
+    if (map['level'] != null) level = map['level'];
+    keys.add('level');
 
     return keys;
   }
@@ -2168,6 +3017,19 @@ extension $ClassRoom on ClassRoom {
 
     if (teacherId != other.teacherId) {
       result.add('teacherId');
+    }
+
+    if (!DeepCollectionEquality()
+        .equals(readingBookIds, other.readingBookIds)) {
+      result.add('readingBookIds');
+    }
+
+    if (!DeepCollectionEquality().equals(rewards, other.rewards)) {
+      result.add('rewards');
+    }
+
+    if (level != other.level) {
+      result.add('level');
     }
 
     final list = <String>[];

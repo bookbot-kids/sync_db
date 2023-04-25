@@ -1,16 +1,17 @@
-import 'dart:typed_data';
-
 import 'package:enum_to_string/enum_to_string.dart';
 import 'package:equatable/equatable.dart';
 import 'package:isar/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:collection/collection.dart';
+import 'dart:typed_data';
 
 import 'languages.dart';
 import 'profile.dart';
 
 part 'progress.g.dart';
 
+/// Because isar does not support Map type,
+/// so we have to convert Map from old model into List<Embedded> in isar, and have to use getter setter map for these properties
 @collection
 class Progress extends Model {
   String? profileId;
@@ -31,15 +32,25 @@ class Progress extends Model {
   double fluency = 0.0;
   // Accuracy = correct to incorrect words
   double accuracy = 0.0;
+  List<double> accuracies = []; // accuracy per page
+  List<double> fluencies = []; // fluency per page
+  int level = 0;
   int pageReadCount = 0;
   // All word read in the book that are read correctly (true) or incorrectly (false) and later corrected
+  @ModelIgnore()
   List<ProgressCorrectWords> correctWords = [];
+  @ModelIgnore()
   List<ProgressCorrectWords> incorrectWords = [];
   int readToMeTime = 0;
   int readingTime = 0;
   int? completedAt;
 
   List<String> markers = [];
+  @ModelSet()
+  List<String> readWords = [];
+
+  @ModelSet()
+  List<String> readPracticeWords = [];
 
   @override
   String get tableName => 'Progress';
@@ -94,6 +105,7 @@ class Progress extends Model {
           .toList());
     }
 
+    // return custom keys here to exclude from metadata json
     keys.addAll(['correctWords', 'incorrectWords']);
     return keys;
   }
@@ -106,6 +118,20 @@ class Progress extends Model {
   @override
   Future<Progress?> find(String? id, {bool filterDeletedAt = true}) =>
       $Progress.find(id, filterDeletedAt: filterDeletedAt);
+
+  @override
+  Future<void> deleteLocal() => $Progress(this).deleteLocal();
+
+  @override
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) {
+    return $Progress(this).exportJson(callback: callback);
+  }
+
+  @override
+  Future<void> importJson(jsonData) {
+    return $Progress(this).importJson(jsonData);
+  }
 }
 
 @Embedded(ignore: {'props', 'stringify'})

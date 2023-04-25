@@ -12,36 +12,29 @@ import 'languages.dart';
 
 part 'profile.g.dart';
 
-enum Bot { orange, yellow, red, blue, green, purple }
+enum Bot { yellow, orange, red, blue, green, purple }
 
 enum Onboarding { intro, bookIntro, stamp }
 
 enum InviteStatus { none, invited, connected }
 
-/// What's with all the different levels?
-/// `displayLevel` refers to the level that you see in the app.
-/// This is displayed with the bot and in the ring around the bot
-/// It is not their actual reading level - it's a measurement of how much successful reading a child does.
-/// The more focus words they get right, their display level progresses.
-/// At the moment there are around 50 reading levels (see `bookbotLevelOrder`) and they have gaps in the levels.
-/// This is so new levels can be added in the future without moving other levels around.
-/// Each reading level is tied to a reading concept i.e. words with 'th' or 'silent e' e.g. 'home'
-/// The levels that you select when creating a profile are mapped to a specific `libraryLevel`
-/// When a child increases their `displayLevel` we make their `libraryLevel` complete and add that to `levelsComplete`
-/// `displayLevel` and `libraryLevel` are increased
-/// `levelsComplete` is to keep track of `libraryLevel` they have done and to skip over completed levels if the level is changed by the user
+/// Because isar does not support Map type,
+/// so we have to convert Map from old model into List<Embedded> in isar, and have to use getter setter map for these properties
 @collection
 class Profile extends Model {
   String name = '';
 
+  /// Wrap progress properties into a class type
   @ModelIgnore()
   List<ProfileProgress> progresses = [];
 
+  /// Wrap multiple level properties into a class type
   @ModelIgnore()
   List<ProfileLevel> levels = [];
 
   @Enumerated(EnumType.name)
-  Bot bot = Bot.orange;
+  Bot bot = Bot.yellow;
+  String botType = '';
   String dob = '';
   List<String> about = [];
   @Enumerated(EnumType.name)
@@ -74,6 +67,18 @@ class Profile extends Model {
 
   @Ignore()
   List<ClassRoom>? _classes;
+
+  /// count read book for progress tracker
+  int trackerBooksRead = 0;
+
+  /// count read word for progress tracker
+  int trackerWords = 0;
+
+  /// count practice word for progress tracker
+  int trackerPractice = 0;
+
+  /// count read book for progress sticker
+  int stickerBooksRead = 0;
 
   @visibleForTesting
   @override
@@ -159,8 +164,9 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        levelMap.putIfAbsent(language, () => ProfileLevel());
-        levelMap[language]?.displayLevel = item.value.toDouble();
+        levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
+        levelMap[language]?.displayLevel =
+            item.value.toDouble(); // handle int value from server
       }
     }
 
@@ -170,8 +176,9 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        levelMap.putIfAbsent(language, () => ProfileLevel());
-        levelMap[language]?.libraryLevel = item.value.toInt();
+        levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
+        levelMap[language]?.libraryLevel =
+            item.value.toInt(); // handle double value from server
       }
     }
 
@@ -181,7 +188,7 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        levelMap.putIfAbsent(language, () => ProfileLevel());
+        levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
         levelMap[language]?.levelsCompletedAt =
             levelMap[language]?.levelsCompletedAt.toList() ?? [];
         item.value.forEach((key, value) {
@@ -198,8 +205,9 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.averageAccuracy = item.value.toDouble();
+        progresMap.putIfAbsent(language, () => ProfileProgress.from(language));
+        progresMap[language]?.averageAccuracy =
+            item.value.toDouble(); // handle int value from server
       }
     }
 
@@ -209,8 +217,9 @@ class Profile extends Model {
         final language =
             EnumToString.fromString(LibraryLanguage.values, item.key) ??
                 LibraryLanguage.en;
-        progresMap.putIfAbsent(language, () => ProfileProgress());
-        progresMap[language]?.averageFluency = item.value.toDouble();
+        progresMap.putIfAbsent(language, () => ProfileProgress.from(language));
+        progresMap[language]?.averageFluency =
+            item.value.toDouble(); // handle int value from server
       }
     }
 
@@ -242,6 +251,7 @@ class Profile extends Model {
       levels.add(entry.value);
     }
 
+    // return custom keys here to exclude from metadata json
     keys.addAll([
       'displayLevels',
       'libraryLevels',
@@ -271,6 +281,26 @@ class Profile extends Model {
           'levelsCompletedAt',
         ]
       };
+
+  @override
+  Future<void> deleteLocal() => $Profile(this).deleteLocal();
+
+  @override
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) {
+    return $Profile(this).exportJson(callback: callback);
+  }
+
+  @override
+  Future<void> importJson(jsonData) {
+    return $Profile(this).importJson(jsonData);
+  }
+
+  void resetTracker() {
+    trackerBooksRead = 0;
+    trackerWords = 0;
+    trackerPractice = 0;
+  }
 }
 
 /*
@@ -326,13 +356,15 @@ class LevelEntry with EquatableMixin {
   List<Object?> get props => [name, level];
 }
 
+/// Level embedded object
+/// WARNING: to use double property here, we have to make sure to call `.toDouble()` in setMap because int value can come from server
 @Embedded(ignore: {'props', 'stringify'})
 class ProfileLevel with EquatableMixin {
   @Enumerated(EnumType.name)
   LibraryLanguage language = LibraryLanguage.en;
   List<LevelEntry> levelsCompletedAt = [];
-  double displayLevel = 0.0;
-  int libraryLevel = 0;
+  double displayLevel = 1.0; // must be handle .toDouble()
+  int libraryLevel = 1;
 
   ProfileLevel();
   ProfileLevel.from(this.language);
@@ -349,6 +381,8 @@ class ProfileLevel with EquatableMixin {
       ];
 }
 
+/// Progress embedded object
+/// WARNING: to use double property here, we have to make sure to call `.toDouble()` in setMap because int value can come from server
 @Embedded(ignore: {'props', 'stringify'})
 class ProfileProgress with EquatableMixin {
   @Enumerated(EnumType.name)

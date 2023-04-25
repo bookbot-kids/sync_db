@@ -7,7 +7,7 @@ part of 'progress.dart';
 // **************************************************************************
 
 // coverage:ignore-file
-// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
 
 extension GetProgressCollection on Isar {
   IsarCollection<Progress> get progress => this.collection();
@@ -17,132 +17,157 @@ const ProgressSchema = CollectionSchema(
   name: r'Progress',
   id: 4416052739984182258,
   properties: {
-    r'accuracy': PropertySchema(
+    r'accuracies': PropertySchema(
       id: 0,
+      name: r'accuracies',
+      type: IsarType.doubleList,
+    ),
+    r'accuracy': PropertySchema(
+      id: 1,
       name: r'accuracy',
       type: IsarType.double,
     ),
     r'bookId': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'bookId',
       type: IsarType.string,
     ),
     r'bookLanguage': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'bookLanguage',
       type: IsarType.string,
       enumMap: _ProgressbookLanguageEnumValueMap,
     ),
     r'completedAt': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'completedAt',
       type: IsarType.long,
     ),
     r'correct': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'correct',
       type: IsarType.boolList,
     ),
     r'correctWords': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'correctWords',
       type: IsarType.objectList,
       target: r'ProgressCorrectWords',
     ),
     r'createdAt': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'currentPage': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'currentPage',
       type: IsarType.long,
     ),
     r'deletedAt': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'deletedAt',
       type: IsarType.dateTime,
     ),
+    r'fluencies': PropertySchema(
+      id: 10,
+      name: r'fluencies',
+      type: IsarType.doubleList,
+    ),
     r'fluency': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'fluency',
       type: IsarType.double,
     ),
     r'hasListeners': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'hasListeners',
       type: IsarType.bool,
     ),
     r'id': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'id',
       type: IsarType.string,
     ),
     r'incorrectWords': PropertySchema(
-      id: 12,
+      id: 14,
       name: r'incorrectWords',
       type: IsarType.objectList,
       target: r'ProgressCorrectWords',
     ),
+    r'level': PropertySchema(
+      id: 15,
+      name: r'level',
+      type: IsarType.long,
+    ),
     r'markers': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'markers',
       type: IsarType.stringList,
     ),
     r'metadata': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'metadata',
       type: IsarType.string,
     ),
     r'pageReadCount': PropertySchema(
-      id: 15,
+      id: 18,
       name: r'pageReadCount',
       type: IsarType.long,
     ),
     r'partition': PropertySchema(
-      id: 16,
+      id: 19,
       name: r'partition',
       type: IsarType.string,
     ),
     r'profileId': PropertySchema(
-      id: 17,
+      id: 20,
       name: r'profileId',
       type: IsarType.string,
     ),
     r'progress': PropertySchema(
-      id: 18,
+      id: 21,
       name: r'progress',
       type: IsarType.doubleList,
     ),
     r'rating': PropertySchema(
-      id: 19,
+      id: 22,
       name: r'rating',
       type: IsarType.long,
     ),
+    r'readPracticeWords': PropertySchema(
+      id: 23,
+      name: r'readPracticeWords',
+      type: IsarType.stringList,
+    ),
     r'readToMeTime': PropertySchema(
-      id: 20,
+      id: 24,
       name: r'readToMeTime',
       type: IsarType.long,
     ),
+    r'readWords': PropertySchema(
+      id: 25,
+      name: r'readWords',
+      type: IsarType.stringList,
+    ),
     r'readingTime': PropertySchema(
-      id: 21,
+      id: 26,
       name: r'readingTime',
       type: IsarType.long,
     ),
     r'syncStatus': PropertySchema(
-      id: 22,
+      id: 27,
       name: r'syncStatus',
       type: IsarType.byte,
       enumMap: _ProgresssyncStatusEnumValueMap,
     ),
     r'tableName': PropertySchema(
-      id: 23,
+      id: 28,
       name: r'tableName',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 24,
+      id: 29,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -172,7 +197,7 @@ const ProgressSchema = CollectionSchema(
   getId: _progressGetId,
   getLinks: _progressGetLinks,
   attach: _progressAttach,
-  version: '3.0.5',
+  version: '3.1.0',
 );
 
 int _progressEstimateSize(
@@ -181,6 +206,7 @@ int _progressEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.accuracies.length * 8;
   {
     final value = object.bookId;
     if (value != null) {
@@ -198,6 +224,7 @@ int _progressEstimateSize(
           ProgressCorrectWordsSchema.estimateSize(value, offsets, allOffsets);
     }
   }
+  bytesCount += 3 + object.fluencies.length * 8;
   {
     final value = object.id;
     if (value != null) {
@@ -234,6 +261,20 @@ int _progressEstimateSize(
     }
   }
   bytesCount += 3 + object.progress.length * 8;
+  bytesCount += 3 + object.readPracticeWords.length * 3;
+  {
+    for (var i = 0; i < object.readPracticeWords.length; i++) {
+      final value = object.readPracticeWords[i];
+      bytesCount += value.length * 3;
+    }
+  }
+  bytesCount += 3 + object.readWords.length * 3;
+  {
+    for (var i = 0; i < object.readWords.length; i++) {
+      final value = object.readWords[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.tableName.length * 3;
   return bytesCount;
 }
@@ -244,41 +285,46 @@ void _progressSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDouble(offsets[0], object.accuracy);
-  writer.writeString(offsets[1], object.bookId);
-  writer.writeString(offsets[2], object.bookLanguage.name);
-  writer.writeLong(offsets[3], object.completedAt);
-  writer.writeBoolList(offsets[4], object.correct);
+  writer.writeDoubleList(offsets[0], object.accuracies);
+  writer.writeDouble(offsets[1], object.accuracy);
+  writer.writeString(offsets[2], object.bookId);
+  writer.writeString(offsets[3], object.bookLanguage.name);
+  writer.writeLong(offsets[4], object.completedAt);
+  writer.writeBoolList(offsets[5], object.correct);
   writer.writeObjectList<ProgressCorrectWords>(
-    offsets[5],
+    offsets[6],
     allOffsets,
     ProgressCorrectWordsSchema.serialize,
     object.correctWords,
   );
-  writer.writeDateTime(offsets[6], object.createdAt);
-  writer.writeLong(offsets[7], object.currentPage);
-  writer.writeDateTime(offsets[8], object.deletedAt);
-  writer.writeDouble(offsets[9], object.fluency);
-  writer.writeBool(offsets[10], object.hasListeners);
-  writer.writeString(offsets[11], object.id);
+  writer.writeDateTime(offsets[7], object.createdAt);
+  writer.writeLong(offsets[8], object.currentPage);
+  writer.writeDateTime(offsets[9], object.deletedAt);
+  writer.writeDoubleList(offsets[10], object.fluencies);
+  writer.writeDouble(offsets[11], object.fluency);
+  writer.writeBool(offsets[12], object.hasListeners);
+  writer.writeString(offsets[13], object.id);
   writer.writeObjectList<ProgressCorrectWords>(
-    offsets[12],
+    offsets[14],
     allOffsets,
     ProgressCorrectWordsSchema.serialize,
     object.incorrectWords,
   );
-  writer.writeStringList(offsets[13], object.markers);
-  writer.writeString(offsets[14], object.metadata);
-  writer.writeLong(offsets[15], object.pageReadCount);
-  writer.writeString(offsets[16], object.partition);
-  writer.writeString(offsets[17], object.profileId);
-  writer.writeDoubleList(offsets[18], object.progress);
-  writer.writeLong(offsets[19], object.rating);
-  writer.writeLong(offsets[20], object.readToMeTime);
-  writer.writeLong(offsets[21], object.readingTime);
-  writer.writeByte(offsets[22], object.syncStatus.index);
-  writer.writeString(offsets[23], object.tableName);
-  writer.writeDateTime(offsets[24], object.updatedAt);
+  writer.writeLong(offsets[15], object.level);
+  writer.writeStringList(offsets[16], object.markers);
+  writer.writeString(offsets[17], object.metadata);
+  writer.writeLong(offsets[18], object.pageReadCount);
+  writer.writeString(offsets[19], object.partition);
+  writer.writeString(offsets[20], object.profileId);
+  writer.writeDoubleList(offsets[21], object.progress);
+  writer.writeLong(offsets[22], object.rating);
+  writer.writeStringList(offsets[23], object.readPracticeWords);
+  writer.writeLong(offsets[24], object.readToMeTime);
+  writer.writeStringList(offsets[25], object.readWords);
+  writer.writeLong(offsets[26], object.readingTime);
+  writer.writeByte(offsets[27], object.syncStatus.index);
+  writer.writeString(offsets[28], object.tableName);
+  writer.writeDateTime(offsets[29], object.updatedAt);
 }
 
 Progress _progressDeserialize(
@@ -288,46 +334,51 @@ Progress _progressDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Progress();
-  object.accuracy = reader.readDouble(offsets[0]);
-  object.bookId = reader.readStringOrNull(offsets[1]);
+  object.accuracies = reader.readDoubleList(offsets[0]) ?? [];
+  object.accuracy = reader.readDouble(offsets[1]);
+  object.bookId = reader.readStringOrNull(offsets[2]);
   object.bookLanguage =
-      _ProgressbookLanguageValueEnumMap[reader.readStringOrNull(offsets[2])] ??
+      _ProgressbookLanguageValueEnumMap[reader.readStringOrNull(offsets[3])] ??
           LibraryLanguage.en;
-  object.completedAt = reader.readLongOrNull(offsets[3]);
-  object.correct = reader.readBoolList(offsets[4]) ?? [];
+  object.completedAt = reader.readLongOrNull(offsets[4]);
+  object.correct = reader.readBoolList(offsets[5]) ?? [];
   object.correctWords = reader.readObjectList<ProgressCorrectWords>(
-        offsets[5],
+        offsets[6],
         ProgressCorrectWordsSchema.deserialize,
         allOffsets,
         ProgressCorrectWords(),
       ) ??
       [];
-  object.createdAt = reader.readDateTimeOrNull(offsets[6]);
-  object.currentPage = reader.readLong(offsets[7]);
-  object.deletedAt = reader.readDateTimeOrNull(offsets[8]);
-  object.fluency = reader.readDouble(offsets[9]);
-  object.id = reader.readStringOrNull(offsets[11]);
+  object.createdAt = reader.readDateTimeOrNull(offsets[7]);
+  object.currentPage = reader.readLong(offsets[8]);
+  object.deletedAt = reader.readDateTimeOrNull(offsets[9]);
+  object.fluencies = reader.readDoubleList(offsets[10]) ?? [];
+  object.fluency = reader.readDouble(offsets[11]);
+  object.id = reader.readStringOrNull(offsets[13]);
   object.incorrectWords = reader.readObjectList<ProgressCorrectWords>(
-        offsets[12],
+        offsets[14],
         ProgressCorrectWordsSchema.deserialize,
         allOffsets,
         ProgressCorrectWords(),
       ) ??
       [];
+  object.level = reader.readLong(offsets[15]);
   object.localId = id;
-  object.markers = reader.readStringList(offsets[13]) ?? [];
-  object.metadata = reader.readString(offsets[14]);
-  object.pageReadCount = reader.readLong(offsets[15]);
-  object.partition = reader.readStringOrNull(offsets[16]);
-  object.profileId = reader.readStringOrNull(offsets[17]);
-  object.progress = reader.readDoubleList(offsets[18]) ?? [];
-  object.rating = reader.readLong(offsets[19]);
-  object.readToMeTime = reader.readLong(offsets[20]);
-  object.readingTime = reader.readLong(offsets[21]);
+  object.markers = reader.readStringList(offsets[16]) ?? [];
+  object.metadata = reader.readString(offsets[17]);
+  object.pageReadCount = reader.readLong(offsets[18]);
+  object.partition = reader.readStringOrNull(offsets[19]);
+  object.profileId = reader.readStringOrNull(offsets[20]);
+  object.progress = reader.readDoubleList(offsets[21]) ?? [];
+  object.rating = reader.readLong(offsets[22]);
+  object.readPracticeWords = reader.readStringList(offsets[23]) ?? [];
+  object.readToMeTime = reader.readLong(offsets[24]);
+  object.readWords = reader.readStringList(offsets[25]) ?? [];
+  object.readingTime = reader.readLong(offsets[26]);
   object.syncStatus =
-      _ProgresssyncStatusValueEnumMap[reader.readByteOrNull(offsets[22])] ??
+      _ProgresssyncStatusValueEnumMap[reader.readByteOrNull(offsets[27])] ??
           SyncStatus.created;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[24]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[29]);
   return object;
 }
 
@@ -339,38 +390,20 @@ P _progressDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDouble(offset)) as P;
+      return (reader.readDoubleList(offset) ?? []) as P;
     case 1:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDouble(offset)) as P;
     case 2:
+      return (reader.readStringOrNull(offset)) as P;
+    case 3:
       return (_ProgressbookLanguageValueEnumMap[
               reader.readStringOrNull(offset)] ??
           LibraryLanguage.en) as P;
-    case 3:
-      return (reader.readLongOrNull(offset)) as P;
     case 4:
-      return (reader.readBoolList(offset) ?? []) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 5:
-      return (reader.readObjectList<ProgressCorrectWords>(
-            offset,
-            ProgressCorrectWordsSchema.deserialize,
-            allOffsets,
-            ProgressCorrectWords(),
-          ) ??
-          []) as P;
+      return (reader.readBoolList(offset) ?? []) as P;
     case 6:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 7:
-      return (reader.readLong(offset)) as P;
-    case 8:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 9:
-      return (reader.readDouble(offset)) as P;
-    case 10:
-      return (reader.readBool(offset)) as P;
-    case 11:
-      return (reader.readStringOrNull(offset)) as P;
-    case 12:
       return (reader.readObjectList<ProgressCorrectWords>(
             offset,
             ProgressCorrectWordsSchema.deserialize,
@@ -378,30 +411,58 @@ P _progressDeserializeProp<P>(
             ProgressCorrectWords(),
           ) ??
           []) as P;
+    case 7:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 8:
+      return (reader.readLong(offset)) as P;
+    case 9:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 10:
+      return (reader.readDoubleList(offset) ?? []) as P;
+    case 11:
+      return (reader.readDouble(offset)) as P;
+    case 12:
+      return (reader.readBool(offset)) as P;
     case 13:
-      return (reader.readStringList(offset) ?? []) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readString(offset)) as P;
+      return (reader.readObjectList<ProgressCorrectWords>(
+            offset,
+            ProgressCorrectWordsSchema.deserialize,
+            allOffsets,
+            ProgressCorrectWords(),
+          ) ??
+          []) as P;
     case 15:
       return (reader.readLong(offset)) as P;
     case 16:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 17:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 18:
-      return (reader.readDoubleList(offset) ?? []) as P;
+      return (reader.readLong(offset)) as P;
     case 19:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 20:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 21:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDoubleList(offset) ?? []) as P;
     case 22:
+      return (reader.readLong(offset)) as P;
+    case 23:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 24:
+      return (reader.readLong(offset)) as P;
+    case 25:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 26:
+      return (reader.readLong(offset)) as P;
+    case 27:
       return (_ProgresssyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
-    case 23:
+    case 28:
       return (reader.readString(offset)) as P;
-    case 24:
+    case 29:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -639,6 +700,160 @@ extension ProgressQueryWhere on QueryBuilder<Progress, Progress, QWhereClause> {
 
 extension ProgressQueryFilter
     on QueryBuilder<Progress, Progress, QFilterCondition> {
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesElementEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'accuracies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesElementGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'accuracies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesElementLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'accuracies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesElementBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'accuracies',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> accuraciesIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      accuraciesLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'accuracies',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<Progress, Progress, QAfterFilterCondition> accuracyEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1428,6 +1643,160 @@ extension ProgressQueryFilter
     });
   }
 
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesElementEqualTo(
+    double value, {
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'fluencies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesElementGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'fluencies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesElementLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'fluencies',
+        value: value,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesElementBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'fluencies',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        epsilon: epsilon,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> fluenciesIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      fluenciesLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'fluencies',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<Progress, Progress, QAfterFilterCondition> fluencyEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1732,6 +2101,59 @@ extension ProgressQueryFilter
         upper,
         includeUpper,
       );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> levelEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> levelGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> levelLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'level',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> levelBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'level',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
@@ -2691,6 +3113,233 @@ extension ProgressQueryFilter
     });
   }
 
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'readPracticeWords',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementContains(String value,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'readPracticeWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementMatches(String pattern,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'readPracticeWords',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readPracticeWords',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'readPracticeWords',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readPracticeWordsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readPracticeWords',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<Progress, Progress, QAfterFilterCondition> readToMeTimeEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -2742,6 +3391,230 @@ extension ProgressQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'readWords',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'readWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'readWords',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'readWords',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'readWords',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> readWordsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      readWordsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'readWords',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -3194,6 +4067,18 @@ extension ProgressQuerySortBy on QueryBuilder<Progress, Progress, QSortBy> {
     });
   }
 
+  QueryBuilder<Progress, Progress, QAfterSortBy> sortByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> sortByLevelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.desc);
+    });
+  }
+
   QueryBuilder<Progress, Progress, QAfterSortBy> sortByMetadata() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'metadata', Sort.asc);
@@ -3437,6 +4322,18 @@ extension ProgressQuerySortThenBy
     });
   }
 
+  QueryBuilder<Progress, Progress, QAfterSortBy> thenByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> thenByLevelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'level', Sort.desc);
+    });
+  }
+
   QueryBuilder<Progress, Progress, QAfterSortBy> thenByLocalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'localId', Sort.asc);
@@ -3572,6 +4469,12 @@ extension ProgressQuerySortThenBy
 
 extension ProgressQueryWhereDistinct
     on QueryBuilder<Progress, Progress, QDistinct> {
+  QueryBuilder<Progress, Progress, QDistinct> distinctByAccuracies() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'accuracies');
+    });
+  }
+
   QueryBuilder<Progress, Progress, QDistinct> distinctByAccuracy() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'accuracy');
@@ -3622,6 +4525,12 @@ extension ProgressQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Progress, Progress, QDistinct> distinctByFluencies() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'fluencies');
+    });
+  }
+
   QueryBuilder<Progress, Progress, QDistinct> distinctByFluency() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'fluency');
@@ -3638,6 +4547,12 @@ extension ProgressQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'id', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QDistinct> distinctByLevel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'level');
     });
   }
 
@@ -3686,9 +4601,21 @@ extension ProgressQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Progress, Progress, QDistinct> distinctByReadPracticeWords() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'readPracticeWords');
+    });
+  }
+
   QueryBuilder<Progress, Progress, QDistinct> distinctByReadToMeTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'readToMeTime');
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QDistinct> distinctByReadWords() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'readWords');
     });
   }
 
@@ -3723,6 +4650,12 @@ extension ProgressQueryProperty
   QueryBuilder<Progress, int, QQueryOperations> localIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'localId');
+    });
+  }
+
+  QueryBuilder<Progress, List<double>, QQueryOperations> accuraciesProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'accuracies');
     });
   }
 
@@ -3782,6 +4715,12 @@ extension ProgressQueryProperty
     });
   }
 
+  QueryBuilder<Progress, List<double>, QQueryOperations> fluenciesProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'fluencies');
+    });
+  }
+
   QueryBuilder<Progress, double, QQueryOperations> fluencyProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'fluency');
@@ -3804,6 +4743,12 @@ extension ProgressQueryProperty
       incorrectWordsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'incorrectWords');
+    });
+  }
+
+  QueryBuilder<Progress, int, QQueryOperations> levelProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'level');
     });
   }
 
@@ -3849,9 +4794,22 @@ extension ProgressQueryProperty
     });
   }
 
+  QueryBuilder<Progress, List<String>, QQueryOperations>
+      readPracticeWordsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'readPracticeWords');
+    });
+  }
+
   QueryBuilder<Progress, int, QQueryOperations> readToMeTimeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'readToMeTime');
+    });
+  }
+
+  QueryBuilder<Progress, List<String>, QQueryOperations> readWordsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'readWords');
     });
   }
 
@@ -3885,7 +4843,7 @@ extension ProgressQueryProperty
 // **************************************************************************
 
 // coverage:ignore-file
-// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
 
 const ProgressCorrectWordsSchema = Schema(
   name: r'ProgressCorrectWords',
@@ -4204,11 +5162,16 @@ extension $Progress on Progress {
     map['correct'] = correct;
     map['fluency'] = fluency;
     map['accuracy'] = accuracy;
+    map['accuracies'] = accuracies;
+    map['fluencies'] = fluencies;
+    map['level'] = level;
     map['pageReadCount'] = pageReadCount;
     map['readToMeTime'] = readToMeTime;
     map['readingTime'] = readingTime;
     map['completedAt'] = completedAt;
     map['markers'] = markers;
+    map['readWords'] = readWords.toSet().toList();
+    map['readPracticeWords'] = readPracticeWords.toSet().toList();
     return map;
   }
 
@@ -4268,6 +5231,17 @@ extension $Progress on Progress {
     }
     keys.add('accuracy');
 
+    accuracies = List<double>.from(
+        map['accuracies']?.map((e) => e.toDouble()).toList() ?? <double>[]);
+    keys.add('accuracies');
+
+    fluencies = List<double>.from(
+        map['fluencies']?.map((e) => e.toDouble()).toList() ?? <double>[]);
+    keys.add('fluencies');
+
+    if (map['level'] != null) level = map['level'];
+    keys.add('level');
+
     if (map['pageReadCount'] != null) pageReadCount = map['pageReadCount'];
     keys.add('pageReadCount');
 
@@ -4283,6 +5257,16 @@ extension $Progress on Progress {
     markers = List<String>.from(
         (map['markers'] as List?)?.whereNotNull() ?? <String>[]);
     keys.add('markers');
+
+    readWords = Set<String>.from(
+            (map['readWords'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
+    keys.add('readWords');
+
+    readPracticeWords = Set<String>.from(
+            (map['readPracticeWords'] as List?)?.whereNotNull() ?? <String>[])
+        .toList();
+    keys.add('readPracticeWords');
 
     return keys;
   }
@@ -4417,6 +5401,18 @@ extension $Progress on Progress {
       result.add('accuracy');
     }
 
+    if (!DeepCollectionEquality().equals(accuracies, other.accuracies)) {
+      result.add('accuracies');
+    }
+
+    if (!DeepCollectionEquality().equals(fluencies, other.fluencies)) {
+      result.add('fluencies');
+    }
+
+    if (level != other.level) {
+      result.add('level');
+    }
+
     if (pageReadCount != other.pageReadCount) {
       result.add('pageReadCount');
     }
@@ -4444,6 +5440,15 @@ extension $Progress on Progress {
 
     if (!DeepCollectionEquality().equals(markers, other.markers)) {
       result.add('markers');
+    }
+
+    if (!DeepCollectionEquality().equals(readWords, other.readWords)) {
+      result.add('readWords');
+    }
+
+    if (!DeepCollectionEquality()
+        .equals(readPracticeWords, other.readPracticeWords)) {
+      result.add('readPracticeWords');
     }
 
     final list = <String>[];
