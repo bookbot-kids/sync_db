@@ -7679,6 +7679,31 @@ extension $Profile on Profile {
     return keys;
   }
 
+  Set<String> get keys {
+    final result = <String>{};
+    result.add('name');
+    result.add('bot');
+    result.add('botType');
+    result.add('dob');
+    result.add('about');
+    result.add('onboarding');
+    result.add('readToMe');
+    result.add('autoTurnPage');
+    result.add('lastRead');
+    result.add('favourites');
+    result.add('completedBooks');
+    result.add('email');
+    result.add('lastName');
+    result.add('inviteStatus');
+    result.add('classesIds');
+    result.add('teacherIds');
+    result.add('trackerBooksRead');
+    result.add('trackerWords');
+    result.add('trackerPractice');
+    result.add('stickerBooksRead');
+    return result;
+  }
+
   /// Save record and sync to service
   Future<void> save(
       {bool syncToService = true,

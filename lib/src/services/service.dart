@@ -303,18 +303,26 @@ abstract class Service {
       final localRecord =
           await handler.find(serverRecord[idKey], filterDeletedAt: false);
       if (localRecord != null) {
-        if (serverRecord[updatedKey] >=
-            (localRecord.updatedAt?.millisecondsSinceEpoch ?? 0)) {
+        final localUpdatedAt =
+            localRecord.updatedAt?.millisecondsSinceEpoch ?? 0;
+        final serverUpdatedAt = serverRecord[updatedKey];
+        if (serverUpdatedAt > localUpdatedAt) {
+          // Server is newer: set status to synced and overwrite server to local
           localRecord.syncStatus = SyncStatus.synced;
           final keys = await localRecord.setMap(serverRecord);
           localRecord.setMetadata(keys, serverRecord);
           await localRecord.save(
               syncToService: false, runInTransaction: false, initialize: false);
-        } else {
-          // in case local is newer, mark it as updated and sync again next time
-          localRecord.syncStatus = SyncStatus.updated;
-          final keys = await localRecord.setMap(serverRecord);
+        } else if (serverUpdatedAt == localUpdatedAt) {
+          // Server and local have the same update time: set status to synced and only write metadata from server into local
+          localRecord.syncStatus = SyncStatus.synced;
+          final keys = localRecord.keys;
           localRecord.setMetadata(keys, serverRecord);
+          await localRecord.save(
+              syncToService: false, runInTransaction: false, initialize: false);
+        } else {
+          // Local is newer: mark it as updated and sync again next time, don't overwrite record
+          localRecord.syncStatus = SyncStatus.updated;
           await localRecord.save(
               syncToService: false, runInTransaction: false, initialize: false);
         }

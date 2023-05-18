@@ -83,10 +83,11 @@ class Model2Generator extends Generator {
       setterMap = 'final keys = await \$${parentType}(this).setMap(map);';
     }
 
-    final getterFields = [];
-    final setterFields = [];
+    final getterFields = <String>[];
+    final setterFields = <String>[];
+    final keyFields = <String>[];
 
-    final comparisonFields = [];
+    final comparisonFields = <String>[];
     comparisonFields.add('''
 if (deletedAt != other.deletedAt) {
       result.add('deletedAt');
@@ -96,11 +97,11 @@ if (deletedAt != other.deletedAt) {
     // loop through fields
     for (var field in element.fields) {
       final name = field.name;
-      final typeName = field.type.element2?.displayName ?? '';
+      final typeName = field.type.element?.displayName ?? '';
       final typeFullName = field.type.getDisplayString(withNullability: true);
-      final fieldElement = field.type.element2;
+      final fieldElement = field.type.element;
       print(
-          'Type ${field.type.element2} \n, fieldName $name, typeName $typeName');
+          'Type ${field.type.element} \n, fieldName $name, typeName $typeName');
       // ignore static, private fields or property start with $
       if (field.isStatic || name.startsWith('_') || name.startsWith('\$')) {
         continue;
@@ -145,7 +146,7 @@ if (deletedAt != other.deletedAt) {
 
       // enum
       if (fieldElement is EnumElement) {
-        final type = field.type.element2!.name;
+        final type = field.type.element!.name;
         getterFields
             .add("map['${name}'] = EnumToString.convertToString(${name});");
         setterFields.add('''
@@ -157,6 +158,7 @@ if (deletedAt != other.deletedAt) {
         }
         keys.add('$name');
         ''');
+        keyFields.add("result.add('$name');");
       } else if (TypeChecker.fromRuntime(ModelSet).hasAnnotationOfExact(field,
           throwOnUnresolved: false)) //list but treat as set
       {
@@ -170,12 +172,14 @@ if (deletedAt != other.deletedAt) {
         ${name} = Set<$listType>.from(map['${name}']?.map((e) => e.toDouble()).toList() ?? <$listType>[]).toList();
         keys.add('$name');
         ''');
+          keyFields.add("result.add('$name');");
         } else {
           final filter = isNullableType ? '' : '?.whereNotNull()';
           setterFields.add('''
         ${name} = Set<$listType>.from((map['${name}'] as List?)$filter ?? <$listType>[]).toList();
         keys.add('$name');
         ''');
+          keyFields.add("result.add('$name');");
         }
       } else if (typeName == 'List') // list
       {
@@ -189,12 +193,14 @@ if (deletedAt != other.deletedAt) {
         ${name} = List<$listType>.from(map['${name}']?.map((e) => e.toDouble()).toList() ?? <$listType>[]);
         keys.add('$name');
         ''');
+          keyFields.add("result.add('$name');");
         } else {
           final filter = isNullableType ? '' : '?.whereNotNull()';
           setterFields.add('''
         ${name} = List<$listType>.from((map['${name}'] as List?)$filter ?? <$listType>[]);
         keys.add('$name');
         ''');
+          keyFields.add("result.add('$name');");
         }
       } else if (typeName == 'double') {
         //double
@@ -203,6 +209,7 @@ if (deletedAt != other.deletedAt) {
         if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }
         keys.add('$name');
         ''');
+        keyFields.add("result.add('$name');");
       } else if (typeName == 'DateTime') {
         // DateTime
         getterFields.add("map['${name}'] = ${name}?.millisecondsSinceEpoch;");
@@ -210,6 +217,7 @@ if (deletedAt != other.deletedAt) {
         if(map['${name}'] is int) { ${name} = DateTime.fromMillisecondsSinceEpoch(map['$name']); }
         keys.add('$name');
         ''');
+        keyFields.add("result.add('$name');");
       } else {
         // the rest types
         getterFields.add("map['${name}'] = ${name};");
@@ -217,6 +225,7 @@ if (deletedAt != other.deletedAt) {
         if(map['${name}'] != null) ${name} = map['${name}'];
         keys.add('$name');
         ''');
+        keyFields.add("result.add('$name');");
       }
     }
 
@@ -377,6 +386,12 @@ if (deletedAt != other.deletedAt) {
         $setterMap
         $setFields
         return keys;
+      }
+
+      Set<String> get keys {
+        final result = <String>{};
+        ${keyFields.join('\n')}
+        return result;
       }
 
       $dbMethods

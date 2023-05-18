@@ -120,6 +120,9 @@ class ServicePoint extends Model {
   static String sharedKey(String name, String partition) {
     return '$name-$partition';
   }
+
+  @override
+  Set<String> get keys => {};
 }
 
 enum Access { all, read, write }

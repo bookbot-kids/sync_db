@@ -110,6 +110,14 @@ class Progress extends Model {
     return keys;
   }
 
+  @Ignore()
+  @override
+  Set<String> get keys => $Progress(this).keys
+    ..addAll([
+      'correctWords',
+      'incorrectWords',
+    ]);
+
   Future<Profile?> getProfile() async {
     _profile ??= await $Profile.find(profileId);
     return _profile;

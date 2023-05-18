@@ -87,6 +87,10 @@ class ClassRoom extends Model {
     return keys;
   }
 
+  @Ignore()
+  @override
+  Set<String> get keys => $ClassRoom(this).keys..add('rewards');
+
   @override
   Future<ClassRoom?> find(String? id, {bool filterDeletedAt = true}) =>
       $ClassRoom.find(id, filterDeletedAt: filterDeletedAt);

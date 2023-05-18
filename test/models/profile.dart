@@ -265,6 +265,19 @@ class Profile extends Model {
     return keys;
   }
 
+  @Ignore()
+  @override
+  Set<String> get keys => $Profile(this).keys
+    ..addAll([
+      'displayLevels',
+      'libraryLevels',
+      'levelsCompletedAt',
+      'scriptStatuses',
+      'averageAccuracies',
+      'averageFluencies',
+      'teacherInfo'
+    ]);
+
   @override
   Future<Profile?> find(String? id, {bool filterDeletedAt = true}) =>
       $Profile.find(id, filterDeletedAt: filterDeletedAt);

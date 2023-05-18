@@ -2961,6 +2961,12 @@ extension $Event on Event {
     return keys;
   }
 
+  Set<String> get keys {
+    final result = <String>{};
+    result.add('type');
+    return result;
+  }
+
   /// Save record and sync to service
   Future<void> save(
       {bool syncToService = true,

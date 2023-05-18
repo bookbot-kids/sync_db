@@ -2916,6 +2916,15 @@ extension $ClassRoom on ClassRoom {
     return keys;
   }
 
+  Set<String> get keys {
+    final result = <String>{};
+    result.add('name');
+    result.add('teacherId');
+    result.add('readingBookIds');
+    result.add('level');
+    return result;
+  }
+
   /// Save record and sync to service
   Future<void> save(
       {bool syncToService = true,

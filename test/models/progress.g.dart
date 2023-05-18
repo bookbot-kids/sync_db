@@ -5271,6 +5271,30 @@ extension $Progress on Progress {
     return keys;
   }
 
+  Set<String> get keys {
+    final result = <String>{};
+    result.add('profileId');
+    result.add('bookId');
+    result.add('currentPage');
+    result.add('rating');
+    result.add('bookLanguage');
+    result.add('progress');
+    result.add('correct');
+    result.add('fluency');
+    result.add('accuracy');
+    result.add('accuracies');
+    result.add('fluencies');
+    result.add('level');
+    result.add('pageReadCount');
+    result.add('readToMeTime');
+    result.add('readingTime');
+    result.add('completedAt');
+    result.add('markers');
+    result.add('readWords');
+    result.add('readPracticeWords');
+    return result;
+  }
+
   /// Save record and sync to service
   Future<void> save(
       {bool syncToService = true,

@@ -95,6 +95,14 @@ class Event extends Model {
     ]);
     return keys;
   }
+
+  @Ignore()
+  @override
+  Set<String> get keys => $Event(this).keys
+    ..addAll([
+      'eventData',
+      'triggerAction',
+    ]);
 }
 
 @Embedded(ignore: {'props', 'stringify'})

@@ -81,6 +81,9 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   @Ignore()
+  Set<String> get keys;
+
+  @Ignore()
   String get tableName;
 
   Future<void> save({
@@ -104,7 +107,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
       createdKey,
       updatedKey,
       deletedKey,
-      'partition',
+      partitionKey,
     ]);
 
     final newMap = {};

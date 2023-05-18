@@ -110,6 +110,9 @@ class TransferMap extends Model {
   }
 
   @override
+  Set<String> get keys => {};
+
+  @override
   Future<List<T>> queryStatus<T extends Model>(SyncStatus syncStatus,
       {bool filterDeletedAt = true}) async {
     final result = filterDeletedAt
