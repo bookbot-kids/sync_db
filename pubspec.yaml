@@ -27,10 +27,10 @@ dependencies:
   mime_type: ^1.0.0
   singleton: ^0.0.3-nullsafety
   tuple: ^2.0.0
-
   robust_http:
     git:
       url: https://github.com/bookbot-kids/robust-http.git
+      ref: v3_stable_mdc
 
 dev_dependencies:
   flutter_lints: ^1.0.4
@@ -40,3 +40,4 @@ dev_dependencies:
 dependency_overrides:
   path: ^1.8.2
   analyzer: ^4.7.0
+  connectivity_plus: ^3.0.0
