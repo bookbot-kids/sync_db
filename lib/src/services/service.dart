@@ -207,25 +207,15 @@ abstract class Service {
     await database.runInTransaction(service.name, (transaction) async {
       final localRecord = await database
           .findMap(service.name, serverRecord[idKey], transaction: transaction);
-      if (localRecord != null) {
-        final localUpdatedAt = localRecord[updatedKey] ?? 0;
-        final serverUpdatedAt = serverRecord[updatedKey];
-        if (serverUpdatedAt > localUpdatedAt) {
-          // Server is newer: set status to synced and overwrite server to local
-          serverRecord[statusKey] = SyncStatus.synced.name;
-          await database.saveMap(service.name, serverRecord,
-              transaction: transaction);
-        } else if (serverUpdatedAt == localUpdatedAt) {
-          // Server and local have the same update time: set status to synced and only write metadata from server into local
-          localRecord[statusKey] = SyncStatus.synced.name;
-          await database.saveMap(service.name, localRecord,
-              transaction: transaction);
-        } else {
-          // Local is newer: mark it as updated and sync again next time, don't overwrite record
-          localRecord[statusKey] = SyncStatus.updated.name;
-          await database.saveMap(service.name, localRecord,
-              transaction: transaction);
-        }
+      if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
+        serverRecord[statusKey] = SyncStatus.synced.name;
+        await database.saveMap(service.name, serverRecord,
+            transaction: transaction);
+      } else {
+        // in case local is newer, mark it as updated and sync again next time
+        localRecord[statusKey] = SyncStatus.updated.name;
+        await database.saveMap(service.name, localRecord,
+            transaction: transaction);
       }
     });
   }
