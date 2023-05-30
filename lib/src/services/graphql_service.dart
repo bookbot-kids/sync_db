@@ -14,6 +14,8 @@ class GraphQLService extends Service {
   CognitoUserSession user;
   GraphQLClient _graphClient;
   HttpLink _httpLink;
+  Map queryLimitMap;
+  Map queryByOwnerMap;
 
   /// Max error retry
   int _maxRetry = 2;
@@ -24,21 +26,43 @@ class GraphQLService extends Service {
     );
 
     _maxRetry = config['errorRetry'] ?? 2;
+    queryLimitMap = config['queryLimitMap'] ?? {};
+    queryByOwnerMap = config['queryByOwnerMap'] ?? {};
   }
 
   @override
   Future<void> readFromService(ServicePoint service) async {
     var table = service.name;
     var fields = _getFields(table);
-    // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
-    final limit = 1000;
+    final limit = queryLimitMap[table] ?? 1000;
+    final queryOwnerEnabled =
+        user?.id?.isNotEmpty == true && (queryByOwnerMap[table] ?? false);
     String nextToken;
     final start = service.from;
 
     // ignore: unawaited_futures
     do {
       var variables = <String, dynamic>{'nextToken': nextToken};
-      var select = '''
+      var select = queryOwnerEnabled
+          ? '''
+        query list$table (\$nextToken: String) {
+            list${table}s(filter: {
+              lastSynced: {
+                ge: ${start}
+              }, and: {
+                owner: {
+                  eq: "${user.id}"
+                }
+              }
+            }, limit: $limit, nextToken: \$nextToken){
+              items{
+                $fields
+              },
+              nextToken
+            }
+        }
+        '''
+          : '''
         query list$table (\$nextToken: String) {
             list${table}s(filter: {
               lastSynced: {
