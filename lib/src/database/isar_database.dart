@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
 import 'package:sembast/utils/value_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:singleton/singleton.dart';
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
 import 'package:sync_db/src/services/service_record.dart';
@@ -21,13 +22,20 @@ import 'package:sembast/sembast.dart' as sembast;
 enum DBImportType { sembast, isar }
 
 class IsarDatabase {
+  factory IsarDatabase() =>
+      Singleton.lazy(() => IsarDatabase._privateConstructor());
+  IsarDatabase._privateConstructor();
+  static IsarDatabase shared = IsarDatabase();
+
   static const appVersionKey = 'app_version';
   Map<String, ModelHandler> modelHandlers = {};
   Map<String, Model Function()> modelInstances = {};
-  late Isar local;
   bool _isInitialized = false;
   late int _maxSizeMiB;
   static final _lock = Lock();
+  static Isar? _local;
+
+  Isar get local => IsarDatabase._local!;
 
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
@@ -53,9 +61,9 @@ class IsarDatabase {
       dir = '';
     }
 
-    if (!_isInitialized) {
+    if (!_isInitialized || _local == null) {
       await _lock.synchronized(() async {
-        local = Isar.getInstance() ??
+        _local ??= Isar.getInstance() ??
             await Isar.open(
               models.keys.toList(),
               directory: dir,

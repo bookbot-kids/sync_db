@@ -30,11 +30,15 @@ void main() {
       await isarLockFile.delete();
     }
 
-    MethodChannel('plugins.flutter.io/path_provider')
-        .setMockMethodCallHandler((call) async => '.');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => '.');
 
-    MethodChannel('plugins.flutter.io/path_provider_macos')
-        .setMockMethodCallHandler((call) async => '.');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            MethodChannel('plugins.flutter.io/path_provider_macos'),
+            (call) async => '.');
 
     await Isar.initializeIsarCore(download: true);
     await db.init({

@@ -35,11 +35,16 @@ void main() {
 
     configs = jsonDecode(await File('test/keys.json').readAsString());
     syncHelper = SyncHelper(configs);
-    MethodChannel('plugins.flutter.io/path_provider')
-        .setMockMethodCallHandler((call) async => '.');
 
-    MethodChannel('plugins.flutter.io/path_provider_macos')
-        .setMockMethodCallHandler((call) async => '.');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => '.');
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            MethodChannel('plugins.flutter.io/path_provider_macos'),
+            (call) async => '.');
 
     await Isar.initializeIsarCore(download: true);
 

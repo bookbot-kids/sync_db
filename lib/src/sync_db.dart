@@ -15,7 +15,6 @@ class Sync {
   Storage? storage;
   List<SyncDelegate> syncDelegates = [];
   ModelDelegate? modelDelegate;
-  late IsarDatabase db;
   final networkNotifier = Notifier<bool>(true);
   final exceptionNotifier =
       Notifier<Tuple3<bool, dynamic, dynamic>>(Tuple3(false, null, null));
@@ -25,6 +24,7 @@ class Sync {
   var _isListening = false;
 
   bool get networkAvailable => _hasConnection && _hasInternet;
+  IsarDatabase get db => IsarDatabase.shared;
 
   Future<bool> connectivity() async {
     _hasConnection = await ConnectionHelper.shared.hasConnection();
