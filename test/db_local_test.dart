@@ -14,7 +14,6 @@ import 'models/profile.dart';
 import 'models/progress.dart';
 
 void main() {
-  final db = IsarDatabase();
   TestWidgetsFlutterBinding.ensureInitialized();
   // fix dio request error https://github.com/flutter/flutter/issues/48050#issuecomment-572359109
   io.HttpOverrides.global = null;
@@ -41,13 +40,12 @@ void main() {
             (call) async => '.');
 
     await Isar.initializeIsarCore(download: true);
-    await db.init({
+    await Sync.shared.db.init({
       ProfileSchema: () => Profile(),
       ClassRoomSchema: () => ClassRoom(),
       ProgressSchema: () => Progress(),
       EventSchema: () => Event(),
     });
-    Sync.shared.db = db;
   });
 
   group('Profile read/write', () {
@@ -138,6 +136,6 @@ void main() {
 
   tearDownAll(() {
     print('tearDown');
-    db.close(deleteFromDisk: true);
+    Sync.shared.db.close(deleteFromDisk: true);
   });
 }

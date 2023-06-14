@@ -15,7 +15,6 @@ import 'models/progress.dart';
 import 'sync_service_helper.dart';
 
 void main() {
-  final db = IsarDatabase();
   late SyncHelper syncHelper;
   TestWidgetsFlutterBinding.ensureInitialized();
   // fix dio request error https://github.com/flutter/flutter/issues/48050#issuecomment-572359109
@@ -50,13 +49,12 @@ void main() {
 
     // Local DB
     final sync = Sync.shared;
-    await db.init({
+    await sync.db.init({
       ClassRoomSchema: () => ClassRoom(),
       ProfileSchema: () => Profile(),
       ProgressSchema: () => Progress(),
       EventSchema: () => Event(),
     });
-    sync.db = db;
   });
 
   group('Sync1', () {
@@ -313,6 +311,6 @@ void main() {
   });
   tearDownAll(() {
     print('tearDown');
-    db.close(deleteFromDisk: true);
+    Sync.shared.db.close(deleteFromDisk: true);
   });
 }
