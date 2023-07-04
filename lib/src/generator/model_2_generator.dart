@@ -222,7 +222,7 @@ if (deletedAt != other.deletedAt) {
         // the rest types
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add('''
-        if(map['${name}'] != null) ${name} = map['${name}'];
+        if(map['${name}'] != null) { ${name} = map['${name}']; }
         keys.add('$name');
         ''');
         keyFields.add("result.add('$name');");
