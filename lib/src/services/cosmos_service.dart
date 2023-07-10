@@ -255,6 +255,17 @@ class CosmosService extends Service {
           e,
           stacktrace);
       return {};
+    } on UnexpectedResponseException catch (e, stacktrace) {
+      Sync.shared.logger?.e(
+          'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
+          e,
+          stacktrace);
+      if (e.statusCode == 403) {
+        // token is expired, try to get new
+        await Sync.shared.userSession?.refresh(forceRefreshToken: true);
+      }
+
+      rethrow;
     } catch (e, stacktrace) {
       Sync.shared.logger?.e(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
@@ -267,7 +278,7 @@ class CosmosService extends Service {
   /// Cosmos api to create document
   Future<Map<String, dynamic>?> _createDocument(
       ServicePoint servicePoint, Map record,
-      {bool retryUpdate = true}) async {
+      {bool retryUpdate = true, bool retryCreate = true}) async {
     if (!await connectivity()) {
       throw ConnectivityException(
           'Create cosmos $record document failed because there is no connection');
@@ -309,6 +320,21 @@ class CosmosService extends Service {
         if (e.statusCode == 409 && retryUpdate) {
           // Strange that this has happened. Record is already created. Log it and try an update.
           return await (_updateDocument(servicePoint, record));
+        } else if (e.statusCode == 403) {
+          // token is expired, try to get new
+          await Sync.shared.userSession?.refresh(forceRefreshToken: true);
+          if (retryCreate) {
+            // get new service point
+            servicePoint = (await ServicePoint.search(servicePoint.id,
+                    servicePoint.name, servicePoint.partition)) ??
+                servicePoint;
+            // then retry once
+            // ignore: unawaited_futures
+            return await _createDocument(servicePoint, record,
+                retryCreate: false);
+          } else {
+            rethrow;
+          }
         } else {
           rethrow;
         }
@@ -333,7 +359,8 @@ class CosmosService extends Service {
   }
 
   /// Cosmos api to update document
-  Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record) async {
+  Future<dynamic> _updateDocument(ServicePoint servicePoint, Map record,
+      {bool retryUpdate = true}) async {
     if (!await connectivity()) {
       throw ConnectivityException(
           'Update cosmos $record document failed because there is no connection');
@@ -377,6 +404,21 @@ class CosmosService extends Service {
           // Strange that this has happened. Record does not exist. Log it and try to create
           return await _createDocument(servicePoint, record,
               retryUpdate: false);
+        } else if (e.statusCode == 403) {
+          // token is expired, try to get new
+          await Sync.shared.userSession?.refresh(forceRefreshToken: true);
+          if (retryUpdate) {
+            // get new service point
+            servicePoint = (await ServicePoint.search(servicePoint.id,
+                    servicePoint.name, servicePoint.partition)) ??
+                servicePoint;
+            // then retry once
+            // ignore: unawaited_futures
+            return await _updateDocument(servicePoint, record,
+                retryUpdate: false);
+          } else {
+            rethrow;
+          }
         } else {
           rethrow;
         }
@@ -402,7 +444,8 @@ class CosmosService extends Service {
 
   /// Cosmos api to update partial document
   Future<dynamic> _partialUpdateDocument(
-      ServicePoint servicePoint, Map operations, Map record) async {
+      ServicePoint servicePoint, Map operations, Map record,
+      {bool retryUpdate = true}) async {
     if (!await connectivity()) {
       throw ConnectivityException(
           'Update cosmos $record document failed because there is no connection');
@@ -438,6 +481,22 @@ class CosmosService extends Service {
           // Strange that this has happened. Record does not exist. Log it and try to create
           return await _createDocument(servicePoint, record,
               retryUpdate: false);
+        } else if (e.statusCode == 403) {
+          // token is expired, try to get new
+          await Sync.shared.userSession?.refresh(forceRefreshToken: true);
+          if (retryUpdate) {
+            // get new service point
+            servicePoint = (await ServicePoint.search(servicePoint.id,
+                    servicePoint.name, servicePoint.partition)) ??
+                servicePoint;
+            // then retry once
+            // ignore: unawaited_futures
+            return await _partialUpdateDocument(
+                servicePoint, operations, record,
+                retryUpdate: false);
+          } else {
+            rethrow;
+          }
         } else {
           rethrow;
         }

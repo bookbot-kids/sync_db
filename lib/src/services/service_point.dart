@@ -62,6 +62,19 @@ class ServicePoint extends Model {
     return filter.deletedAtIsNull().findFirst();
   }
 
+  static Future<ServicePoint?> search(
+      String? id, String name, String? partition) {
+    return ServicePoint()
+        .db
+        .servicePoints
+        .filter()
+        .idEqualTo(id)
+        .nameEqualTo(name)
+        .partitionEqualTo(partition)
+        .deletedAtIsNull()
+        .findFirst();
+  }
+
   @Ignore()
   String get key => '$name-$partition';
 
