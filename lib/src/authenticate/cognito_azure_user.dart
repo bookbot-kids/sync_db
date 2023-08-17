@@ -145,7 +145,7 @@ class CognitoAzureUserSession extends UserSession
   @override
   Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh start');
+      Sync.shared.logger?.f('[sync_db][DEBUG] refresh start');
     }
 
     if (_initializeTask != null) {
@@ -153,7 +153,7 @@ class CognitoAzureUserSession extends UserSession
     }
 
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh initialized');
+      Sync.shared.logger?.f('[sync_db][DEBUG] refresh initialized');
     }
 
     // Start some tasks to await later
@@ -161,13 +161,13 @@ class CognitoAzureUserSession extends UserSession
     final asyncMapped = _mappedServicePoints();
 
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh start token');
+      Sync.shared.logger?.f('[sync_db][DEBUG] refresh start token');
     }
     final prefs = await _sharePrefInstance;
     var refreshToken = await token;
     role = prefs.getString(_userRoleKey) ?? _defaultRole;
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf(
+      Sync.shared.logger?.f(
           '[sync_db][DEBUG] refresh refreshToken = $refreshToken, role $role');
     }
 
@@ -176,8 +176,8 @@ class CognitoAzureUserSession extends UserSession
     try {
       Sync.shared.logger?.i('Start to request GetResourceTokens');
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
-            '[sync_db][DEBUG] refresh Start to request GetResourceTokens');
+        Sync.shared.logger
+            ?.f('[sync_db][DEBUG] refresh Start to request GetResourceTokens');
       }
 
       final response = await _lock.synchronized(() async {
@@ -199,7 +199,7 @@ class CognitoAzureUserSession extends UserSession
       });
 
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
+        Sync.shared.logger?.f(
             '[sync_db][DEBUG] refresh Finished request GetResourceTokens $response');
       }
 
@@ -210,7 +210,7 @@ class CognitoAzureUserSession extends UserSession
       final mappedServicePoints = await asyncMapped;
 
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
+        Sync.shared.logger?.f(
             '[sync_db][DEBUG] refresh get mapped service point $mappedServicePoints');
       }
 
@@ -234,7 +234,7 @@ class CognitoAzureUserSession extends UserSession
           await servicePoint.save(syncToService: false);
 
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] refresh save service point $servicePoint');
           }
         });
@@ -242,7 +242,7 @@ class CognitoAzureUserSession extends UserSession
 
       if (_logDebugCloud) {
         Sync.shared.logger
-            ?.wtf('[sync_db][DEBUG] refresh waiting for queue to complete');
+            ?.f('[sync_db][DEBUG] refresh waiting for queue to complete');
       }
       // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
       unawaited(_syncQueue.add(() => Future.value()));
@@ -250,7 +250,7 @@ class CognitoAzureUserSession extends UserSession
 
       if (_logDebugCloud) {
         Sync.shared.logger
-            ?.wtf('[sync_db][DEBUG] refresh set role ${response['group']}');
+            ?.f('[sync_db][DEBUG] refresh set role ${response['group']}');
       }
       // set role along with the resource tokens
       if (response['group'] != null) {
@@ -259,7 +259,7 @@ class CognitoAzureUserSession extends UserSession
       }
 
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf('[sync_db][DEBUG] refresh completed');
+        Sync.shared.logger?.f('[sync_db][DEBUG] refresh completed');
       }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
@@ -270,24 +270,25 @@ class CognitoAzureUserSession extends UserSession
       } else {
         Sync.shared.logger?.e(
             'Resource tokens error ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         rethrow;
       }
     } on ConnectivityException catch (e, stackTrace) {
       if (_logDebugCloud) {
         Sync.shared.logger
-            ?.wtf('[sync_db][DEBUG] Resource tokens connection error $e');
+            ?.f('[sync_db][DEBUG] Resource tokens connection error $e');
       }
-      Sync.shared.logger
-          ?.w('Resource tokens connection error $e', e, stackTrace);
+      Sync.shared.logger?.w('Resource tokens connection error $e',
+          error: e, stackTrace: stackTrace);
       rethrow;
     } on Exception catch (e, stackTrace) {
       if (_logDebugCloud) {
         Sync.shared.logger
-            ?.wtf('[sync_db][DEBUG] Resource tokens unknown error $e');
+            ?.f('[sync_db][DEBUG] Resource tokens unknown error $e');
       }
-      Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
+      Sync.shared.logger?.e('Resource tokens unknown error $e',
+          error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -440,7 +441,8 @@ class CognitoAzureUserSession extends UserSession
         final uri = response['uri'];
         await prefs.setString(_storageUriKey, uri);
       } catch (e, stackTrace) {
-        Sync.shared.logger?.e('Storage token error $e', e, stackTrace);
+        Sync.shared.logger
+            ?.e('Storage token error $e', error: e, stackTrace: stackTrace);
         rethrow;
       }
     } else {
@@ -454,7 +456,8 @@ class CognitoAzureUserSession extends UserSession
       _session = await _cognitoUser?.getSession();
     } on CognitoClientException catch (e, stacktrace) {
       if (await ConnectionHelper.shared.hasConnection()) {
-        Sync.shared.logger?.e('initiate cognito error $e', e, stacktrace);
+        Sync.shared.logger
+            ?.e('initiate cognito error $e', error: e, stackTrace: stacktrace);
         Sync.shared.exceptionNotifier.value = Tuple3(true, e, stacktrace);
       }
     }
@@ -473,7 +476,8 @@ class CognitoAzureUserSession extends UserSession
     try {
       _session = await _cognitoUser?.initiateAuth(authDetails);
     } on CognitoUserCustomChallengeException catch (e, stackTrace) {
-      Sync.shared.logger?.i('initiate auth error $e', e, stackTrace);
+      Sync.shared.logger
+          ?.i('initiate auth error $e', error: e, stackTrace: stackTrace);
       try {
         // challenge exception, then send passcode
         _session = await _cognitoUser?.sendCustomChallengeAnswer(passcode);
@@ -499,7 +503,8 @@ class CognitoAzureUserSession extends UserSession
         return user;
       }
     } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Verify passcode error $e', e, stackTrace);
+      Sync.shared.logger
+          ?.e('Verify passcode error $e', error: e, stackTrace: stackTrace);
       rethrow;
     }
 

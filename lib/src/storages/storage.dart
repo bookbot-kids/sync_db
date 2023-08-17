@@ -117,18 +117,18 @@ class Storage {
             if (e is UnexpectedResponseException) {
               Sync.shared.logger?.e(
                   ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
-                  e,
-                  stackTrace);
+                  error: e,
+                  stackTrace: stackTrace);
             } else if (e is UnknownException) {
               Sync.shared.logger?.e(
                   ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error ${e.devDescription}',
-                  e,
-                  stackTrace);
+                  error: e,
+                  stackTrace: stackTrace);
             } else {
               Sync.shared.logger?.e(
                   'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
-                  e,
-                  stackTrace);
+                  error: e,
+                  stackTrace: stackTrace);
             }
           }
         }

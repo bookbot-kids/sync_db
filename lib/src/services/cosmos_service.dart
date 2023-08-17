@@ -41,20 +41,20 @@ class CosmosService extends Service {
     // loop while we have a `paginationToken`
     do {
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
+        Sync.shared.logger?.f(
             '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, $query');
       }
       final response = await _queryDocuments(servicePoint, query,
           paginationToken: paginationToken);
       final docs = response['response'] ?? [];
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
+        Sync.shared.logger?.f(
             '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, docs $docs');
       }
       await saveLocalRecords(servicePoint, docs);
       paginationToken = response['paginationToken'];
       if (_logDebugCloud) {
-        Sync.shared.logger?.wtf(
+        Sync.shared.logger?.f(
             '[sync_db][DEBUG]  readFromService ${servicePoint.name}(${response['response']?.length ?? 0}) timestamp ${servicePoint.from}, paginationToken is ${paginationToken == null ? 'null' : 'not null'}');
       } else {
         Sync.shared.logger?.i(
@@ -252,14 +252,14 @@ class CosmosService extends Service {
 
       Sync.shared.logger?.w(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
-          e,
-          stacktrace);
+          error: e,
+          stackTrace: stacktrace);
       return {};
     } on UnexpectedResponseException catch (e, stacktrace) {
       Sync.shared.logger?.e(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
-          e,
-          stacktrace);
+          error: e,
+          stackTrace: stacktrace);
       if (e.statusCode == 403) {
         // token is expired, try to get new
         await Sync.shared.userSession?.refresh(forceRefreshToken: true);
@@ -269,8 +269,8 @@ class CosmosService extends Service {
     } catch (e, stacktrace) {
       Sync.shared.logger?.e(
           'queryDocuments $query (${servicePoint.name}) $servicePoint error $e',
-          e,
-          stacktrace);
+          error: e,
+          stackTrace: stacktrace);
       rethrow;
     }
   }
@@ -309,14 +309,14 @@ class CosmosService extends Service {
 
         Sync.shared.logger?.w(
             'Create cosmos $record document failed because of connection error $e',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Create cosmos document $record failed. ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         if (e.statusCode == 409 && retryUpdate) {
           // Strange that this has happened. Record is already created. Log it and try an update.
           return await (_updateDocument(servicePoint, record));
@@ -343,14 +343,14 @@ class CosmosService extends Service {
         // retry if there is an exception
         Sync.shared.logger?.e(
             'Create cosmos $record document failed ${e.devDescription}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       } on Exception catch (e, stackTrace) {
         exception = e;
         Sync.shared.logger?.e(
             'Create cosmos $record document failed without reason',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       }
     }
 
@@ -392,14 +392,14 @@ class CosmosService extends Service {
 
         Sync.shared.logger?.w(
             'Update cosmos $record document failed because of connection',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         if (e.statusCode == 409 || e.statusCode == 404) {
           // Strange that this has happened. Record does not exist. Log it and try to create
           return await _createDocument(servicePoint, record,
@@ -427,14 +427,14 @@ class CosmosService extends Service {
         // retry if there is an exception
         Sync.shared.logger?.e(
             'Update cosmos $record document failed ${e.devDescription}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       } on Exception catch (e, stackTrace) {
         exception = e;
         Sync.shared.logger?.e(
             'Update cosmos $record document failed without reason',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       }
     }
 
@@ -475,8 +475,8 @@ class CosmosService extends Service {
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
             'Update partial Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         if (e.statusCode == 409 || e.statusCode == 404) {
           // Strange that this has happened. Record does not exist. Log it and try to create
           return await _createDocument(servicePoint, record,
@@ -505,14 +505,14 @@ class CosmosService extends Service {
         // retry if there is an exception
         Sync.shared.logger?.e(
             'Update partial cosmos $record document failed ${e.devDescription}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       } on Exception catch (e, stackTrace) {
         exception = e;
         Sync.shared.logger?.e(
             'Update partial cosmos $record document failed without reason',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
       }
     }
 

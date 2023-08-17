@@ -165,16 +165,17 @@ class AzureADB2CUserSession extends UserSession {
       } else {
         Sync.shared.logger?.e(
             'Resource tokens error ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e,
+            stackTrace: stackTrace);
         rethrow;
       }
     } on ConnectivityException catch (e, stackTrace) {
-      Sync.shared.logger
-          ?.w('Resource tokens connection error $e', e, stackTrace);
+      Sync.shared.logger?.w('Resource tokens connection error $e',
+          error: e, stackTrace: stackTrace);
       rethrow;
     } on Exception catch (e, stackTrace) {
-      Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
+      Sync.shared.logger?.e('Resource tokens unknown error $e',
+          error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -322,7 +323,8 @@ class AzureADB2CUserSession extends UserSession {
         final uri = response['uri'];
         await prefs.setString(_storageUriKey, uri);
       } catch (e, stackTrace) {
-        Sync.shared.logger?.e('Storage token error $e', e, stackTrace);
+        Sync.shared.logger
+            ?.e('Storage token error $e', error: e, stackTrace: stackTrace);
         rethrow;
       }
     } else {

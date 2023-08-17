@@ -15,8 +15,8 @@ class FileUtils {
         newFile = await sourceFile.copy(newPath);
         await sourceFile.delete();
       } catch (e, stacktrace) {
-        Sync.shared.logger
-            ?.e('Error moving file $sourcePath to $newPath', e, stacktrace);
+        Sync.shared.logger?.e('Error moving file $sourcePath to $newPath',
+            error: e, stackTrace: stacktrace);
       }
 
       return newFile;

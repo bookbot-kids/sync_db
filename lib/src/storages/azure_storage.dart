@@ -131,7 +131,8 @@ class AzureStorageTrustedClient extends Storage {
       var bytes = Uint8List.fromList(await localFile.readAsBytes());
       await putBlob(transferMap.remotePath, bodyBytes: bytes);
     } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Azure Storage upload error $e', e, stackTrace);
+      Sync.shared.logger?.e('Azure Storage upload error $e',
+          error: e, stackTrace: stackTrace);
       rethrow;
     }
   }

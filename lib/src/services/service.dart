@@ -93,7 +93,7 @@ abstract class Service {
   /// Sync a table to service
   Future<void> syncTable(String table) async {
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf('[sync_db][DEBUG] syncTable');
+      Sync.shared.logger?.f('[sync_db][DEBUG] syncTable');
     }
     await _syncServicePoints(
         await Sync.shared.userSession?.servicePointsForTable(table) ?? []);
@@ -109,7 +109,7 @@ abstract class Service {
 
     if (_logDebugCloud) {
       Sync.shared.logger
-          ?.wtf('[sync_db][DEBUG] _syncServicePoints start $servicePoints');
+          ?.f('[sync_db][DEBUG] _syncServicePoints start $servicePoints');
     }
     for (final servicePoint in servicePoints) {
       if (!Sync.shared.networkAvailable) {
@@ -119,7 +119,7 @@ abstract class Service {
       _syncQueue.add(() async {
         if (!Sync.shared.networkAvailable) {
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} network not available');
           }
           return;
@@ -127,12 +127,12 @@ abstract class Service {
         try {
           await readServicePoint(servicePoint);
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName}');
           }
         } catch (e) {
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} error $e');
           }
           await Sync.shared.listenInternetChangedIfNeeded();
@@ -143,7 +143,7 @@ abstract class Service {
       _syncQueue.add(() async {
         if (!Sync.shared.networkAvailable) {
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} network not available');
           }
           return;
@@ -152,12 +152,12 @@ abstract class Service {
         try {
           await writeServicePoint(servicePoint);
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName}');
           }
         } catch (e) {
           if (_logDebugCloud) {
-            Sync.shared.logger?.wtf(
+            Sync.shared.logger?.f(
                 '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} error $e');
           }
           // listen internet change when there is network error
@@ -170,13 +170,12 @@ abstract class Service {
     // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
     unawaited(_syncQueue.add(() => Future.value()));
     if (_logDebugCloud) {
-      Sync.shared.logger
-          ?.wtf('[sync_db][DEBUG] _syncServicePoints queue starts');
+      Sync.shared.logger?.f('[sync_db][DEBUG] _syncServicePoints queue starts');
     }
     await _syncQueue.onComplete;
 
     if (_logDebugCloud) {
-      Sync.shared.logger?.wtf('[sync_db][DEBUG] _syncServicePoints completed');
+      Sync.shared.logger?.f('[sync_db][DEBUG] _syncServicePoints completed');
     }
   }
 

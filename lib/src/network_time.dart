@@ -3,7 +3,6 @@ import 'package:ntp/ntp.dart';
 import 'package:singleton/singleton.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
-import 'package:universal_platform/universal_platform.dart';
 import 'package:collection/collection.dart';
 
 class NetworkTime {
@@ -22,7 +21,7 @@ class NetworkTime {
 
   /// Get server datetime and cache the offset
   Future<int?> get offset async {
-    if (UniversalPlatform.isWeb) {
+    if (kIsWeb) {
       // not support for web yet
       return 0;
     }
@@ -39,8 +38,8 @@ class NetworkTime {
                 )
                 .timeout(const Duration(seconds: 5));
           } catch (e, stacktrace) {
-            Sync.shared.logger
-                ?.e('Can not get server time [${address}] $e', e, stacktrace);
+            Sync.shared.logger?.e('Can not get server time [${address}] $e',
+                error: e, stackTrace: stacktrace);
             // Sync.shared.exceptionNotifier.value = Tuple3(false, e, stacktrace);
           }
 
@@ -58,7 +57,7 @@ class NetworkTime {
 
   /// Get current datetime base on server offset
   Future<DateTime> get now async {
-    if (UniversalPlatform.isWeb) {
+    if (kIsWeb) {
       // not support for web yet
       return DateTime.now();
     }
@@ -73,7 +72,7 @@ class NetworkTime {
 
   /// Get current datetime base on server offset
   DateTime get timeNow {
-    if (UniversalPlatform.isWeb) {
+    if (kIsWeb) {
       // not support for web yet
       return DateTime.now();
     }
