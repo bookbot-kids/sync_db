@@ -14,6 +14,10 @@ import 'package:sync_db/src/services/sync_delegate.dart';
 import 'package:sync_db/src/storages/transfer_map.dart';
 import 'package:sync_db/src/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
+import 'package:universal_io/io.dart';
+import 'package:sembast/sembast_io.dart';
+import 'package:sembast/utils/value_utils.dart';
+import 'package:sembast/sembast.dart' as sembast;
 
 class IsarDatabase {
   factory IsarDatabase() =>
@@ -126,5 +130,85 @@ class IsarDatabase {
       final entry = modelHandler.call();
       await entry.importJson(jsonData);
     });
+  }
+
+  // Copy sembast database into isar
+  @Deprecated('sembast method will be removed later')
+  Future<void> migrateTableData(String tableName) async {
+    final documentPath = await getApplicationSupportDirectory();
+    await documentPath.create(recursive: true);
+    final targetFile = File(join(documentPath.path, '$tableName.db'));
+    if (await targetFile.exists()) {
+      await copySnapshotTable(targetFile, tableName);
+      await targetFile.delete();
+    }
+  }
+
+  // Copy snapshot sembast database into isar
+  @Deprecated('sembast method will be removed later')
+  Future<void> copySnapshotTable(File targetFile, String tableName) async {
+    final db = await databaseFactoryIo.openDatabase(targetFile.path);
+    final store = sembast.StoreRef.main();
+    final finder = sembast.Finder();
+    final records = await store.find(db, finder: finder);
+    final recordMaps = records.map((e) {
+      final value = e.value;
+      if (value is Map) {
+        return Map<dynamic, dynamic>.from(cloneMap(value));
+      }
+
+      return {};
+    }).toList();
+    await db.close();
+    final modelHandler = modelInstances[tableName];
+    if (modelHandler == null) {
+      print('model handler $tableName not exist');
+      return;
+    }
+
+    await local.writeTxn(() async {
+      await modelHandler.call().clear();
+      Sync.shared.logger?.i('Clear table $tableName');
+      for (final record in recordMaps) {
+        final entry = modelHandler.call();
+        final keys = await entry.setMap(record);
+        entry.setMetadata(keys, record);
+        await entry.init();
+        entry.syncStatus = SyncStatus.synced;
+        await entry.save(
+            syncToService: false, runInTransaction: false, initialize: false);
+        Sync.shared.logger?.i('save done $tableName ${entry.id}');
+      }
+    });
+  }
+
+  @Deprecated('sembast method will be removed later')
+  Future<void> copySnapShotTables(
+      List<String> tableNames, String dbAssetPath) async {
+    if (kIsWeb || dbAssetPath.isNotEmpty != true) {
+      return;
+    }
+    // get document directory
+    final documentPath = await getApplicationSupportDirectory();
+    await documentPath.create(recursive: true);
+    final dir = documentPath.path;
+
+    final futures = <Future>[];
+    for (final tableName in tableNames) {
+      final fileName = '${tableName}.db';
+      final targetPath = dir.isEmpty ? fileName : join(dir, fileName);
+      final tableAssetPath = '$dbAssetPath$fileName';
+      // copy asset to file dir
+      final assetContent = await rootBundle.load(tableAssetPath);
+      final targetFile = File(targetPath);
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+      final bytes = assetContent.buffer
+          .asUint8List(assetContent.offsetInBytes, assetContent.lengthInBytes);
+      await targetFile.writeAsBytes(bytes);
+      futures.add(copySnapshotTable(targetFile, tableName));
+    }
+    await Future.wait(futures);
   }
 }
