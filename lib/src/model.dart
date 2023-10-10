@@ -130,11 +130,18 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   /// all files related to this record
 
   /// See if file exists, otherwise download()
-  Future<File> file({String key = 'default', bool retry = false}) async {
+  Future<File> file(
+      {String key = 'default',
+      bool retry = false,
+      bool forceDownload = false}) async {
     final path = localFilePath(key: key)!;
     final file = File(path);
-    if (await file.exists()) {
-      return file;
+    if (file.existsSync()) {
+      if (forceDownload) {
+        file.deleteSync(recursive: true);
+      } else {
+        return file;
+      }
     }
 
     await download(key, retry);
