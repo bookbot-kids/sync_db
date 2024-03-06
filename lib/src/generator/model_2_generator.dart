@@ -113,6 +113,9 @@ if (deletedAt != other.deletedAt) {
         continue;
       }
 
+      final isNullable = TypeChecker.fromRuntime(ModelNullable)
+          .hasAnnotationOfExact(field, throwOnUnresolved: false);
+
       // add comparison
       final addComparisonCallback = () {
         if (typeName == 'List') {
@@ -147,8 +150,14 @@ if (deletedAt != other.deletedAt) {
       // enum
       if (fieldElement is EnumElement) {
         final type = field.type.element!.name;
-        getterFields
-            .add("map['${name}'] = EnumToString.convertToString(${name});");
+        if (isNullable) {
+          getterFields.add(
+              "if($name != null) {map['${name}'] = EnumToString.convertToString(${name});}");
+        } else {
+          getterFields
+              .add("map['${name}'] = EnumToString.convertToString(${name});");
+        }
+
         setterFields.add('''
         if(map['${name}'] != null) { 
           final value = EnumToString.fromString(${type}.values, map['${name}']);

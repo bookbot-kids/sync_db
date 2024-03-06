@@ -22,3 +22,7 @@ class ModelIgnore {
   const ModelIgnore({this.ignoreEqual = false});
   final bool ignoreEqual;
 }
+
+class ModelNullable {
+  const ModelNullable();
+}
