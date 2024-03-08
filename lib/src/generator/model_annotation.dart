@@ -26,3 +26,9 @@ class ModelIgnore {
 class ModelNullable {
   const ModelNullable();
 }
+
+class ModelLinter {
+  final bool ignoreDeprepcated;
+
+  const ModelLinter({this.ignoreDeprepcated = false});
+}

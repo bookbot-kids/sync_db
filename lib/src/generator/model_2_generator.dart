@@ -40,6 +40,12 @@ class Model2Generator extends Generator {
       collectionName += 's';
     }
 
+    final ignoreDeprepcated = TypeChecker.fromRuntime(ModelLinter)
+            .firstAnnotationOfExact(element, throwOnUnresolved: false)
+            ?.getField('ignoreDeprepcated')
+            ?.toBoolValue() ??
+        false;
+
     var parentType =
         element.supertype?.getDisplayString(withNullability: false);
 
@@ -382,6 +388,10 @@ if (deletedAt != other.deletedAt) {
     }
     // generate texts
     output.add('// $modelName model generator');
+    if (ignoreDeprepcated) {
+      output.add('// ignore_for_file: deprecated_member_use_from_same_package');
+    }
+
     output.add('''
     extension \$$modelName on $modelName {
 
