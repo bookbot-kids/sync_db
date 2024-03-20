@@ -22,6 +22,7 @@ class Sync {
   bool _hasConnection = true;
   bool _hasInternet = true;
   var _isListening = false;
+  final savingCacheStores = <String, int>{};
 
   bool get networkAvailable => _hasConnection && _hasInternet;
   IsarDatabase get db => IsarDatabase.shared;

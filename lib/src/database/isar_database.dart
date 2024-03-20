@@ -32,6 +32,7 @@ class IsarDatabase {
   late int _maxSizeMiB;
   static final _lock = Lock();
   static Isar? _local;
+  int maxSavingTime = 1000; // in ms
 
   Isar get local => IsarDatabase._local!;
 
@@ -42,7 +43,10 @@ class IsarDatabase {
     List<String>? manifest,
     List<String> fileTypes = const ['.db', '.json'],
     int? maxSizeMiB,
+    Map<String, dynamic> configs = const {},
   }) async {
+    maxSavingTime = configs['maxSavingTime'] ?? 1000;
+    Sync.shared.savingCacheStores.clear();
     models[ServicePointSchema] = () => ServicePoint();
     models[TransferMapSchema] = () => TransferMap();
     models[ServiceRecordSchema] = () => ServiceRecord();

@@ -267,4 +267,32 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
 
   @override
   Future<void> importJson(dynamic jsonData) async {}
+
+  Future<void> saveInternal(Future<void> Function() callback) async {
+    if (!enableCacheSaving) {
+      await callback.call();
+      return;
+    }
+
+    final key = '${tableName}_$id';
+    final timestamp = Sync.shared.savingCacheStores[key] ?? 0;
+    // reject if there is saving record in period time
+    if (timestamp == 0 ||
+        DateTime.now().millisecondsSinceEpoch - timestamp >=
+            Sync.shared.db.maxSavingTime) {
+      try {
+        //set new cache timestamp
+        Sync.shared.savingCacheStores[key] =
+            DateTime.now().millisecondsSinceEpoch;
+        await callback.call();
+      } finally {
+        // clear timestamp
+        Sync.shared.savingCacheStores.remove(key);
+      }
+    } else {
+      Sync.shared.logger?.i('Reject saving $tableName with id = $id');
+    }
+  }
+
+  bool get enableCacheSaving => true;
 }

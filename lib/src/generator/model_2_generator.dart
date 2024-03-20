@@ -254,7 +254,8 @@ if (deletedAt != other.deletedAt) {
             await init();
           }
 
-          if (syncToService && syncStatus == SyncStatus.updated) {
+          await saveInternal(() async {
+            if (syncToService && syncStatus == SyncStatus.updated) {
               final other = await find(id, filterDeletedAt: false);
               if (other != null) {
                 final diff = compare(other);
@@ -269,6 +270,7 @@ if (deletedAt != other.deletedAt) {
               }
             }
             await Sync.shared.db.local.$collectionName.put(this);
+          });
         };
 
         if (runInTransaction) {
