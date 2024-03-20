@@ -294,5 +294,7 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     }
   }
 
+  @ModelIgnore()
+  @Ignore()
   bool get enableCacheSaving => true;
 }
