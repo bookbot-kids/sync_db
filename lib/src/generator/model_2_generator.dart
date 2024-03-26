@@ -148,6 +148,14 @@ if (deletedAt != other.deletedAt) {
         if (ignoreEqual != true) {
           addComparisonCallback();
         }
+
+        final ignoreKey = TypeChecker.fromRuntime(ModelIgnore)
+            .firstAnnotationOfExact(field, throwOnUnresolved: false)
+            ?.getField('ignoreKey')
+            ?.toBoolValue();
+        if (ignoreKey == false) {
+          keyFields.add("result.add('$name');");
+        }
         continue;
       }
 
