@@ -410,7 +410,7 @@ if (deletedAt != other.deletedAt) {
       }
 
       Set<String> get keys {
-        final result = <String>{};
+        ${hasParent ? 'final result = \$${parentType}(this).keys;' : 'final result = <String>{};'}        
         ${keyFields.join('\n')}
         return result;
       }
