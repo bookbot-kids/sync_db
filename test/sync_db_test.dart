@@ -1,7 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:sync_db/src/storages/azure_storage.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 

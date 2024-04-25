@@ -8,6 +8,7 @@ import 'package:pool/pool.dart';
 abstract class Service {
   // Make sure there are no more than 8 server downloads at the same time
   final pool = Pool(8, timeout: Duration(seconds: 60));
+
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
   Queue _syncQueue;
@@ -24,7 +25,7 @@ abstract class Service {
       return;
     }
 
-    var servicePoints = await Sync.shared.userSession.servicePoints();
+    var servicePoints = (await Sync.shared.userSession?.servicePoints()) ?? [];
     await _syncServicePoints(servicePoints);
     if (syncDelegate) {
       await syncDelegates();
@@ -40,21 +41,17 @@ abstract class Service {
       if (!Sync.shared.networkAvailable) {
         return;
       }
-      final token = await Sync.shared.userSession.token;
-      final records = await delegate.syncRead(token);
+      final token = await Sync.shared.userSession?.token;
+      final records = token == null ? [] : await delegate.syncRead(token);
       // create a fake service point with read only permission to save records
-      final servicePoint = ServicePoint(
-        name: delegate.tableName,
-        access: Access.read,
-      );
+      final servicePoint = ServicePoint(name: delegate.tableName, access: Access.read);
       await saveLocalRecords(servicePoint, records);
     }
   }
 
   /// Sync a table to service
   Future<void> syncTable(String table) async {
-    await _syncServicePoints(
-        await Sync.shared.userSession.servicePointsForTable(table));
+    await _syncServicePoints(await Sync.shared.userSession.servicePointsForTable(table));
   }
 
   Future<void> _syncServicePoints(List<ServicePoint> servicePoints) async {
@@ -108,8 +105,7 @@ abstract class Service {
       return;
     }
 
-    final servicePoints =
-        await Sync.shared.userSession.servicePointsForTable(table);
+    final servicePoints = (await Sync.shared.userSession?.servicePointsForTable(table)) ?? [];
     var futures = <Future>[];
     Sync.shared.logger?.i('writeTable $table');
     for (final servicePoint in servicePoints) {
@@ -175,13 +171,9 @@ abstract class Service {
       // Get updating records to compare
       var transientRecords = <String, Map>{};
       if (service.access == Access.all) {
-        final query =
-            Query(service.name).where({statusKey: SyncStatus.updated.name});
-        final recentUpdatedRecords =
-            await database.queryMap(query, transaction: transaction);
-        transientRecords = {
-          for (var record in recentUpdatedRecords) record[idKey]: record
-        };
+        final query = Query(service.name).where({statusKey: SyncStatus.updated.name});
+        final recentUpdatedRecords = await database.queryMap(query, transaction: transaction);
+        transientRecords = {for (var record in recentUpdatedRecords) record[idKey]: record};
       }
 
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
@@ -191,8 +183,7 @@ abstract class Service {
             record[updatedKey] > existingRecord[updatedKey] ||
             service.access == Access.read) {
           record[statusKey] = SyncStatus.synced.name;
-          await database.saveMap(service.name, record,
-              transaction: transaction);
+          await database.saveMap(service.name, record, transaction: transaction);
         }
       }
     });
@@ -200,22 +191,19 @@ abstract class Service {
 
   /// On response check to see if there has been a local change in that time
   /// if there has, do not update record to synced
-  Future<void> updateRecordStatus(
-      ServicePoint service, Map serverRecord) async {
+  Future<void> updateRecordStatus(ServicePoint service, Map serverRecord) async {
     final database = Sync.shared.local;
 
     await database.runInTransaction(service.name, (transaction) async {
-      final localRecord = await database
-          .findMap(service.name, serverRecord[idKey], transaction: transaction);
+      final localRecord =
+          await database.findMap(service.name, serverRecord[idKey], transaction: transaction);
       if (serverRecord[updatedKey] >= localRecord[updatedKey]) {
         serverRecord[statusKey] = SyncStatus.synced.name;
-        await database.saveMap(service.name, serverRecord,
-            transaction: transaction);
+        await database.saveMap(service.name, serverRecord, transaction: transaction);
       } else {
         // in case local is newer, mark it as updated and sync again next time
         localRecord[statusKey] = SyncStatus.updated.name;
-        await database.saveMap(service.name, localRecord,
-            transaction: transaction);
+        await database.saveMap(service.name, localRecord, transaction: transaction);
       }
     });
   }
