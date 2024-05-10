@@ -233,6 +233,14 @@ if (deletedAt != other.deletedAt) {
         keys.add('$name');
         ''');
         keyFields.add("result.add('$name');");
+      } else if (typeName == 'int') {
+        //double
+        getterFields.add("map['${name}'] = ${name};");
+        setterFields.add('''
+        if(map['${name}'] != null) { ${name} = map['${name}'].toInt(); }
+        keys.add('$name');
+        ''');
+        keyFields.add("result.add('$name');");
       } else if (typeName == 'DateTime') {
         // DateTime
         getterFields.add("map['${name}'] = ${name}?.millisecondsSinceEpoch;");
