@@ -8,13 +8,13 @@ import '../database/query.dart' as q;
 
 /// Aws AppSync client
 class GraphQLService extends Service {
-  List _rolePermissions;
-  Map _schema;
-  CognitoUserSession user;
-  GraphQLClient _graphClient;
-  HttpLink _httpLink;
-  Map queryLimitMap;
-  Map queryByOwnerMap;
+  List? _rolePermissions;
+  Map? _schema;
+  CognitoUserSession? user;
+  GraphQLClient? _graphClient;
+  late HttpLink _httpLink;
+  late Map queryLimitMap;
+  late Map queryByOwnerMap;
 
   /// Max error retry
   int _maxRetry = 2;
@@ -36,7 +36,7 @@ class GraphQLService extends Service {
     final limit = queryLimitMap[table] ?? 1000;
     final queryOwnerEnabled =
         user?.id?.isNotEmpty == true && (queryByOwnerMap[table] ?? false);
-    String nextToken;
+    String? nextToken;
     final start = service.from;
 
     // ignore: unawaited_futures
@@ -50,7 +50,7 @@ class GraphQLService extends Service {
                 ge: ${start}
               }, and: {
                 owner: {
-                  eq: "${user.id}"
+                  eq: "${user!.id}"
                 }
               }
             }, limit: $limit, nextToken: \$nextToken){
@@ -77,7 +77,7 @@ class GraphQLService extends Service {
         ''';
       var response = await _queryDocuments(select, variables);
       if (response != null) {
-        List docs = response['list${table}s']['items'];
+        List? docs = response['list${table}s']['items'];
         nextToken = response['list${table}s']['nextToken'];
         if (docs != null && docs.isNotEmpty) {
           // get the max timestamp
@@ -108,7 +108,7 @@ class GraphQLService extends Service {
     var query = q.Query(table)
         .where('_status = ${SyncStatus.created.name}')
         .order('createdAt asc');
-    var records = await Sync.shared.local.queryMap(query);
+    var records = await Sync.shared.local!.queryMap(query);
 
     for (final record in records) {
       var fields = _getFields(table);
@@ -129,7 +129,7 @@ class GraphQLService extends Service {
     query = q.Query(table)
         .where('_status = ${SyncStatus.updated.name}')
         .order('updatedAt asc');
-    records = await Sync.shared.local.queryMap(query);
+    records = await Sync.shared.local!.queryMap(query);
     for (var record in records) {
       var fields = _getFields(table);
 
@@ -169,7 +169,7 @@ class GraphQLService extends Service {
   }
 
   /// Create new document and return a new document
-  Future<dynamic> _createDocument(String table, String fields, Map record,
+  Future<dynamic> _createDocument(String? table, String fields, Map record,
       {bool callUpdateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
@@ -182,7 +182,7 @@ class GraphQLService extends Service {
 
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
-    var client = await graphClient;
+    var client = (await graphClient)!;
     var options = MutationOptions(
       document: gql(query),
       variables: variables,
@@ -191,10 +191,10 @@ class GraphQLService extends Service {
     );
     var result = await client.mutate(options);
     if (!result.hasException) {
-      return result.data['create${table}'];
+      return result.data!['create${table}'];
     } else {
       Sync.shared.logger?.e('createDocument error [$query] [$variables] error',
-          result.exception, StackTrace.current);
+          error: result.exception, stackTrace: StackTrace.current);
       return callUpdateOnError
           ? (await _updateDocument(table, fields, record,
               callCreateOnError: false))
@@ -203,7 +203,7 @@ class GraphQLService extends Service {
   }
 
   /// Update a document and return an updated document
-  Future<dynamic> _updateDocument(String table, String fields, Map record,
+  Future<dynamic> _updateDocument(String? table, String fields, Map record,
       {bool callCreateOnError = true}) async {
     excludePrivateFields(record);
     var query = '''
@@ -217,7 +217,7 @@ class GraphQLService extends Service {
     var variables = <String, dynamic>{};
     variables['input'] = Map<String, dynamic>.from(record);
 
-    var client = await graphClient;
+    var client = (await graphClient)!;
     var options = MutationOptions(
       document: gql(query),
       variables: variables,
@@ -226,10 +226,10 @@ class GraphQLService extends Service {
     );
     var result = await client.mutate(options);
     if (!result.hasException) {
-      return result.data['update${table}'];
+      return result.data!['update${table}'];
     } else {
       Sync.shared.logger?.e('updateDocument error [$query] [$variables] error',
-          result.exception, StackTrace.current);
+          error: result.exception, stackTrace: StackTrace.current);
       return callCreateOnError
           ? (await _createDocument(table, fields, record,
               callUpdateOnError: false))
@@ -239,12 +239,12 @@ class GraphQLService extends Service {
 
   /// Query documents
   Future<dynamic> _queryDocuments(String query,
-      [Map<String, dynamic> variables]) async {
+      [Map<String, dynamic>? variables]) async {
     for (var i = 1; i <= _maxRetry; i++) {
-      var client = await graphClient;
+      var client = (await graphClient)!;
       var options = QueryOptions(
         document: gql(query),
-        variables: variables,
+        variables: variables!,
         errorPolicy: ErrorPolicy.all,
         fetchPolicy: FetchPolicy.noCache,
       );
@@ -253,7 +253,7 @@ class GraphQLService extends Service {
         return result.data;
       } else {
         Sync.shared.logger?.e('queryDocuments [$query] [$variables] error',
-            result.exception, StackTrace.current);
+            error: result.exception, stackTrace: StackTrace.current);
       }
     }
 
@@ -261,10 +261,10 @@ class GraphQLService extends Service {
   }
 
   /// Get graph client base on token from cognito
-  Future<GraphQLClient> get graphClient async {
-    if (_graphClient == null || !(await user.hasSignedIn())) {
-      await user.resourceTokens();
-      final authLink = AuthLink(getToken: () => user.refreshToken);
+  Future<GraphQLClient?> get graphClient async {
+    if (_graphClient == null || !(await user!.hasSignedIn())) {
+      await user!.resourceTokens();
+      final authLink = AuthLink(getToken: () => user!.refreshToken);
       final link = authLink.concat(_httpLink);
       _graphClient = GraphQLClient(
         cache: GraphQLCache(),
@@ -276,7 +276,7 @@ class GraphQLService extends Service {
   }
 
   /// Get defined schema table
-  Future<Map> get schema async {
+  Future<Map?> get schema async {
     if (_schema != null) {
       return _schema;
     }
@@ -339,7 +339,7 @@ class GraphQLService extends Service {
     }
   }
 
-  bool hasPermission(String role, String table, String checkedPermission) {
+  bool hasPermission(String role, String? table, String checkedPermission) {
     if (_rolePermissions == null) {
       return false;
     }
@@ -349,7 +349,7 @@ class GraphQLService extends Service {
       return true;
     }
 
-    for (var item in _rolePermissions) {
+    for (var item in _rolePermissions!) {
       if (StringUtils.equalsIgnoreCase(item['role'], role) &&
           StringUtils.equalsIgnoreCase(item['table'], table) &&
           item['permission'] != null &&
@@ -375,12 +375,12 @@ class GraphQLService extends Service {
   }
 
   /// List available fields from schema for graphql query
-  String _getFields(String table) {
-    if (_schema == null || !_schema.containsKey(table)) {
+  String _getFields(String? table) {
+    if (_schema == null || !_schema!.containsKey(table)) {
       return 'lastSynced\n id';
     }
 
-    var schemaData = _schema[table];
+    var schemaData = _schema![table];
     // generate field types
     Map types = json.decode(schemaData['types']);
     var fields = types.entries.map((e) => e.key).toList().join('\n');

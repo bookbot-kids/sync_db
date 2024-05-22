@@ -25,7 +25,7 @@ class CognitoAzureUserSession extends UserSession
   CognitoAzureUserSession(
     Map<String, dynamic> config, {
     bool autoRefresh = true,
-    SharedPreferences sharedPreferences,
+    SharedPreferences? sharedPreferences,
   }) {
     _http = HTTP(config['azureBaseUrl'], {
       'httpRetries': 1,
@@ -46,11 +46,11 @@ class CognitoAzureUserSession extends UserSession
 
     _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
 
-    final initializeListener = (SharedPreferences prefs) {
+    final initializeListener = (SharedPreferences? prefs) {
       _userPool.storage = SharedPreferenceStorage(prefs);
       _initializeTask = _initialized();
       // try to load role first
-      role = prefs.getString(_userRoleKey) ?? _defaultRole;
+      role = prefs!.getString(_userRoleKey) ?? _defaultRole;
     };
 
     if (sharedPreferences != null) {
@@ -68,31 +68,31 @@ class CognitoAzureUserSession extends UserSession
     }
   }
 
-  HTTP _http;
-  String _azureKey;
-  String _azureSecret;
-  String _azureSubject;
-  String _azureIssuer;
-  String _azureAudience;
+  late HTTP _http;
+  String? _azureKey;
+  late String _azureSecret;
+  String? _azureSubject;
+  String? _azureIssuer;
+  late String _azureAudience;
   DateTime _tokenExpiry = DateTime.utc(0);
-  Future<void> _refreshed;
-  List<String> _tablesToClearOnSignout;
+  Future<void>? _refreshed;
+  late List<String> _tablesToClearOnSignout;
   Notifier signoutNotifier = Notifier(Object());
   static const _defaultRole = 'guest';
   static const _storageUriKey = 'storageUriKey';
   static const _userRoleKey = 'userRoleKey';
-  SharedPreferences _sharePref;
+  SharedPreferences? _sharePref;
   final _lock = Lock();
-  cognito.CognitoUser _cognitoUser;
-  cognito.CognitoUserSession _session;
-  cognito.CognitoUserPool _userPool;
-  Future _initializeTask;
+  cognito.CognitoUser? _cognitoUser;
+  cognito.CognitoUserSession? _session;
+  late cognito.CognitoUserPool _userPool;
+  Future? _initializeTask;
 
   @override
-  String role = _defaultRole;
+  String? role = _defaultRole;
 
   @override
-  String get email => _cognitoUser?.username;
+  String? get email => _cognitoUser?.username;
 
   @override
   Future<void> deleteUser(String email) async {
@@ -146,7 +146,7 @@ class CognitoAzureUserSession extends UserSession
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
     final asyncMapped = _mappedServicePoints();
-    final prefs = await _sharePrefInstance;
+    final prefs = (await _sharePrefInstance)!;
     var refreshToken = await token;
     role = prefs.getString(_userRoleKey) ?? _defaultRole;
 
@@ -172,7 +172,7 @@ class CognitoAzureUserSession extends UserSession
           tableName = tableName.split('-shared')[0];
         }
 
-        await Sync.shared.local.initTable(tableName);
+        await Sync.shared.local!.initTable(tableName);
 
         final servicePoint = mappedServicePoints.putIfAbsent(
             tableName, () => ServicePoint(name: tableName));
@@ -187,27 +187,26 @@ class CognitoAzureUserSession extends UserSession
       // set role along with the resource tokens
       if (response['group'] != null) {
         role = response['group'];
-        await prefs.setString(_userRoleKey, role);
+        await prefs.setString(_userRoleKey, role!);
       }
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
       if (e.statusCode == 401) {
         // token is expired -> sign out user
-        Sync.shared.logger.i('Token expired, sign out user');
+        Sync.shared.logger!.i('Token expired, sign out user');
         await signOut();
       } else {
         Sync.shared.logger?.e(
             'Resource tokens error ${e.url} [${e.statusCode}] ${e.errorMessage}',
-            e,
-            stackTrace);
+            error: e, stackTrace: stackTrace);
         rethrow;
       }
     } on ConnectivityException catch (e, stackTrace) {
       Sync.shared.logger
-          ?.w('Resource tokens connection error $e', e, stackTrace);
+          ?.w('Resource tokens connection error $e', error: e, stackTrace: stackTrace);
       rethrow;
     } on Exception catch (e, stackTrace) {
-      Sync.shared.logger?.e('Resource tokens unknown error $e', e, stackTrace);
+      Sync.shared.logger?.e('Resource tokens unknown error $e', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -233,7 +232,7 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<void> signOut({bool notify = true}) async {
-    final pref = await _sharePrefInstance;
+    final pref = (await _sharePrefInstance)!;
     await pref.remove(_userRoleKey);
     await pref.remove(_storageUriKey);
     _tokenExpiry = DateTime.utc(0);
@@ -241,14 +240,14 @@ class CognitoAzureUserSession extends UserSession
     await _cognitoUser?.signOut();
     _session = null;
     _cognitoUser = null;
-    Sync.shared.logger.i('signed out, then clear tables');
+    Sync.shared.logger!.i('signed out, then clear tables');
     for (final table in _tablesToClearOnSignout) {
       final servicePoints = await ServicePoint.where('name = $table').load();
       for (final servicePoint in servicePoints) {
         await servicePoint.database
             .deleteLocal(servicePoint.tableName, servicePoint.id);
       }
-      await Sync.shared.local.clearTable(table);
+      await Sync.shared.local!.clearTable(table);
     }
 
     _refreshed = refresh();
@@ -258,22 +257,22 @@ class CognitoAzureUserSession extends UserSession
   }
 
   @override
-  Future<String> get storageToken async {
+  Future<String?> get storageToken async {
     await _refreshStorageIfExpired();
-    return (await _sharePrefInstance).getString(_storageUriKey);
+    return (await _sharePrefInstance)!.getString(_storageUriKey);
   }
 
   @override
-  Future<String> get token async => _session?.refreshToken?.token;
+  Future<String?> get token async => _session?.refreshToken?.token;
 
-  Future<SharedPreferences> get _sharePrefInstance async {
+  Future<SharedPreferences?> get _sharePrefInstance async {
     _sharePref ??= await SharedPreferences.getInstance();
     return _sharePref;
   }
 
-  Future<Map<String, ServicePoint>> _mappedServicePoints() async {
+  Future<Map<String?, ServicePoint>> _mappedServicePoints() async {
     final servicePoints = await ServicePoint.all();
-    final map = <String, ServicePoint>{};
+    final map = <String?, ServicePoint>{};
     for (final servicePoint in servicePoints) {
       map[servicePoint.name] = servicePoint;
     }
@@ -302,7 +301,7 @@ class CognitoAzureUserSession extends UserSession
   Future<void> _refreshStorageIfExpired() async {
     await _refreshIfExpired();
     final storageUri =
-        (await _sharePrefInstance).getString(_storageUriKey) ?? '';
+        (await _sharePrefInstance)!.getString(_storageUriKey) ?? '';
     if (storageUri.isEmpty || Uri.tryParse(storageUri) == null) {
       await _refreshStorageToken();
     } else {
@@ -310,7 +309,7 @@ class CognitoAzureUserSession extends UserSession
       final uri = Uri.parse(storageUri);
 
       // then check for expiration
-      final expired = uri.queryParameters['se'];
+      final expired = uri.queryParameters['se']!;
       final expiredDate = DateTime.parse(expired);
       final now = await NetworkTime.shared.now;
       // The token is expired in 24 hours, but we just check 23 hours because of uploading time
@@ -339,11 +338,11 @@ class CognitoAzureUserSession extends UserSession
       return false;
     }
 
-    var isValid = _session.isValid();
+    var isValid = _session!.isValid();
     if (!isValid) {
       // try to get new session in case it's expired
-      _session = await _cognitoUser.getSession();
-      return _session.isValid();
+      _session = await _cognitoUser!.getSession();
+      return _session!.isValid();
     }
     return true;
   }
@@ -355,13 +354,13 @@ class CognitoAzureUserSession extends UserSession
     if (refreshToken != null) {
       try {
         final response = await _http.get('/GetStorageToken', parameters: {
-          'refresh_token': refreshToken ?? '',
+          'refresh_token': refreshToken,
           'code': _azureKey
         });
         final uri = response['uri'];
-        await prefs.setString(_storageUriKey, uri);
+        await prefs!.setString(_storageUriKey, uri);
       } catch (e, stackTrace) {
-        Sync.shared.logger?.e('Storage token error $e', e, stackTrace);
+        Sync.shared.logger?.e('Storage token error $e', error: e, stackTrace: stackTrace);
         rethrow;
       }
     } else {
@@ -375,53 +374,53 @@ class CognitoAzureUserSession extends UserSession
       _session = await _cognitoUser?.getSession();
     } on CognitoClientException catch (e, stacktrace) {
       if (await ConnectionHelper.shared.hasConnection()) {
-        Sync.shared.logger?.e('initiate cognito error $e', e, stacktrace);
+        Sync.shared.logger?.e('initiate cognito error $e', error: e, stackTrace: stacktrace);
         Sync.shared.exceptionNotifier.value = Tuple2(e, stacktrace);
       }
     }
   }
 
   @override
-  Future<CognitoUserInfo> confirmEmailPasscode(
-      String email, String passcode, {String session}) async {
-    if (_cognitoUser == null || _cognitoUser.username != email) {
+  Future<CognitoUserInfo?> confirmEmailPasscode(
+      String email, String passcode, {String? session}) async {
+    if (_cognitoUser == null || _cognitoUser!.username != email) {
       _cognitoUser = CognitoUser(email, _userPool);
     }
 
-    _cognitoUser.setAuthenticationFlowType('CUSTOM_AUTH');
+    _cognitoUser!.setAuthenticationFlowType('CUSTOM_AUTH');
     final authDetails = AuthenticationDetails(
         username: email, authParameters: [], validationData: {});
     try {
-      _session = await _cognitoUser.initiateAuth(authDetails);
+      _session = await _cognitoUser!.initiateAuth(authDetails);
     } on CognitoUserCustomChallengeException catch (e, stackTrace) {
-      Sync.shared.logger?.i('initiate auth error $e', e, stackTrace);
+      Sync.shared.logger?.i('initiate auth error $e', error: e, stackTrace: stackTrace);
       try {
         // challenge exception, then send passcode
-        _session = await _cognitoUser.sendCustomChallengeAnswer(passcode);
+        _session = await _cognitoUser!.sendCustomChallengeAnswer(passcode);
       } on CognitoUserCustomChallengeException {
         // if there is challenge exception, then it's not valid passcode
         throw InvalidPasscodeException('Passcode $passcode is not valid');
       }
 
-      if (_session == null || !_session.isValid()) {
+      if (_session == null || !_session!.isValid()) {
         // try to get new session
-        _session = await _cognitoUser.getSession();
-        if (_session == null || !_session.isValid()) {
+        _session = await _cognitoUser!.getSession();
+        if (_session == null || !_session!.isValid()) {
           throw Exception(
               'Session $_session is invalid when confirm passcode $passcode for $email');
         }
       }
 
-      final attributes = await _cognitoUser.getUserAttributes();
+      final attributes = (await _cognitoUser!.getUserAttributes())!;
       final user = CognitoUserInfo.fromUserAttributes(attributes);
       user.confirmed = true;
       user.hasAccess = true;
       return user;
     } on Exception catch (e, stackTrace) {
-      Sync.shared.logger?.e('Verify passcode error $e', e, stackTrace);
+      Sync.shared.logger?.e('Verify passcode error $e', error: e, stackTrace: stackTrace);
       rethrow;
     } catch (e, stackTrace) {
-      Sync.shared.logger?.e('Verify passcode error $e', e, stackTrace);
+      Sync.shared.logger?.e('Verify passcode error $e', error: e, stackTrace: stackTrace);
       rethrow;
     }
 
@@ -457,7 +456,7 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<CognitoUserInfo> signInOrSignUp(String email,
-      {String password, Function signUpSuccess}) {
+      {String? password, Function? signUpSuccess}) {
     throw UnimplementedError();
   }
 }

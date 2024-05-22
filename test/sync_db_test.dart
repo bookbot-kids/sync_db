@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:universal_io/io.dart';
 
 class Category extends Model {
-  String image;
-  String name;
+  String? image;
+  String? name;
 
   @override
   String get tableName => 'Category';
@@ -41,8 +41,8 @@ extension $Category on Category {
     image = map['image'];
   }
 
-  static Future<Category> find(String id) async =>
-      await Category().database.find('Category', id, Category());
+  static Future<Category> find(String? id) async =>
+      await Category().database!.find('Category', id, Category());
 }
 
 // class Series extends Model {
@@ -51,7 +51,7 @@ extension $Category on Category {
 
 enum Layout { fixed, responsive }
 
-extension $Layout on Layout {
+extension $Layout on Layout? {
   static final layoutString = {
     Layout.fixed: 'fixed',
     Layout.responsive: 'responsive'
@@ -61,16 +61,16 @@ extension $Layout on Layout {
     'responsive': Layout.responsive
   };
 
-  String get name => $Layout.layoutString[this];
-  static Layout fromString(String value) => $Layout.layoutEnum[value];
+  String? get name => $Layout.layoutString[this];
+  static Layout? fromString(String? value) => $Layout.layoutEnum[value];
 }
 
 class Test extends Model {
-  Category category2;
-  Layout layout = Layout.fixed;
-  String testString = 'Test String';
+  late Category category2;
+  Layout? layout = Layout.fixed;
+  String? testString = 'Test String';
 
-  String categoryId;
+  String? categoryId;
 
   @override
   String get tableName => 'Test';

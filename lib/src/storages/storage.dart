@@ -13,7 +13,7 @@ class Storage {
     _transferTimeout = config['transferTimeout'] ?? 30;
     // Transfer pool size also assumes small files. Make smaller (8) if files are large
     _pool = Pool(config['storagePoolSize'] ?? 64);
-    _http = HTTP(null, config);
+    _http = HTTP(null, config as Map<String, dynamic>);
     // start retry time in minute
     _initRetryTime = config['initRetryTime'] ?? 1;
     _retryPool = Pool(config['retryPoolSize'] ?? 8);
@@ -21,13 +21,13 @@ class Storage {
     _retryWhenNotFound = config['retryWhenNotFound'] ?? true;
   }
 
-  var _pool;
+  late var _pool;
   var _retryPool = Pool(8);
-  var _transferTimeout;
-  HTTP _http;
+  late var _transferTimeout;
+  late HTTP _http;
   var _delayedPool = Pool(8);
   var _initRetryTime = 1;
-  Map _config;
+  late Map _config;
 
   /// Whether to retry when the path is 404
   var _retryWhenNotFound = true;
@@ -35,20 +35,20 @@ class Storage {
   ///
   /// Manage all file in memory to prevent re-download.
   ///
-  final _transferrings = <String, TransferMap>{};
+  final _transferrings = <String?, TransferMap>{};
 
   // Each error transfer has its own delay time, and increase everytime retry
-  final Map<String, int> _retryDelayedMap = {};
+  final Map<String?, int> _retryDelayedMap = {};
 
-  Future<void> upload(List<Paths> paths, {bool retry = false}) async {
+  Future<void> upload(List<Paths?> paths, {bool retry = false}) async {
     await transfer(paths, TransferStatus.uploading, retry: retry);
   }
 
-  Future<void> download(List<Paths> paths, {bool retry = false}) async {
+  Future<void> download(List<Paths?> paths, {bool retry = false}) async {
     await transfer(paths, TransferStatus.downloading, retry: retry);
   }
 
-  Future<void> transfer(List<Paths> paths, TransferStatus status,
+  Future<void> transfer(List<Paths?> paths, TransferStatus status,
       {retry = false}) async {
     var futures = <Future>[];
     final transferMaps = await TransferMap.all();
@@ -58,20 +58,17 @@ class Storage {
 
     for (final path in paths) {
       // Check if already in transfer
-      var existing = _transferrings[path.localPath] ??=
-          _transferrings[path.localPath + '~'];
-      if (existing != null) {
-        final now = await NetworkTime.shared.now;
-        final past = now.subtract(Duration(seconds: _transferTimeout));
-        // Has not timed out so skip
-        if (existing.createdAt.isAfter(past)) {
-          continue;
-        }
+      var existing = _transferrings[path!.localPath] ??= _transferrings[path.localPath! + '~']!;
+      final now = await NetworkTime.shared.now;
+      final past = now.subtract(Duration(seconds: _transferTimeout));
+      // Has not timed out so skip
+      if (existing.createdAt!.isAfter(past)) {
+        continue;
       }
 
       // Put in temporary file path if downloading
       if (status == TransferStatus.downloading) {
-        path.localPath = path.localPath + '~';
+        path.localPath = path.localPath! + '~';
       }
 
       final transfer = TransferMap(paths: path, transferStatus: status);
@@ -100,13 +97,13 @@ class Storage {
 
           // Move file from temporary path
           final finalPath =
-              transfer.localPath.substring(0, transfer.localPath.length - 1);
-          final localFile = File(transfer.localPath);
+              transfer.localPath!.substring(0, transfer.localPath!.length - 1);
+          final localFile = File(transfer.localPath!);
           if (await localFile.exists()) {
-            await FileUtils.moveFile(transfer.localPath, finalPath);
+            await FileUtils.moveFile(transfer.localPath!, finalPath);
           }
         }
-        await transfer.database.deleteLocal(transfer.tableName, transfer.id);
+        await transfer.database!.deleteLocal(transfer.tableName, transfer.id);
         _transferrings.remove(transfer.localPath);
         _retryDelayedMap.remove(transfer.id);
       } catch (e, stackTrace) {
@@ -116,18 +113,15 @@ class Storage {
             if (e is UnexpectedResponseException) {
               Sync.shared.logger?.e(
                   ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error at ${e.url} [${e.statusCode}] ${e.errorMessage}',
-                  e,
-                  stackTrace);
+                  error: e, stackTrace: stackTrace);
             } else if (e is UnknownException) {
               Sync.shared.logger?.e(
                   ' Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error ${e.devDescription}',
-                  e,
-                  stackTrace);
+                  error: e, stackTrace: stackTrace);
             } else {
               Sync.shared.logger?.e(
                   'Storage ${transfer.transferStatus == TransferStatus.uploading ? 'upload' : 'dowload'} error $e',
-                  e,
-                  stackTrace);
+                  error: e, stackTrace: stackTrace);
             }
           }
         }
@@ -144,7 +138,7 @@ class Storage {
           _retryDelayedMap.putIfAbsent(transfer.id, () => _initRetryTime);
           // ignore: unawaited_futures
           _delayedPool.withResource(() async => await Future.delayed(
-                      Duration(minutes: _retryDelayedMap[transfer.id]))
+                      Duration(minutes: _retryDelayedMap[transfer.id]!))
                   .then((value) {
                 Sync.shared.logger?.i('Retry transfer $transfer');
                 _transfer(transfer, isRetrying: true, retry: true);
@@ -153,9 +147,9 @@ class Storage {
                 }
                 // increase time on the next retry
                 if (isNotFoundError) {
-                  _retryDelayedMap[transfer.id] *= 5;
+                  _retryDelayedMap[transfer.id] =  _retryDelayedMap[transfer.id]! * 5;
                 } else {
-                  _retryDelayedMap[transfer.id] *= 2;
+                  _retryDelayedMap[transfer.id] =  _retryDelayedMap[transfer.id]! * 2;
                 }
               }));
         }
@@ -204,7 +198,7 @@ class Storage {
   Future<void> readFromRemote(TransferMap transferMap) async {
     // Implementation of dio download and stream write
     try {
-      await _http.download(transferMap.remoteUrl,
+      await _http.download(transferMap.remoteUrl!,
           localPath: transferMap.localPath);
     } catch (e) {
       rethrow;
@@ -223,11 +217,11 @@ class Paths {
     this.remoteUrl,
     this.ondemandPath,
   });
-  String localPath;
-  String assetPath;
-  String remotePath;
-  String remoteUrl;
-  String ondemandPath;
+  String? localPath;
+  String? assetPath;
+  String? remotePath;
+  String? remoteUrl;
+  String? ondemandPath;
 
   @override
   String toString() {
@@ -236,16 +230,16 @@ class Paths {
 }
 
 class TransferMap extends Model {
-  TransferMap({Paths paths, this.transferStatus}) {
+  TransferMap({Paths? paths, this.transferStatus}) {
     localPath = paths?.localPath;
     remotePath = paths?.remotePath;
     remoteUrl = paths?.remoteUrl;
   }
 
-  String localPath;
-  String remotePath;
-  String remoteUrl;
-  TransferStatus transferStatus;
+  String? localPath;
+  String? remotePath;
+  String? remoteUrl;
+  TransferStatus? transferStatus;
 
   @override
   String get tableName => 'TransferMap';
@@ -274,7 +268,7 @@ class TransferMap extends Model {
   }
 
   static Future<List<TransferMap>> all() async {
-    var all = await TransferMap().database.all('TransferMap', () {
+    var all = await TransferMap().database!.all('TransferMap', () {
       return TransferMap();
     });
 
@@ -282,7 +276,7 @@ class TransferMap extends Model {
   }
 
   static Future<TransferMap> find(String id) async =>
-      await TransferMap().database.find('TransferMap', id, TransferMap());
+      await TransferMap().database!.find('TransferMap', id, TransferMap());
 
   static Query where(dynamic condition) {
     return Query('TransferMap').where(condition, TransferMap().database, () {
@@ -293,7 +287,7 @@ class TransferMap extends Model {
 
 enum TransferStatus { uploading, downloading }
 
-extension $TransferStatus on TransferStatus {
+extension $TransferStatus on TransferStatus? {
   static final string = {
     TransferStatus.uploading: 'uploading',
     TransferStatus.downloading: 'downloading'
@@ -304,8 +298,8 @@ extension $TransferStatus on TransferStatus {
     'downloading': TransferStatus.downloading
   };
 
-  String get name => $TransferStatus.string[this];
-  static TransferStatus fromString(String value) =>
+  String? get name => $TransferStatus.string[this];
+  static TransferStatus? fromString(String? value) =>
       $TransferStatus.toEnum[value];
 }
 

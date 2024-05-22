@@ -2,14 +2,14 @@ name: sync_db
 description: A syncronising database that automatically gets and saves data to a server.
 
 environment:
-  sdk: '>=2.10.0 <3.0.0'
+  sdk: '>=2.15.0 <3.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   path: ^1.8.2
   path_provider: ^2.0.15
-  uuid: ^3.0.7
+  uuid: ^4.1.0
   sembast: ^3.4.5
   jaguar_jwt: ^3.0.0
   shared_preferences: ^2.0.15
@@ -26,11 +26,10 @@ dependencies:
   queue: ^3.1.0+2
   mime_type: ^1.0.0
   singleton: ^0.0.2
-  tuple: ^2.0.0
+  tuple: ^2.0.2
   robust_http:
     git:
       url: https://github.com/bookbot-kids/robust-http.git
-      ref: v3_stable_mdc
 
 dev_dependencies:
   flutter_lints: ^1.0.4

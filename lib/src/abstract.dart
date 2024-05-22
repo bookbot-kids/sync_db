@@ -13,7 +13,7 @@ abstract class UserSession {
   /// set login token. In azure b2c, it's id token
   Future<void> setToken(String token, {bool waitingRefresh = false});
 
-  Future<String> get token;
+  Future<String?> get token;
 
   /// Get new token
   Future<void> refresh({bool forceRefreshToken = false});
@@ -27,35 +27,35 @@ abstract class UserSession {
   Future<bool> hasSignedIn();
 
   /// user role
-  String get role;
+  String? get role;
 
   /// get email
-  String get email;
+  String? get email;
 
   /// sign out user & clear all private keys
   Future<void> signOut({bool notify = true});
 
   /// provide storage token to upload/download file
-  Future<String> get storageToken;
+  Future<String?> get storageToken;
 
   /// delete user
   Future<void> deleteUser(String email);
 }
 
 abstract class Database {
-  Future<void> save(Model model, {bool syncToService});
+  Future<void> save(Model model, {bool? syncToService});
 
-  Future<void> saveMap(String tableName, Map map, {dynamic transaction});
+  Future<void> saveMap(String? tableName, Map? map, {dynamic transaction});
 
   Future<void> initTable(String tableName);
 
   dynamic all(String modelName, Function instantiateModel,
       {bool listenable = false});
 
-  dynamic find(String modelName, String id, Model model,
+  dynamic find(String modelName, String? id, Model model,
       {bool listenable = false});
 
-  dynamic findMap(String modelName, String id, {dynamic transaction});
+  dynamic findMap(String? modelName, String? id, {dynamic transaction});
 
   dynamic query<T extends Model>(Query query,
       {dynamic transaction, bool listenable = false});
@@ -70,9 +70,9 @@ abstract class Database {
 
   Future<void> delete(Model model);
 
-  Future<void> deleteLocal(String modelName, String id);
+  Future<void> deleteLocal(String modelName, String? id);
 
-  Future<void> runInTransaction(String tableName, Function action);
+  Future<void> runInTransaction(String? tableName, Function action);
 
   /// clear all data in all tables
   Future<void> cleanDatabase();

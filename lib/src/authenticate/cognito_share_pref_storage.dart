@@ -7,18 +7,18 @@ import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
 class SharedPreferenceStorage extends cognito.CognitoStorage {
   SharedPreferenceStorage(this._prefs);
 
-  final SharedPreferences _prefs;
+  final SharedPreferences? _prefs;
 
   @override
   Future<void> clear() async {
-    await _prefs.clear();
+    await _prefs!.clear();
   }
 
   @override
   Future getItem(String key) async {
-    String item;
+    String? item;
     try {
-      var value = _prefs.getString(key);
+      var value = _prefs!.getString(key);
       if (value != null) {
         item = json.decode(value);
       }
@@ -30,9 +30,9 @@ class SharedPreferenceStorage extends cognito.CognitoStorage {
 
   @override
   Future removeItem(String key) async {
-    final item = getItem(key);
+    final item = await getItem(key);
     if (item != null) {
-      await _prefs.remove(key);
+      await _prefs!.remove(key);
       return item;
     }
     return null;
@@ -40,7 +40,7 @@ class SharedPreferenceStorage extends cognito.CognitoStorage {
 
   @override
   Future setItem(String key, value) async {
-    await _prefs.setString(key, json.encode(value));
+    await _prefs!.setString(key, json.encode(value));
     return getItem(key);
   }
 }

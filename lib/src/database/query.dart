@@ -5,17 +5,17 @@ import '../abstract.dart';
 class Query {
   Query(this.tableName);
 
-  bool caseSensitive = false;
+  bool? caseSensitive = false;
   dynamic condition;
-  Database database;
+  late Database database;
   String filterOperator = 'and';
-  int index;
-  Function instantiateModel;
-  bool isMatches; // is search text mode
-  String ordering;
-  int resultLimit;
-  String tableName;
-  List<String> orderings;
+  int? index;
+  Function? instantiateModel;
+  bool? isMatches; // is search text mode
+  String? ordering;
+  int? resultLimit;
+  String? tableName;
+  List<String>? orderings;
 
   /// Sets the condition on the query and other optionals
   /// The condition can only be a Null, String or Map of field and equality value
@@ -30,10 +30,10 @@ class Query {
   ///
   Query where(
       [dynamic condition,
-      Database database,
-      Function instantiateModel,
-      String filterOperator,
-      bool isMatches]) {
+      Database? database,
+      Function? instantiateModel,
+      String? filterOperator,
+      bool? isMatches]) {
     if (condition is String || condition is Map || condition == null) {
       if (filterOperator != null &&
           filterOperator.toLowerCase() != 'and' &&
@@ -55,7 +55,7 @@ class Query {
   }
 
   /// Sets the sort order on the query and other optionals
-  Query order([String order, Database database, Function instantiateModel]) {
+  Query order([String? order, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     ordering = order;
     return this;
@@ -63,21 +63,21 @@ class Query {
 
   /// Sets the sort orders on the query and other optionals
   Query orders(
-      [List<String> orders, Database database, Function instantiateModel]) {
+      [List<String>? orders, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     orderings = orders;
     return this;
   }
 
   /// Set the limit on the number of results
-  Query limit([int limit, Database database, Function instantiateModel]) {
+  Query limit([int? limit, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     resultLimit = limit;
     return this;
   }
 
   /// Start the first result at the offset
-  Query offset([int index, Database database, Function instantiateModel]) {
+  Query offset([int? index, Database? database, Function? instantiateModel]) {
     _set(instantiateModel, database);
     this.index = index;
     return this;
@@ -85,10 +85,10 @@ class Query {
 
   /// Set the query is matched
   Query matches(
-      [bool isMatches,
-      bool caseSensitive,
-      Database database,
-      Function instantiateModel]) {
+      [bool? isMatches,
+      bool? caseSensitive,
+      Database? database,
+      Function? instantiateModel]) {
     _set(instantiateModel, database);
     this.isMatches = isMatches;
     this.caseSensitive = caseSensitive;
@@ -101,7 +101,7 @@ class Query {
   }
 
   /// Sets instantiateModel function and database
-  void _set(Function instantiateModel, Database database) {
+  void _set(Function? instantiateModel, Database? database) {
     if (instantiateModel != null) {
       this.instantiateModel = instantiateModel;
     }
