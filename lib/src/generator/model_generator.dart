@@ -17,7 +17,7 @@ class ModelGenerator extends Generator {
     final values = <String>{};
     library.allElements.forEach((element) {
       final classElement = cast<ClassElement>(element);
-      if (classElement != null && !classElement.isEnum) {
+      if (classElement != null && !(classElement is EnumElement)) {
         var value = generateForClass(classElement, library.element);
         values.add(value);
       }
@@ -84,7 +84,7 @@ class ModelGenerator extends Generator {
         continue;
       }
 
-      var type = field.type.element!.displayName;
+      var type = field.type.element2!.displayName;
       var isEnumParam = false;
       String? type2;
       String? type3;
@@ -98,7 +98,7 @@ class ModelGenerator extends Generator {
                 .firstAnnotationOfExact(field, throwOnUnresolved: false)!
                 .getField('type')
                 ?.toStringValue() ??
-            field.type.element!.displayName;
+            field.type.element2!.displayName;
         isEnumParam = _propertyTypeChecker
                 .firstAnnotationOfExact(field, throwOnUnresolved: false)!
                 .getField('isEnumParam')
@@ -126,9 +126,9 @@ class ModelGenerator extends Generator {
         }
       }
 
-      var typeClass = field.type.element as ClassElement;
+      var typeClass = field.type.element2 as ClassElement;
       // working on enum
-      if (typeClass.isEnum) {
+      if (typeClass is EnumElement) {
         final type = typeClass.displayName;
         getterFields.add(
             "map['${name}'] = ${name} == null ? null : EnumToString.convertToString(${name});");

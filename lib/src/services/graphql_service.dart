@@ -339,7 +339,7 @@ class GraphQLService extends Service {
     }
   }
 
-  bool hasPermission(String role, String? table, String checkedPermission) {
+  bool hasPermission(String? role, String? table, String checkedPermission) {
     if (_rolePermissions == null) {
       return false;
     }

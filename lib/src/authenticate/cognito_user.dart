@@ -45,12 +45,12 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
 
   String get userRoleKey => '${_clientId}-userRole';
 
-  @override
-  String get role {
-    _userRole ??= _getUserRoleInToken();
-    return _userRole!;
-  }
 
+  @override
+  String? get role {
+    _userRole ??= _getUserRoleInToken();
+    return _userRole;
+  }
   @override
   Future<void> refresh({bool forceRefreshToken = false}) async {
     if (forceRefreshToken) {
@@ -155,7 +155,7 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     throw UnimplementedError();
   }
 
-  Access? _createAccess(String? table, String roleName) {
+  Access? _createAccess(String? table, String? roleName) {
     Access? access;
     if (_service.hasPermission(roleName, table, 'read-write')) {
       access = Access.all;
@@ -182,9 +182,9 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
 
   String? get id => _userInfo?.id;
 
-  set role(String role) {
+  set role(String? role) {
     _userRole = role;
-    _prefs!.setString(userRoleKey, role);
+    _prefs!.setString(userRoleKey, role ?? '');
   }
 
   @override
@@ -259,14 +259,14 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return _userInfo;
   }
 
-  Future<String> refreshRole({bool forceRefreshToken = false}) async {
+  Future<String?> refreshRole({bool forceRefreshToken = false}) async {
     await refresh(forceRefreshToken: forceRefreshToken);
     await _resetSyncTime(role);
     return role;
   }
 
   /// Reset sync time for writable tables
-  Future<void> _resetSyncTime(String roleName) async {
+  Future<void> _resetSyncTime(String? roleName) async {
     var records = await ServicePoint.all();
     for (var record in records) {
       var access = _createAccess(record.name, roleName);

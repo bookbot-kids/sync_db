@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:sync_db/sync_db.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -132,15 +131,6 @@ extension $Test on Test {
 
 void main() {
   group('HTTP: ', () {
-    test('Test getting resource tokens from refresh token', () async {
-      final file = File('test/test_conf.json');
-      final config = jsonDecode(await file.readAsString());
-
-      final user = AzureADB2CUserSession(config);
-      // final tokens = await user.resourceTokens();
-      // print(tokens);
-      // expect(tokens, isNotNull);
-    });
 
     test('Test model creation', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
