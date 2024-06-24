@@ -214,7 +214,8 @@ class CognitoAzureUserSession extends UserSession
             '[sync_db][DEBUG] refresh get mapped service point $mappedServicePoints');
       }
 
-      for (final permission in response['permissions']) {
+      List permissions = response['permissions'] ?? [];
+      for (final permission in permissions) {
         // ignore: unawaited_futures
         _syncQueue.add(() async {
           String tableName = permission['id'];
@@ -226,7 +227,16 @@ class CognitoAzureUserSession extends UserSession
               mappedServicePoints.putIfAbsent(
                   tableName, () => ServicePoint(name: tableName)));
           servicePoint.id = permission['id'];
-          servicePoint.partition = permission['resourcePartitionKey'].first;
+          if (permission['resourcePartitionKey'] is List) {
+            final List partitionKeys = permission['resourcePartitionKey'];
+            servicePoint.partition = partitionKeys.firstOrNull?.toString();
+          } else if (permission['resourcePartitionKey'] is String) {
+            servicePoint.partition = permission['resourcePartitionKey'];
+          } else {
+            throw Exception(
+                'Invalid partition type ${permission['resourcePartitionKey']?.runtimeType}');
+          }
+
           servicePoint.token = permission['_token'];
           servicePoint.access =
               $Access.fromString(permission['permissionMode'].toLowerCase()) ??
