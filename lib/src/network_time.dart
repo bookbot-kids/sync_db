@@ -48,7 +48,7 @@ class NetworkTime {
       }
 
       final results = await Future.wait(futures);
-      _offset = results.whereNotNull().firstOrNull ?? 0;
+      _offset = results.nonNulls.firstOrNull ?? 0;
       Sync.shared.logger?.i('Get ntp offset $_offset');
     }
 

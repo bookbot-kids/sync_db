@@ -79,7 +79,7 @@ class ClassRoom extends Model {
             }
             return null;
           })
-          .whereNotNull()
+          .nonNulls
           .toSet()
           .toList();
     }

@@ -197,7 +197,7 @@ if (deletedAt != other.deletedAt) {
         ''');
           keyFields.add("result.add('$name');");
         } else {
-          final filter = isNullableType ? '' : '?.whereNotNull()';
+          final filter = isNullableType ? '' : '?.nonNulls';
           setterFields.add('''
         ${name} = Set<$listType>.from((map['${name}'] as List?)$filter ?? <$listType>[]).toList();
         keys.add('$name');
@@ -218,7 +218,7 @@ if (deletedAt != other.deletedAt) {
         ''');
           keyFields.add("result.add('$name');");
         } else {
-          final filter = isNullableType ? '' : '?.whereNotNull()';
+          final filter = isNullableType ? '' : '?.nonNulls';
           setterFields.add('''
         ${name} = List<$listType>.from((map['${name}'] as List?)$filter ?? <$listType>[]);
         keys.add('$name');
