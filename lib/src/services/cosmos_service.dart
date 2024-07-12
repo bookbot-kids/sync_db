@@ -8,7 +8,10 @@ class CosmosService extends Service {
   /// This will require the `cosmosDatabaseAccount` name, and database id `cosmosDatabaseId` in the config map
   CosmosService(Map config) : super(config) {
     _cosmosRetries = config['cosmosRetries'] ?? 3;
-    final httpConfig = {'httpRetries': 1};
+    final httpConfig = {
+      'httpRetries': 1,
+      'proxyUrl': config['proxyUrl'],
+    };
     _http = HTTP(
         'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
         httpConfig);

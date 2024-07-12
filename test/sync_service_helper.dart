@@ -12,7 +12,10 @@ class SyncHelper {
 
   SyncHelper(this.configs) {
     _http = HTTP(
-        'https://${configs['cosmosDatabaseAccount']}.documents.azure.com/dbs/${configs['cosmosDatabaseId']}/');
+        'https://${configs['cosmosDatabaseAccount']}.documents.azure.com/dbs/${configs['cosmosDatabaseId']}/',
+        {
+          'proxyUrl': configs['proxyUrl'],
+        });
   }
 
   Future<dynamic> getCosmosDocument(
@@ -77,7 +80,9 @@ class SyncHelper {
   }
 
   Future<String> getResourceToken(String table) async {
-    final _http = HTTP(null);
+    final _http = HTTP(null, {
+      'proxyUrl': configs['proxyUrl'],
+    });
     final response = await _http.get(
         '${configs['azureBaseUrl']}/GetResourceTokens?refresh_token=${configs['refreshToken']}&code=${configs['azureCode']}&source=cognito');
     List permissions = response['permissions'];

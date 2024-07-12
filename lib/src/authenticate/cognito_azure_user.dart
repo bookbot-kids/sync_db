@@ -33,6 +33,7 @@ class CognitoAzureUserSession extends UserSession
       'httpRetries': 1,
       'connectTimeout': config['connectTimeout'],
       'receiveTimeout': config['receiveTimeout'],
+      'proxyUrl': config['proxyUrl'],
     });
 
     // cognito keys

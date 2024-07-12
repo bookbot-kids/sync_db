@@ -20,6 +20,7 @@ class AzureADB2CUserSession extends UserSession {
       'httpRetries': 1,
       'connectTimeout': config['connectTimeout'],
       'receiveTimeout': config['receiveTimeout'],
+      'proxyUrl': config['proxyUrl'],
     });
     _azureKey = config['azureKey'] ?? '';
     _azureSecret = config['azureSecret'] ?? '';
