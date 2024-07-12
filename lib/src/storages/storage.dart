@@ -19,6 +19,8 @@ class Storage {
     _retryPool = Pool(config['retryPoolSize'] ?? 8);
     _delayedPool = Pool(config['delayPoolSize'] ?? 8);
     _retryWhenNotFound = config['retryWhenNotFound'] ?? true;
+    proxyUrl = config['proxyUrl'] ?? '';
+    enableFileProxy = config['enableFileProxy'] ?? false;
   }
 
   late var _pool;
@@ -28,6 +30,8 @@ class Storage {
   var _delayedPool = Pool(8);
   var _initRetryTime = 1;
   late Map _config;
+  var proxyUrl = '';
+  var enableFileProxy = false;
   Map<String, Paths> Function(Model model, String tableName)? pathDelegate;
 
   /// Whether to retry when the path is 404
@@ -216,6 +220,16 @@ class Storage {
 
   /// Write file to cloud storage from file
   Future<void> writeToRemote(TransferMap transferMap) async {}
+
+  Uri buildProxyUri(Uri uri) {
+    if (enableFileProxy && proxyUrl.isNotEmpty) {
+      final proxyUri = Uri.parse('$proxyUrl/${uri.toString()}');
+      Sync.shared.logger?.i('Request with proxy url ${proxyUri.toString()}');
+      return proxyUri;
+    }
+
+    return uri;
+  }
 }
 
 class FileNotFoundException implements Exception {

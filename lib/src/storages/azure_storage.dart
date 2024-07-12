@@ -144,14 +144,15 @@ class AzureStorageTrustedClient extends Storage {
 
   /// build uri from connection string
   Uri _uri({String? path = '/', Map<String, String>? queryParameters}) {
-    var scheme = _config[DefaultEndpointsProtocol] ?? 'https';
-    var suffix = _config[EndpointSuffix] ?? 'core.windows.net';
-    var name = _config[AccountName];
-    return Uri(
+    final scheme = _config[DefaultEndpointsProtocol] ?? 'https';
+    final suffix = _config[EndpointSuffix] ?? 'core.windows.net';
+    final name = _config[AccountName];
+    final uri = Uri(
         scheme: scheme,
         host: '${name}.blob.${suffix}',
         path: path,
         queryParameters: queryParameters);
+    return buildProxyUri(uri);
   }
 
   String _canonicalHeaders(Map<String, String> headers) {
