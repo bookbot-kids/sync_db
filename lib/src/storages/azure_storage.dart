@@ -147,12 +147,11 @@ class AzureStorageTrustedClient extends Storage {
     final scheme = _config[DefaultEndpointsProtocol] ?? 'https';
     final suffix = _config[EndpointSuffix] ?? 'core.windows.net';
     final name = _config[AccountName];
-    final uri = Uri(
+    return Uri(
         scheme: scheme,
         host: '${name}.blob.${suffix}',
         path: path,
         queryParameters: queryParameters);
-    return buildProxyUri(uri);
   }
 
   String _canonicalHeaders(Map<String, String> headers) {
@@ -174,7 +173,7 @@ class AzureStorageTrustedClient extends Storage {
   }
 
   /// sign request
-  void sign(http.Request request) {
+  void sign(http.Request request, Uri originalUri) {
     request.headers['x-ms-date'] = HttpDate.format(DateTime.now());
     request.headers['x-ms-version'] = '2016-05-31';
     var ce = request.headers['Content-Encoding'] ?? '';
@@ -191,7 +190,7 @@ class AzureStorageTrustedClient extends Storage {
     var chs = _canonicalHeaders(request.headers);
     var crs = _canonicalResources(request.url.queryParameters);
     var name = _config[AccountName];
-    var path = request.url.path;
+    var path = originalUri.path;
     var sig =
         '${request.method}\n${ce}\n${cl}\n${cz}\n${cm}\n${ct}\n${dt}\n${ims}\n${imt}\n${inm}\n${ius}\n${ran}\n${chs}/${name}${path}${crs}';
     var mac = crypto.Hmac(crypto.sha256, _accountKey);
@@ -203,9 +202,11 @@ class AzureStorageTrustedClient extends Storage {
 
   /// Get Blob.
   Future<http.StreamedResponse> getBlob(String? path) async {
-    var request = http.Request('GET', _uri(path: path));
+    final originalUri = _uri(path: path);
+    final proxyUri = buildProxyUri(originalUri);
+    var request = http.Request('GET', proxyUri);
     request.headers[HttpHeaders.connectionHeader] = 'keep-alive';
-    sign(request);
+    sign(request, originalUri);
     return _downloadClient.send(request);
   }
 
@@ -217,7 +218,9 @@ class AzureStorageTrustedClient extends Storage {
       Uint8List? bodyBytes,
       String? contentType,
       BlobType type = BlobType.BlockBlob}) async {
-    var request = http.Request('PUT', _uri(path: path));
+    final originalUri = _uri(path: path);
+    final proxyUri = buildProxyUri(originalUri);
+    var request = http.Request('PUT', proxyUri);
     request.headers['x-ms-blob-type'] =
         type.toString() == 'BlobType.AppendBlob' ? 'AppendBlob' : 'BlockBlob';
     if (contentType != null) {
@@ -235,7 +238,7 @@ class AzureStorageTrustedClient extends Storage {
     } else {
       request.body = '';
     }
-    sign(request);
+    sign(request, originalUri);
     var res = await _uploadClient.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
@@ -253,14 +256,16 @@ class AzureStorageTrustedClient extends Storage {
   /// Append block to blob.
   Future<void> appendBlock(String? path,
       {String? body, Uint8List? bodyBytes}) async {
-    var request = http.Request(
-        'PUT', _uri(path: path, queryParameters: {'comp': 'appendblock'}));
+    final originalUri =
+        _uri(path: path, queryParameters: {'comp': 'appendblock'});
+    final proxyUri = buildProxyUri(originalUri);
+    var request = http.Request('PUT', proxyUri);
     if (bodyBytes != null) {
       request.bodyBytes = bodyBytes;
     } else if (body != null) {
       request.body = body;
     }
-    sign(request);
+    sign(request, originalUri);
     var res = await _uploadClient.send(request);
     if (res.statusCode == 201) {
       await res.stream.drain();
