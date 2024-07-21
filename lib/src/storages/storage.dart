@@ -45,6 +45,8 @@ class Storage {
   // Each error transfer has its own delay time, and increase everytime retry
   final Map<String?, int> _retryDelayedMap = {};
 
+  Map get config => _config;
+
   Future<void> upload(List<Paths> paths, {bool retry = false}) async {
     await transfer(paths, TransferStatus.uploading, retry: retry);
   }
