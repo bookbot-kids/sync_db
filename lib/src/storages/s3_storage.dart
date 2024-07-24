@@ -33,10 +33,6 @@ class S3StorageUntrustedClient extends Storage {
 
   @override
   Future<void> writeToRemote(TransferMap transferMap) async {
-    if (await Sync.shared.userSession?.hasSignedIn() != true) {
-      Sync.shared.logger?.i('Guest user does not have upload permission');
-      return;
-    }
     // upload file by stream
     await _uploadFileToS3Bucket(transferMap.localPath!, transferMap.remotePath);
   }
