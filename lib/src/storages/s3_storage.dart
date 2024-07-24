@@ -7,6 +7,10 @@ import 'package:sync_db/sync_db.dart';
 import 'package:path/path.dart' as p;
 import 'package:universal_io/io.dart';
 
+@Deprecated('Should use S3AzureUntrustedStorage')
+
+/// Storage client to upload file into s3 directly via API Gateway
+/// But it has limit 10MB file size
 class S3StorageUntrustedClient extends Storage {
   late HttpClient httpClient;
   String? _baseUrl;

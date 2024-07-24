@@ -9,9 +9,11 @@ import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 import 'package:path/path.dart' as p;
 
-class S3AzureTrustedStorage extends Storage {
+/// Storage client to upload into s3 by using azure api
+/// The file size limit is about 100MB
+class S3AzureUntrustedStorage extends Storage {
   late HTTP _http;
-  S3AzureTrustedStorage(Map config) : super(config) {
+  S3AzureUntrustedStorage(Map config) : super(config) {
     _http = HTTP(config['azureBaseUrl'], {
       'httpRetries': 1,
       'connectTimeout': config['connectTimeout'],
@@ -35,10 +37,8 @@ class S3AzureTrustedStorage extends Storage {
     var localFile = File(localPath);
     if (localFile.existsSync()) {
       Sync.shared.logger?.i('upload to s3 from $localPath to $remotePath');
-      final refreshToken = (await Sync.shared.userSession?.token) ?? '';
       final params = {
         'code': config['azureKey'],
-        'refresh_token': refreshToken,
       };
       final mimeType = mime(localPath) ?? '*/*';
       final filename = p.basename(localPath);
