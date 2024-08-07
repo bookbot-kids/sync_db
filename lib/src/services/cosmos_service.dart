@@ -18,6 +18,7 @@ class CosmosService extends Service {
     _pageSize = config['pageSize'] ?? 1000;
     _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
     _logDebugCloud = config['logDebugCloud'] ?? false;
+    _syncPastDuration = config['syncPastDuration'] ?? 0;
   }
 
   late HTTP _http;
@@ -25,6 +26,9 @@ class CosmosService extends Service {
   int _cosmosRetries = 3;
   var _throwOnNetworkError = true;
   var _logDebugCloud = false;
+
+  /// The duration time to sync in the past in milliseconds
+  var _syncPastDuration = 0;
 
   final _apiVersion = '2018-12-31';
 
@@ -36,8 +40,13 @@ class CosmosService extends Service {
   @override
   Future<void> readFromService(ServicePoint servicePoint) async {
     // query records in cosmos that have updated timestamp > given timestamp
+    var lastSyncTimestamp = servicePoint.from ?? 0;
+    if (_syncPastDuration > 0 && lastSyncTimestamp > 0) {
+      lastSyncTimestamp = lastSyncTimestamp - _syncPastDuration;
+    }
+
     final query =
-        'SELECT * FROM c WHERE c.updatedAt > ${servicePoint.from} ORDER BY c.updatedAt ASC';
+        'SELECT * FROM c WHERE c.updatedAt > $lastSyncTimestamp ORDER BY c.updatedAt ASC';
     var paginationToken;
 
     // Query the document with paging
