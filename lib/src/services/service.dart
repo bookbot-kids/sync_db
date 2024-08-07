@@ -243,7 +243,8 @@ abstract class Service {
   Future<void> writeToService(ServicePoint service);
 
   /// Compare and save record coming from services
-  Future<void> saveLocalRecords(ServicePoint service, List records) async {
+  Future<void> saveLocalRecords(ServicePoint service, List records,
+      {bool checkLocalExisting = false}) async {
     if (records.isEmpty) return;
     final handler = Sync.shared.db.modelHandlers[service.name];
     if (handler == null) {
@@ -265,6 +266,11 @@ abstract class Service {
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
       for (Map record in records) {
         var existingRecord = transientRecords[record[idKey]];
+        if (checkLocalExisting && existingRecord == null) {
+          existingRecord =
+              await handler.find(record[idKey], filterDeletedAt: false);
+        }
+
         if (existingRecord == null ||
             record[updatedKey] >
                 (existingRecord.updatedAt?.millisecondsSinceEpoch ?? 0) ||

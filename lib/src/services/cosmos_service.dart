@@ -41,8 +41,10 @@ class CosmosService extends Service {
   Future<void> readFromService(ServicePoint servicePoint) async {
     // query records in cosmos that have updated timestamp > given timestamp
     var lastSyncTimestamp = servicePoint.from ?? 0;
+    var hasPastSync = false;
     if (_syncPastDuration > 0 && lastSyncTimestamp > 0) {
       lastSyncTimestamp = lastSyncTimestamp - _syncPastDuration;
+      hasPastSync = true;
     }
 
     final query =
@@ -63,7 +65,8 @@ class CosmosService extends Service {
         Sync.shared.logger?.f(
             '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, docs $docs');
       }
-      await saveLocalRecords(servicePoint, docs);
+      await saveLocalRecords(servicePoint, docs,
+          checkLocalExisting: hasPastSync);
       paginationToken = response['paginationToken'];
       if (_logDebugCloud) {
         Sync.shared.logger?.f(
