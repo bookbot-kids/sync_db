@@ -11,12 +11,18 @@ abstract class Service {
   // The same table/partition will only have one access at a time
   final Map<String, Lock> _serviceLock = {};
   late Queue _syncQueue;
+
+  /// Ignore read write tables
   List<String> ignoreTables = [];
+
+  /// ignore read tables
+  List<String> ignoreReadTables = [];
   var _logDebugCloud = false;
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
     ignoreTables = config['tablesToIgnore'] ?? [];
+    ignoreReadTables = config['tablesToIgnoreRead'] ?? [];
     _logDebugCloud = config['logDebugCloud'] ?? false;
   }
 
@@ -201,6 +207,7 @@ abstract class Service {
   Future<void> readServicePoint(ServicePoint service) async {
     // ignore given table from sync
     if (ignoreTables.contains(service.name)) return;
+    if (ignoreReadTables.contains(service.name)) return;
     // Needs all or read access
     if (service.access == Access.write) return;
 
