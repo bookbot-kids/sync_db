@@ -56,6 +56,7 @@ class Profile extends Model {
   List<String> completedBooks = [];
   String email = '';
   String lastName = '';
+  String phoneNumber = '';
 
   @Enumerated(EnumType.name)
   InviteStatus inviteStatus = InviteStatus.none;

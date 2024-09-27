@@ -8,7 +8,7 @@ part of 'profile.dart';
 
 // coverage:ignore-file
 // ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
-// ignore_for_file: curly_braces_in_flow_control_structures
+
 extension GetProfileCollection on Isar {
   IsarCollection<Profile> get profiles => this.collection();
 }
@@ -126,67 +126,72 @@ const ProfileSchema = CollectionSchema(
       name: r'partition',
       type: IsarType.string,
     ),
-    r'progresses': PropertySchema(
+    r'phoneNumber': PropertySchema(
       id: 21,
+      name: r'phoneNumber',
+      type: IsarType.string,
+    ),
+    r'progresses': PropertySchema(
+      id: 22,
       name: r'progresses',
       type: IsarType.objectList,
       target: r'ProfileProgress',
     ),
     r'readToMe': PropertySchema(
-      id: 22,
+      id: 23,
       name: r'readToMe',
       type: IsarType.bool,
     ),
     r'scriptStatuses': PropertySchema(
-      id: 23,
+      id: 24,
       name: r'scriptStatuses',
       type: IsarType.objectList,
       target: r'ProfileScriptStatus',
     ),
     r'stickerBooksRead': PropertySchema(
-      id: 24,
+      id: 25,
       name: r'stickerBooksRead',
       type: IsarType.long,
     ),
     r'syncStatus': PropertySchema(
-      id: 25,
+      id: 26,
       name: r'syncStatus',
       type: IsarType.byte,
       enumMap: _ProfilesyncStatusEnumValueMap,
     ),
     r'tableName': PropertySchema(
-      id: 26,
+      id: 27,
       name: r'tableName',
       type: IsarType.string,
     ),
     r'teacherIds': PropertySchema(
-      id: 27,
+      id: 28,
       name: r'teacherIds',
       type: IsarType.stringList,
     ),
     r'teacherInfo': PropertySchema(
-      id: 28,
+      id: 29,
       name: r'teacherInfo',
       type: IsarType.objectList,
       target: r'ProfileTeacherInfo',
     ),
     r'trackerBooksRead': PropertySchema(
-      id: 29,
+      id: 30,
       name: r'trackerBooksRead',
       type: IsarType.long,
     ),
     r'trackerPractice': PropertySchema(
-      id: 30,
+      id: 31,
       name: r'trackerPractice',
       type: IsarType.long,
     ),
     r'trackerWords': PropertySchema(
-      id: 31,
+      id: 32,
       name: r'trackerWords',
       type: IsarType.long,
     ),
     r'updatedAt': PropertySchema(
-      id: 32,
+      id: 33,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -222,7 +227,7 @@ const ProfileSchema = CollectionSchema(
   getId: _profileGetId,
   getLinks: _profileGetLinks,
   attach: _profileAttach,
-  version: '3.1.0+1',
+  version: '3.1.8',
 );
 
 int _profileEstimateSize(
@@ -288,6 +293,7 @@ int _profileEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.phoneNumber.length * 3;
   bytesCount += 3 + object.progresses.length * 3;
   {
     final offsets = allOffsets[ProfileProgress]!;
@@ -358,33 +364,34 @@ void _profileSerialize(
   writer.writeString(offsets[18], object.name);
   writer.writeString(offsets[19], object.onboarding.name);
   writer.writeString(offsets[20], object.partition);
+  writer.writeString(offsets[21], object.phoneNumber);
   writer.writeObjectList<ProfileProgress>(
-    offsets[21],
+    offsets[22],
     allOffsets,
     ProfileProgressSchema.serialize,
     object.progresses,
   );
-  writer.writeBool(offsets[22], object.readToMe);
+  writer.writeBool(offsets[23], object.readToMe);
   writer.writeObjectList<ProfileScriptStatus>(
-    offsets[23],
+    offsets[24],
     allOffsets,
     ProfileScriptStatusSchema.serialize,
     object.scriptStatuses,
   );
-  writer.writeLong(offsets[24], object.stickerBooksRead);
-  writer.writeByte(offsets[25], object.syncStatus.index);
-  writer.writeString(offsets[26], object.tableName);
-  writer.writeStringList(offsets[27], object.teacherIds);
+  writer.writeLong(offsets[25], object.stickerBooksRead);
+  writer.writeByte(offsets[26], object.syncStatus.index);
+  writer.writeString(offsets[27], object.tableName);
+  writer.writeStringList(offsets[28], object.teacherIds);
   writer.writeObjectList<ProfileTeacherInfo>(
-    offsets[28],
+    offsets[29],
     allOffsets,
     ProfileTeacherInfoSchema.serialize,
     object.teacherInfo,
   );
-  writer.writeLong(offsets[29], object.trackerBooksRead);
-  writer.writeLong(offsets[30], object.trackerPractice);
-  writer.writeLong(offsets[31], object.trackerWords);
-  writer.writeDateTime(offsets[32], object.updatedAt);
+  writer.writeLong(offsets[30], object.trackerBooksRead);
+  writer.writeLong(offsets[31], object.trackerPractice);
+  writer.writeLong(offsets[32], object.trackerWords);
+  writer.writeDateTime(offsets[33], object.updatedAt);
 }
 
 Profile _profileDeserialize(
@@ -426,37 +433,38 @@ Profile _profileDeserialize(
       _ProfileonboardingValueEnumMap[reader.readStringOrNull(offsets[19])] ??
           Onboarding.intro;
   object.partition = reader.readStringOrNull(offsets[20]);
+  object.phoneNumber = reader.readString(offsets[21]);
   object.progresses = reader.readObjectList<ProfileProgress>(
-        offsets[21],
+        offsets[22],
         ProfileProgressSchema.deserialize,
         allOffsets,
         ProfileProgress(),
       ) ??
       [];
-  object.readToMe = reader.readBool(offsets[22]);
+  object.readToMe = reader.readBool(offsets[23]);
   object.scriptStatuses = reader.readObjectList<ProfileScriptStatus>(
-        offsets[23],
+        offsets[24],
         ProfileScriptStatusSchema.deserialize,
         allOffsets,
         ProfileScriptStatus(),
       ) ??
       [];
-  object.stickerBooksRead = reader.readLong(offsets[24]);
+  object.stickerBooksRead = reader.readLong(offsets[25]);
   object.syncStatus =
-      _ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offsets[25])] ??
+      _ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offsets[26])] ??
           SyncStatus.created;
-  object.teacherIds = reader.readStringList(offsets[27]) ?? [];
+  object.teacherIds = reader.readStringList(offsets[28]) ?? [];
   object.teacherInfo = reader.readObjectList<ProfileTeacherInfo>(
-        offsets[28],
+        offsets[29],
         ProfileTeacherInfoSchema.deserialize,
         allOffsets,
         ProfileTeacherInfo(),
       ) ??
       [];
-  object.trackerBooksRead = reader.readLong(offsets[29]);
-  object.trackerPractice = reader.readLong(offsets[30]);
-  object.trackerWords = reader.readLong(offsets[31]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[32]);
+  object.trackerBooksRead = reader.readLong(offsets[30]);
+  object.trackerPractice = reader.readLong(offsets[31]);
+  object.trackerWords = reader.readLong(offsets[32]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[33]);
   return object;
 }
 
@@ -520,6 +528,8 @@ P _profileDeserializeProp<P>(
     case 20:
       return (reader.readStringOrNull(offset)) as P;
     case 21:
+      return (reader.readString(offset)) as P;
+    case 22:
       return (reader.readObjectList<ProfileProgress>(
             offset,
             ProfileProgressSchema.deserialize,
@@ -527,9 +537,9 @@ P _profileDeserializeProp<P>(
             ProfileProgress(),
           ) ??
           []) as P;
-    case 22:
-      return (reader.readBool(offset)) as P;
     case 23:
+      return (reader.readBool(offset)) as P;
+    case 24:
       return (reader.readObjectList<ProfileScriptStatus>(
             offset,
             ProfileScriptStatusSchema.deserialize,
@@ -537,16 +547,16 @@ P _profileDeserializeProp<P>(
             ProfileScriptStatus(),
           ) ??
           []) as P;
-    case 24:
-      return (reader.readLong(offset)) as P;
     case 25:
+      return (reader.readLong(offset)) as P;
+    case 26:
       return (_ProfilesyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
-    case 26:
-      return (reader.readString(offset)) as P;
     case 27:
-      return (reader.readStringList(offset) ?? []) as P;
+      return (reader.readString(offset)) as P;
     case 28:
+      return (reader.readStringList(offset) ?? []) as P;
+    case 29:
       return (reader.readObjectList<ProfileTeacherInfo>(
             offset,
             ProfileTeacherInfoSchema.deserialize,
@@ -554,13 +564,13 @@ P _profileDeserializeProp<P>(
             ProfileTeacherInfo(),
           ) ??
           []) as P;
-    case 29:
-      return (reader.readLong(offset)) as P;
     case 30:
       return (reader.readLong(offset)) as P;
     case 31:
       return (reader.readLong(offset)) as P;
     case 32:
+      return (reader.readLong(offset)) as P;
+    case 33:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -3519,6 +3529,137 @@ extension ProfileQueryFilter
     });
   }
 
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'phoneNumber',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'phoneNumber',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'phoneNumber',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition> phoneNumberIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'phoneNumber',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterFilterCondition>
+      phoneNumberIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'phoneNumber',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Profile, Profile, QAfterFilterCondition> progressesLengthEqualTo(
       int length) {
     return QueryBuilder.apply(this, (query) {
@@ -4711,6 +4852,18 @@ extension ProfileQuerySortBy on QueryBuilder<Profile, Profile, QSortBy> {
     });
   }
 
+  QueryBuilder<Profile, Profile, QAfterSortBy> sortByPhoneNumber() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'phoneNumber', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterSortBy> sortByPhoneNumberDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'phoneNumber', Sort.desc);
+    });
+  }
+
   QueryBuilder<Profile, Profile, QAfterSortBy> sortByReadToMe() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'readToMe', Sort.asc);
@@ -5014,6 +5167,18 @@ extension ProfileQuerySortThenBy
     });
   }
 
+  QueryBuilder<Profile, Profile, QAfterSortBy> thenByPhoneNumber() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'phoneNumber', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Profile, Profile, QAfterSortBy> thenByPhoneNumberDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'phoneNumber', Sort.desc);
+    });
+  }
+
   QueryBuilder<Profile, Profile, QAfterSortBy> thenByReadToMe() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'readToMe', Sort.asc);
@@ -5244,6 +5409,13 @@ extension ProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Profile, Profile, QDistinct> distinctByPhoneNumber(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'phoneNumber', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Profile, Profile, QDistinct> distinctByReadToMe() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'readToMe');
@@ -5432,6 +5604,12 @@ extension ProfileQueryProperty
   QueryBuilder<Profile, String?, QQueryOperations> partitionProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'partition');
+    });
+  }
+
+  QueryBuilder<Profile, String, QQueryOperations> phoneNumberProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'phoneNumber');
     });
   }
 
@@ -6673,10 +6851,12 @@ P _profileLevelDeserializeProp<P>(
 const _ProfileLevellanguageEnumValueMap = {
   r'en': r'en',
   r'id': r'id',
+  r'sw': r'sw',
 };
 const _ProfileLevellanguageValueEnumMap = {
   r'en': LibraryLanguage.en,
   r'id': LibraryLanguage.id,
+  r'sw': LibraryLanguage.sw,
 };
 
 extension ProfileLevelQueryFilter
@@ -7192,10 +7372,12 @@ P _profileProgressDeserializeProp<P>(
 const _ProfileProgresslanguageEnumValueMap = {
   r'en': r'en',
   r'id': r'id',
+  r'sw': r'sw',
 };
 const _ProfileProgresslanguageValueEnumMap = {
   r'en': LibraryLanguage.en,
   r'id': LibraryLanguage.id,
+  r'sw': LibraryLanguage.sw,
 };
 
 extension ProfileProgressQueryFilter
@@ -7562,6 +7744,7 @@ extension $Profile on Profile {
     map['completedBooks'] = completedBooks.toSet().toList();
     map['email'] = email;
     map['lastName'] = lastName;
+    map['phoneNumber'] = phoneNumber;
     map['inviteStatus'] = EnumToString.convertToString(inviteStatus);
     map['classesIds'] = classesIds.toSet().toList();
     map['teacherIds'] = teacherIds.toSet().toList();
@@ -7587,7 +7770,9 @@ extension $Profile on Profile {
       deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
     }
 
-    if (map['name'] != null) name = map['name'];
+    if (map['name'] != null) {
+      name = map['name'];
+    }
     keys.add('name');
 
     if (map['bot'] != null) {
@@ -7598,14 +7783,17 @@ extension $Profile on Profile {
     }
     keys.add('bot');
 
-    if (map['botType'] != null) botType = map['botType'];
+    if (map['botType'] != null) {
+      botType = map['botType'];
+    }
     keys.add('botType');
 
-    if (map['dob'] != null) dob = map['dob'];
+    if (map['dob'] != null) {
+      dob = map['dob'];
+    }
     keys.add('dob');
 
-    about = List<String>.from(
-        (map['about'] as List?)?.whereNotNull() ?? <String>[]);
+    about = List<String>.from((map['about'] as List?)?.nonNulls ?? <String>[]);
     keys.add('about');
 
     if (map['onboarding'] != null) {
@@ -7617,30 +7805,45 @@ extension $Profile on Profile {
     }
     keys.add('onboarding');
 
-    if (map['readToMe'] != null) readToMe = map['readToMe'];
+    if (map['readToMe'] != null) {
+      readToMe = map['readToMe'];
+    }
     keys.add('readToMe');
 
-    if (map['autoTurnPage'] != null) autoTurnPage = map['autoTurnPage'];
+    if (map['autoTurnPage'] != null) {
+      autoTurnPage = map['autoTurnPage'];
+    }
     keys.add('autoTurnPage');
 
-    if (map['lastRead'] != null) lastRead = map['lastRead'];
+    if (map['lastRead'] != null) {
+      lastRead = map['lastRead'].toInt();
+    }
     keys.add('lastRead');
 
-    favourites = Set<String>.from(
-            (map['favourites'] as List?)?.whereNotNull() ?? <String>[])
-        .toList();
+    favourites =
+        Set<String>.from((map['favourites'] as List?)?.nonNulls ?? <String>[])
+            .toList();
     keys.add('favourites');
 
     completedBooks = Set<String>.from(
-            (map['completedBooks'] as List?)?.whereNotNull() ?? <String>[])
+            (map['completedBooks'] as List?)?.nonNulls ?? <String>[])
         .toList();
     keys.add('completedBooks');
 
-    if (map['email'] != null) email = map['email'];
+    if (map['email'] != null) {
+      email = map['email'];
+    }
     keys.add('email');
 
-    if (map['lastName'] != null) lastName = map['lastName'];
+    if (map['lastName'] != null) {
+      lastName = map['lastName'];
+    }
     keys.add('lastName');
+
+    if (map['phoneNumber'] != null) {
+      phoneNumber = map['phoneNumber'];
+    }
+    keys.add('phoneNumber');
 
     if (map['inviteStatus'] != null) {
       final value =
@@ -7651,29 +7854,34 @@ extension $Profile on Profile {
     }
     keys.add('inviteStatus');
 
-    classesIds = Set<String>.from(
-            (map['classesIds'] as List?)?.whereNotNull() ?? <String>[])
-        .toList();
+    classesIds =
+        Set<String>.from((map['classesIds'] as List?)?.nonNulls ?? <String>[])
+            .toList();
     keys.add('classesIds');
 
-    teacherIds = Set<String>.from(
-            (map['teacherIds'] as List?)?.whereNotNull() ?? <String>[])
-        .toList();
+    teacherIds =
+        Set<String>.from((map['teacherIds'] as List?)?.nonNulls ?? <String>[])
+            .toList();
     keys.add('teacherIds');
 
-    if (map['trackerBooksRead'] != null)
-      trackerBooksRead = map['trackerBooksRead'];
+    if (map['trackerBooksRead'] != null) {
+      trackerBooksRead = map['trackerBooksRead'].toInt();
+    }
     keys.add('trackerBooksRead');
 
-    if (map['trackerWords'] != null) trackerWords = map['trackerWords'];
+    if (map['trackerWords'] != null) {
+      trackerWords = map['trackerWords'].toInt();
+    }
     keys.add('trackerWords');
 
-    if (map['trackerPractice'] != null)
-      trackerPractice = map['trackerPractice'];
+    if (map['trackerPractice'] != null) {
+      trackerPractice = map['trackerPractice'].toInt();
+    }
     keys.add('trackerPractice');
 
-    if (map['stickerBooksRead'] != null)
-      stickerBooksRead = map['stickerBooksRead'];
+    if (map['stickerBooksRead'] != null) {
+      stickerBooksRead = map['stickerBooksRead'].toInt();
+    }
     keys.add('stickerBooksRead');
 
     return keys;
@@ -7694,6 +7902,7 @@ extension $Profile on Profile {
     result.add('completedBooks');
     result.add('email');
     result.add('lastName');
+    result.add('phoneNumber');
     result.add('inviteStatus');
     result.add('classesIds');
     result.add('teacherIds');
@@ -7714,21 +7923,23 @@ extension $Profile on Profile {
         await init();
       }
 
-      if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id, filterDeletedAt: false);
-        if (other != null) {
-          final diff = compare(other);
-          if (diff.isNotEmpty) {
-            var recordLog = await ServiceRecord().findBy(id, tableName);
-            recordLog ??= ServiceRecord();
-            recordLog.id = id;
-            recordLog.name = tableName;
-            recordLog.appendFields(diff);
-            await recordLog.save(runInTransaction: false);
+      await saveInternal(() async {
+        if (syncToService && syncStatus == SyncStatus.updated) {
+          final other = await find(id, filterDeletedAt: false);
+          if (other != null) {
+            final diff = compare(other);
+            if (diff.isNotEmpty) {
+              var recordLog = await ServiceRecord().findBy(id, tableName);
+              recordLog ??= ServiceRecord();
+              recordLog.id = id;
+              recordLog.name = tableName;
+              recordLog.appendFields(diff);
+              await recordLog.save(runInTransaction: false);
+            }
           }
         }
-      }
-      await Sync.shared.db.local.profiles.put(this);
+        await Sync.shared.db.local.profiles.put(this);
+      });
     };
 
     if (runInTransaction) {
@@ -7866,6 +8077,10 @@ extension $Profile on Profile {
 
     if (lastName != other.lastName) {
       result.add('lastName');
+    }
+
+    if (phoneNumber != other.phoneNumber) {
+      result.add('phoneNumber');
     }
 
     if (inviteStatus != other.inviteStatus) {

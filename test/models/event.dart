@@ -24,6 +24,7 @@ class Event extends Model {
   List<EventData> eventData = [];
   @ModelIgnore()
   List<EventTriggerAction> triggerAction = [];
+  int version = 1;
 
   @override
   String get tableName => 'Event';
@@ -103,6 +104,17 @@ class Event extends Model {
       'eventData',
       'triggerAction',
     ]);
+
+  @override
+  Future<List<Map<String, dynamic>>> exportJson(
+      {Function(Uint8List)? callback}) {
+    return $Event(this).exportJson(callback: callback);
+  }
+
+  @override
+  Future<void> importJson(jsonData) {
+    return $Event(this).importJson(jsonData);
+  }
 }
 
 @Embedded(ignore: {'props', 'stringify'})
@@ -114,8 +126,7 @@ class EventData with EquatableMixin {
   EventData.from(this.name, this.jsonData);
   dynamic fromJson() {
     try {
-      Map m = json.decode(jsonData);
-      return m;
+      return json.decode(jsonData);
     } catch (e) {
       return jsonData;
     }

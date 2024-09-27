@@ -61,7 +61,7 @@ class LanguageGroups {
   }
 }
 
-enum LibraryLanguage { en, id }
+enum LibraryLanguage { en, id, sw }
 
 extension $LibraryLanguage on LibraryLanguage {
   String get name => EnumToString.convertToString(this);

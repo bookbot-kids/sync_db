@@ -14,6 +14,7 @@ class ClassRoom extends Model {
   String name = '';
   String teacherId = '';
   int _level = 1;
+  String school = '';
 
   int get level => _level != minLong ? _level : 1;
 

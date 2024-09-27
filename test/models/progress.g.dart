@@ -170,6 +170,11 @@ const ProgressSchema = CollectionSchema(
       id: 29,
       name: r'updatedAt',
       type: IsarType.dateTime,
+    ),
+    r'viewingTime': PropertySchema(
+      id: 30,
+      name: r'viewingTime',
+      type: IsarType.long,
     )
   },
   estimateSize: _progressEstimateSize,
@@ -197,7 +202,7 @@ const ProgressSchema = CollectionSchema(
   getId: _progressGetId,
   getLinks: _progressGetLinks,
   attach: _progressAttach,
-  version: '3.1.0+1',
+  version: '3.1.8',
 );
 
 int _progressEstimateSize(
@@ -325,6 +330,7 @@ void _progressSerialize(
   writer.writeByte(offsets[27], object.syncStatus.index);
   writer.writeString(offsets[28], object.tableName);
   writer.writeDateTime(offsets[29], object.updatedAt);
+  writer.writeLong(offsets[30], object.viewingTime);
 }
 
 Progress _progressDeserialize(
@@ -379,6 +385,7 @@ Progress _progressDeserialize(
       _ProgresssyncStatusValueEnumMap[reader.readByteOrNull(offsets[27])] ??
           SyncStatus.created;
   object.updatedAt = reader.readDateTimeOrNull(offsets[29]);
+  object.viewingTime = reader.readLong(offsets[30]);
   return object;
 }
 
@@ -464,6 +471,8 @@ P _progressDeserializeProp<P>(
       return (reader.readString(offset)) as P;
     case 29:
       return (reader.readDateTimeOrNull(offset)) as P;
+    case 30:
+      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -472,10 +481,12 @@ P _progressDeserializeProp<P>(
 const _ProgressbookLanguageEnumValueMap = {
   r'en': r'en',
   r'id': r'id',
+  r'sw': r'sw',
 };
 const _ProgressbookLanguageValueEnumMap = {
   r'en': LibraryLanguage.en,
   r'id': LibraryLanguage.id,
+  r'sw': LibraryLanguage.sw,
 };
 const _ProgresssyncStatusEnumValueMap = {
   'created': 0,
@@ -3924,6 +3935,60 @@ extension ProgressQueryFilter
       ));
     });
   }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> viewingTimeEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'viewingTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition>
+      viewingTimeGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'viewingTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> viewingTimeLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'viewingTime',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterFilterCondition> viewingTimeBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'viewingTime',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension ProgressQueryObject
@@ -4198,6 +4263,18 @@ extension ProgressQuerySortBy on QueryBuilder<Progress, Progress, QSortBy> {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> sortByViewingTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'viewingTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> sortByViewingTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'viewingTime', Sort.desc);
+    });
+  }
 }
 
 extension ProgressQuerySortThenBy
@@ -4465,6 +4542,18 @@ extension ProgressQuerySortThenBy
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> thenByViewingTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'viewingTime', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QAfterSortBy> thenByViewingTimeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'viewingTime', Sort.desc);
+    });
+  }
 }
 
 extension ProgressQueryWhereDistinct
@@ -4641,6 +4730,12 @@ extension ProgressQueryWhereDistinct
   QueryBuilder<Progress, Progress, QDistinct> distinctByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'updatedAt');
+    });
+  }
+
+  QueryBuilder<Progress, Progress, QDistinct> distinctByViewingTime() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'viewingTime');
     });
   }
 }
@@ -4834,6 +4929,12 @@ extension ProgressQueryProperty
   QueryBuilder<Progress, DateTime?, QQueryOperations> updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
+    });
+  }
+
+  QueryBuilder<Progress, int, QQueryOperations> viewingTimeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'viewingTime');
     });
   }
 }
@@ -5168,6 +5269,7 @@ extension $Progress on Progress {
     map['pageReadCount'] = pageReadCount;
     map['readToMeTime'] = readToMeTime;
     map['readingTime'] = readingTime;
+    map['viewingTime'] = viewingTime;
     map['completedAt'] = completedAt;
     map['markers'] = markers;
     map['readWords'] = readWords.toSet().toList();
@@ -5190,16 +5292,24 @@ extension $Progress on Progress {
       deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
     }
 
-    if (map['profileId'] != null) profileId = map['profileId'];
+    if (map['profileId'] != null) {
+      profileId = map['profileId'];
+    }
     keys.add('profileId');
 
-    if (map['bookId'] != null) bookId = map['bookId'];
+    if (map['bookId'] != null) {
+      bookId = map['bookId'];
+    }
     keys.add('bookId');
 
-    if (map['currentPage'] != null) currentPage = map['currentPage'];
+    if (map['currentPage'] != null) {
+      currentPage = map['currentPage'].toInt();
+    }
     keys.add('currentPage');
 
-    if (map['rating'] != null) rating = map['rating'];
+    if (map['rating'] != null) {
+      rating = map['rating'].toInt();
+    }
     keys.add('rating');
 
     if (map['bookLanguage'] != null) {
@@ -5215,8 +5325,7 @@ extension $Progress on Progress {
         map['progress']?.map((e) => e.toDouble()).toList() ?? <double>[]);
     keys.add('progress');
 
-    correct =
-        List<bool>.from((map['correct'] as List?)?.whereNotNull() ?? <bool>[]);
+    correct = List<bool>.from((map['correct'] as List?)?.nonNulls ?? <bool>[]);
     keys.add('correct');
 
     if (map['fluency'] != null) {
@@ -5239,32 +5348,47 @@ extension $Progress on Progress {
         map['fluencies']?.map((e) => e.toDouble()).toList() ?? <double>[]);
     keys.add('fluencies');
 
-    if (map['level'] != null) level = map['level'];
+    if (map['level'] != null) {
+      level = map['level'].toInt();
+    }
     keys.add('level');
 
-    if (map['pageReadCount'] != null) pageReadCount = map['pageReadCount'];
+    if (map['pageReadCount'] != null) {
+      pageReadCount = map['pageReadCount'].toInt();
+    }
     keys.add('pageReadCount');
 
-    if (map['readToMeTime'] != null) readToMeTime = map['readToMeTime'];
+    if (map['readToMeTime'] != null) {
+      readToMeTime = map['readToMeTime'].toInt();
+    }
     keys.add('readToMeTime');
 
-    if (map['readingTime'] != null) readingTime = map['readingTime'];
+    if (map['readingTime'] != null) {
+      readingTime = map['readingTime'].toInt();
+    }
     keys.add('readingTime');
 
-    if (map['completedAt'] != null) completedAt = map['completedAt'];
+    if (map['viewingTime'] != null) {
+      viewingTime = map['viewingTime'].toInt();
+    }
+    keys.add('viewingTime');
+
+    if (map['completedAt'] != null) {
+      completedAt = map['completedAt'].toInt();
+    }
     keys.add('completedAt');
 
-    markers = List<String>.from(
-        (map['markers'] as List?)?.whereNotNull() ?? <String>[]);
+    markers =
+        List<String>.from((map['markers'] as List?)?.nonNulls ?? <String>[]);
     keys.add('markers');
 
-    readWords = Set<String>.from(
-            (map['readWords'] as List?)?.whereNotNull() ?? <String>[])
-        .toList();
+    readWords =
+        Set<String>.from((map['readWords'] as List?)?.nonNulls ?? <String>[])
+            .toList();
     keys.add('readWords');
 
     readPracticeWords = Set<String>.from(
-            (map['readPracticeWords'] as List?)?.whereNotNull() ?? <String>[])
+            (map['readPracticeWords'] as List?)?.nonNulls ?? <String>[])
         .toList();
     keys.add('readPracticeWords');
 
@@ -5288,6 +5412,7 @@ extension $Progress on Progress {
     result.add('pageReadCount');
     result.add('readToMeTime');
     result.add('readingTime');
+    result.add('viewingTime');
     result.add('completedAt');
     result.add('markers');
     result.add('readWords');
@@ -5305,21 +5430,23 @@ extension $Progress on Progress {
         await init();
       }
 
-      if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id, filterDeletedAt: false);
-        if (other != null) {
-          final diff = compare(other);
-          if (diff.isNotEmpty) {
-            var recordLog = await ServiceRecord().findBy(id, tableName);
-            recordLog ??= ServiceRecord();
-            recordLog.id = id;
-            recordLog.name = tableName;
-            recordLog.appendFields(diff);
-            await recordLog.save(runInTransaction: false);
+      await saveInternal(() async {
+        if (syncToService && syncStatus == SyncStatus.updated) {
+          final other = await find(id, filterDeletedAt: false);
+          if (other != null) {
+            final diff = compare(other);
+            if (diff.isNotEmpty) {
+              var recordLog = await ServiceRecord().findBy(id, tableName);
+              recordLog ??= ServiceRecord();
+              recordLog.id = id;
+              recordLog.name = tableName;
+              recordLog.appendFields(diff);
+              await recordLog.save(runInTransaction: false);
+            }
           }
         }
-      }
-      await Sync.shared.db.local.progress.put(this);
+        await Sync.shared.db.local.progress.put(this);
+      });
     };
 
     if (runInTransaction) {
@@ -5456,6 +5583,10 @@ extension $Progress on Progress {
 
     if (readingTime != other.readingTime) {
       result.add('readingTime');
+    }
+
+    if (viewingTime != other.viewingTime) {
+      result.add('viewingTime');
     }
 
     if (completedAt != other.completedAt) {

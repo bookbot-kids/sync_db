@@ -43,6 +43,9 @@ class Progress extends Model {
   List<ProgressCorrectWords> incorrectWords = [];
   int readToMeTime = 0;
   int readingTime = 0;
+
+  /// Read time without ASR in poor device
+  int viewingTime = 0;
   int? completedAt;
 
   List<String> markers = [];

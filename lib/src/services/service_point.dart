@@ -135,6 +135,7 @@ class ServicePoint extends Model {
   }
 
   @override
+  @Ignore()
   Set<String> get keys => {};
 }
 

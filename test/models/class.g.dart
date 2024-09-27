@@ -68,24 +68,29 @@ const ClassRoomSchema = CollectionSchema(
       type: IsarType.objectList,
       target: r'ClassReward',
     ),
-    r'syncStatus': PropertySchema(
+    r'school': PropertySchema(
       id: 10,
+      name: r'school',
+      type: IsarType.string,
+    ),
+    r'syncStatus': PropertySchema(
+      id: 11,
       name: r'syncStatus',
       type: IsarType.byte,
       enumMap: _ClassRoomsyncStatusEnumValueMap,
     ),
     r'tableName': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'tableName',
       type: IsarType.string,
     ),
     r'teacherId': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'teacherId',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -115,7 +120,7 @@ const ClassRoomSchema = CollectionSchema(
   getId: _classRoomGetId,
   getLinks: _classRoomGetLinks,
   attach: _classRoomAttach,
-  version: '3.1.0+1',
+  version: '3.1.8',
 );
 
 int _classRoomEstimateSize(
@@ -153,6 +158,7 @@ int _classRoomEstimateSize(
       bytesCount += ClassRewardSchema.estimateSize(value, offsets, allOffsets);
     }
   }
+  bytesCount += 3 + object.school.length * 3;
   bytesCount += 3 + object.tableName.length * 3;
   bytesCount += 3 + object.teacherId.length * 3;
   return bytesCount;
@@ -179,10 +185,11 @@ void _classRoomSerialize(
     ClassRewardSchema.serialize,
     object.rewards,
   );
-  writer.writeByte(offsets[10], object.syncStatus.index);
-  writer.writeString(offsets[11], object.tableName);
-  writer.writeString(offsets[12], object.teacherId);
-  writer.writeDateTime(offsets[13], object.updatedAt);
+  writer.writeString(offsets[10], object.school);
+  writer.writeByte(offsets[11], object.syncStatus.index);
+  writer.writeString(offsets[12], object.tableName);
+  writer.writeString(offsets[13], object.teacherId);
+  writer.writeDateTime(offsets[14], object.updatedAt);
 }
 
 ClassRoom _classRoomDeserialize(
@@ -208,11 +215,12 @@ ClassRoom _classRoomDeserialize(
         ClassReward(),
       ) ??
       [];
+  object.school = reader.readString(offsets[10]);
   object.syncStatus =
-      _ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offsets[10])] ??
+      _ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offsets[11])] ??
           SyncStatus.created;
-  object.teacherId = reader.readString(offsets[12]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[13]);
+  object.teacherId = reader.readString(offsets[13]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[14]);
   return object;
 }
 
@@ -250,13 +258,15 @@ P _classRoomDeserializeProp<P>(
           ) ??
           []) as P;
     case 10:
+      return (reader.readString(offset)) as P;
+    case 11:
       return (_ClassRoomsyncStatusValueEnumMap[reader.readByteOrNull(offset)] ??
           SyncStatus.created) as P;
-    case 11:
-      return (reader.readString(offset)) as P;
     case 12:
       return (reader.readString(offset)) as P;
     case 13:
+      return (reader.readString(offset)) as P;
+    case 14:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1617,6 +1627,136 @@ extension ClassRoomQueryFilter
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'school',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'school',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'school',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'school',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> schoolIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'school',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterFilterCondition> syncStatusEqualTo(
       SyncStatus value) {
     return QueryBuilder.apply(this, (query) {
@@ -2117,6 +2257,18 @@ extension ClassRoomQuerySortBy on QueryBuilder<ClassRoom, ClassRoom, QSortBy> {
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortBySchool() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'school', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortBySchoolDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'school', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> sortBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.asc);
@@ -2276,6 +2428,18 @@ extension ClassRoomQuerySortThenBy
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenBySchool() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'school', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenBySchoolDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'school', Sort.desc);
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QAfterSortBy> thenBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'syncStatus', Sort.asc);
@@ -2385,6 +2549,13 @@ extension ClassRoomQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctBySchool(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'school', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<ClassRoom, ClassRoom, QDistinct> distinctBySyncStatus() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'syncStatus');
@@ -2479,6 +2650,12 @@ extension ClassRoomQueryProperty
       rewardsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'rewards');
+    });
+  }
+
+  QueryBuilder<ClassRoom, String, QQueryOperations> schoolProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'school');
     });
   }
 
@@ -2879,6 +3056,7 @@ extension $ClassRoom on ClassRoom {
 
     map['name'] = name;
     map['teacherId'] = teacherId;
+    map['school'] = school;
     map['readingBookIds'] = readingBookIds.toSet().toList();
     map['level'] = level;
     return map;
@@ -2899,18 +3077,29 @@ extension $ClassRoom on ClassRoom {
       deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
     }
 
-    if (map['name'] != null) name = map['name'];
+    if (map['name'] != null) {
+      name = map['name'];
+    }
     keys.add('name');
 
-    if (map['teacherId'] != null) teacherId = map['teacherId'];
+    if (map['teacherId'] != null) {
+      teacherId = map['teacherId'];
+    }
     keys.add('teacherId');
 
+    if (map['school'] != null) {
+      school = map['school'];
+    }
+    keys.add('school');
+
     readingBookIds = Set<String>.from(
-            (map['readingBookIds'] as List?)?.whereNotNull() ?? <String>[])
+            (map['readingBookIds'] as List?)?.nonNulls ?? <String>[])
         .toList();
     keys.add('readingBookIds');
 
-    if (map['level'] != null) level = map['level'];
+    if (map['level'] != null) {
+      level = map['level'].toInt();
+    }
     keys.add('level');
 
     return keys;
@@ -2920,6 +3109,7 @@ extension $ClassRoom on ClassRoom {
     final result = <String>{};
     result.add('name');
     result.add('teacherId');
+    result.add('school');
     result.add('readingBookIds');
     result.add('level');
     return result;
@@ -2935,21 +3125,23 @@ extension $ClassRoom on ClassRoom {
         await init();
       }
 
-      if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id, filterDeletedAt: false);
-        if (other != null) {
-          final diff = compare(other);
-          if (diff.isNotEmpty) {
-            var recordLog = await ServiceRecord().findBy(id, tableName);
-            recordLog ??= ServiceRecord();
-            recordLog.id = id;
-            recordLog.name = tableName;
-            recordLog.appendFields(diff);
-            await recordLog.save(runInTransaction: false);
+      await saveInternal(() async {
+        if (syncToService && syncStatus == SyncStatus.updated) {
+          final other = await find(id, filterDeletedAt: false);
+          if (other != null) {
+            final diff = compare(other);
+            if (diff.isNotEmpty) {
+              var recordLog = await ServiceRecord().findBy(id, tableName);
+              recordLog ??= ServiceRecord();
+              recordLog.id = id;
+              recordLog.name = tableName;
+              recordLog.appendFields(diff);
+              await recordLog.save(runInTransaction: false);
+            }
           }
         }
-      }
-      await Sync.shared.db.local.classRooms.put(this);
+        await Sync.shared.db.local.classRooms.put(this);
+      });
     };
 
     if (runInTransaction) {
@@ -3026,6 +3218,10 @@ extension $ClassRoom on ClassRoom {
 
     if (teacherId != other.teacherId) {
       result.add('teacherId');
+    }
+
+    if (school != other.school) {
+      result.add('school');
     }
 
     if (!DeepCollectionEquality()

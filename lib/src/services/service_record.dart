@@ -94,6 +94,7 @@ class ServiceRecord extends Model {
   }
 
   @override
+  @Ignore()
   Set<String> get keys => {};
 
   @Ignore()

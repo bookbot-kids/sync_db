@@ -79,6 +79,11 @@ const EventSchema = CollectionSchema(
       id: 11,
       name: r'updatedAt',
       type: IsarType.dateTime,
+    ),
+    r'version': PropertySchema(
+      id: 12,
+      name: r'version',
+      type: IsarType.long,
     )
   },
   estimateSize: _eventEstimateSize,
@@ -109,7 +114,7 @@ const EventSchema = CollectionSchema(
   getId: _eventGetId,
   getLinks: _eventGetLinks,
   attach: _eventAttach,
-  version: '3.1.0+1',
+  version: '3.1.8',
 );
 
 int _eventEstimateSize(
@@ -181,6 +186,7 @@ void _eventSerialize(
   );
   writer.writeString(offsets[10], object.type);
   writer.writeDateTime(offsets[11], object.updatedAt);
+  writer.writeLong(offsets[12], object.version);
 }
 
 Event _eventDeserialize(
@@ -215,6 +221,7 @@ Event _eventDeserialize(
       [];
   object.type = reader.readString(offsets[10]);
   object.updatedAt = reader.readDateTimeOrNull(offsets[11]);
+  object.version = reader.readLong(offsets[12]);
   return object;
 }
 
@@ -262,6 +269,8 @@ P _eventDeserializeProp<P>(
       return (reader.readString(offset)) as P;
     case 11:
       return (reader.readDateTimeOrNull(offset)) as P;
+    case 12:
+      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -1653,6 +1662,58 @@ extension EventQueryFilter on QueryBuilder<Event, Event, QFilterCondition> {
       ));
     });
   }
+
+  QueryBuilder<Event, Event, QAfterFilterCondition> versionEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'version',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterFilterCondition> versionGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'version',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterFilterCondition> versionLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'version',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterFilterCondition> versionBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'version',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
 }
 
 extension EventQueryObject on QueryBuilder<Event, Event, QFilterCondition> {
@@ -1793,6 +1854,18 @@ extension EventQuerySortBy on QueryBuilder<Event, Event, QSortBy> {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
+
+  QueryBuilder<Event, Event, QAfterSortBy> sortByVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'version', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterSortBy> sortByVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'version', Sort.desc);
+    });
+  }
 }
 
 extension EventQuerySortThenBy on QueryBuilder<Event, Event, QSortThenBy> {
@@ -1927,6 +2000,18 @@ extension EventQuerySortThenBy on QueryBuilder<Event, Event, QSortThenBy> {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
+
+  QueryBuilder<Event, Event, QAfterSortBy> thenByVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'version', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Event, Event, QAfterSortBy> thenByVersionDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'version', Sort.desc);
+    });
+  }
 }
 
 extension EventQueryWhereDistinct on QueryBuilder<Event, Event, QDistinct> {
@@ -1992,6 +2077,12 @@ extension EventQueryWhereDistinct on QueryBuilder<Event, Event, QDistinct> {
   QueryBuilder<Event, Event, QDistinct> distinctByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'updatedAt');
+    });
+  }
+
+  QueryBuilder<Event, Event, QDistinct> distinctByVersion() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'version');
     });
   }
 }
@@ -2073,6 +2164,12 @@ extension EventQueryProperty on QueryBuilder<Event, Event, QQueryProperty> {
   QueryBuilder<Event, DateTime?, QQueryOperations> updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
+    });
+  }
+
+  QueryBuilder<Event, int, QQueryOperations> versionProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'version');
     });
   }
 }
@@ -2937,6 +3034,7 @@ extension $Event on Event {
     }
 
     map['type'] = type;
+    map['version'] = version;
     return map;
   }
 
@@ -2955,8 +3053,15 @@ extension $Event on Event {
       deletedAt = DateTime.fromMillisecondsSinceEpoch(map[deletedKey]);
     }
 
-    if (map['type'] != null) type = map['type'];
+    if (map['type'] != null) {
+      type = map['type'];
+    }
     keys.add('type');
+
+    if (map['version'] != null) {
+      version = map['version'].toInt();
+    }
+    keys.add('version');
 
     return keys;
   }
@@ -2964,6 +3069,7 @@ extension $Event on Event {
   Set<String> get keys {
     final result = <String>{};
     result.add('type');
+    result.add('version');
     return result;
   }
 
@@ -2977,21 +3083,23 @@ extension $Event on Event {
         await init();
       }
 
-      if (syncToService && syncStatus == SyncStatus.updated) {
-        final other = await find(id, filterDeletedAt: false);
-        if (other != null) {
-          final diff = compare(other);
-          if (diff.isNotEmpty) {
-            var recordLog = await ServiceRecord().findBy(id, tableName);
-            recordLog ??= ServiceRecord();
-            recordLog.id = id;
-            recordLog.name = tableName;
-            recordLog.appendFields(diff);
-            await recordLog.save(runInTransaction: false);
+      await saveInternal(() async {
+        if (syncToService && syncStatus == SyncStatus.updated) {
+          final other = await find(id, filterDeletedAt: false);
+          if (other != null) {
+            final diff = compare(other);
+            if (diff.isNotEmpty) {
+              var recordLog = await ServiceRecord().findBy(id, tableName);
+              recordLog ??= ServiceRecord();
+              recordLog.id = id;
+              recordLog.name = tableName;
+              recordLog.appendFields(diff);
+              await recordLog.save(runInTransaction: false);
+            }
           }
         }
-      }
-      await Sync.shared.db.local.events.put(this);
+        await Sync.shared.db.local.events.put(this);
+      });
     };
 
     if (runInTransaction) {
@@ -3070,6 +3178,10 @@ extension $Event on Event {
 
     if (!DeepCollectionEquality().equals(triggerAction, other.triggerAction)) {
       result.add('triggerAction');
+    }
+
+    if (version != other.version) {
+      result.add('version');
     }
 
     final list = <String>[];

@@ -110,6 +110,7 @@ class TransferMap extends Model {
   }
 
   @override
+  @Ignore()
   Set<String> get keys => {};
 
   @override
