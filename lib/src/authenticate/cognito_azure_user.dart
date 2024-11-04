@@ -346,7 +346,7 @@ class CognitoAzureUserSession extends UserSession
 
     _refreshed = refresh();
     if (notify) {
-      signoutNotifier.notify();
+      signoutNotifier.refresh();
     }
   }
 

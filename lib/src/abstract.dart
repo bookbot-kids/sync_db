@@ -45,13 +45,16 @@ abstract class UserSession {
 
 class Notifier<T> extends ChangeNotifier {
   T _value;
+  StackTrace? _sourceTrace;
   Notifier(this._value);
+
+  StackTrace? get sourceTrace => _sourceTrace;
 
   T get value => _value;
 
   set value(T value) {
     _value = value;
-    notifyListeners();
+    refresh();
   }
 
   // Only update value without call [notifyListeners]
@@ -60,10 +63,10 @@ class Notifier<T> extends ChangeNotifier {
   }
 
   void refresh() {
-    notifyListeners();
-  }
+    if (kDebugMode) {
+      _sourceTrace = StackTrace.current;
+    }
 
-  void notify() {
     notifyListeners();
   }
 }

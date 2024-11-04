@@ -237,7 +237,7 @@ class AzureADB2CUserSession extends UserSession {
 
     _refreshed = refresh();
     if (notify) {
-      signoutNotifier.notify();
+      signoutNotifier.refresh();
     }
   }
 
