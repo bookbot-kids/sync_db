@@ -130,10 +130,12 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   /// all files related to this record
 
   /// See if file exists, otherwise download()
-  Future<File> file(
-      {String key = 'default',
-      bool retry = false,
-      bool forceDownload = false}) async {
+  Future<File> file({
+    String key = 'default',
+    bool retry = false,
+    bool forceDownload = false,
+    Map<String, Paths>? mapPaths,
+  }) async {
     final path = localFilePath(key: key)!;
     final file = File(path);
     if (file.existsSync()) {
@@ -144,35 +146,39 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
       }
     }
 
-    await download(key, retry);
+    await download(key, retry, mapPaths);
     return File(path);
   }
 
   /// Upload all files in this record to storage
   /// It will upload again, even if this has been uploaded before
-  Future<void> upload([String? key, bool retry = false]) async {
-    if (filePaths().containsKey(key)) {
-      final path = filePaths()[key];
+  Future<void> upload(
+      [String? key, bool retry = false, Map<String, Paths>? mapPaths]) async {
+    final paths = mapPaths ?? filePaths();
+    if (paths.containsKey(key)) {
+      final path = paths[key];
       if (path != null) {
         await Sync.shared.storage?.upload([path], retry: retry);
       }
     } else {
       await Sync.shared.storage
-          ?.upload(List<Paths>.from(filePaths().values), retry: retry);
+          ?.upload(List<Paths>.from(paths.values), retry: retry);
     }
   }
 
   /// Download all files in this record from storage
   /// It will download again, even if this has been downloaded before
-  Future<void> download([String? key, bool retry = false]) async {
-    if (filePaths().containsKey(key)) {
-      final path = filePaths()[key];
+  Future<void> download(
+      [String? key, bool retry = false, Map<String, Paths>? mapPaths]) async {
+    final paths = mapPaths ?? filePaths();
+    if (paths.containsKey(key)) {
+      final path = paths[key];
       if (path != null) {
         await Sync.shared.storage?.download([path], retry: retry);
       }
     } else {
       await Sync.shared.storage
-          ?.download(List<Paths>.from(filePaths().values), retry: retry);
+          ?.download(List<Paths>.from(paths.values), retry: retry);
     }
   }
 
@@ -188,13 +194,14 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
   }
 
   /// Local filePath from key
-  String? localFilePath({String key = 'default'}) {
-    return filePaths()[key]!.localPath;
+  String? localFilePath(
+      {String key = 'default', Map<String, Paths>? mapPaths}) {
+    return (mapPaths ?? filePaths())[key]?.localPath;
   }
 
   /// URL from it's key
-  String? url({String key = 'default'}) {
-    return filePaths()[key]!.remoteUrl;
+  String? url({String key = 'default', Map<String, Paths>? mapPaths}) {
+    return (mapPaths ?? filePaths())[key]?.remoteUrl;
   }
 
   /// Override this with the key, and the Paths class
