@@ -48,7 +48,8 @@ class CognitoAzureUserSession extends UserSession
     _azureAudience = config['azureAudience'] ?? '';
 
     _tablesToSync = config['tablesToSync'] ?? <String>[];
-    _tablesToClearOnSignout = config['tablesToClearOnSignout'] ?? <String>[];
+    _tablesToClearOnSignout =
+        List<String>.from(config['tablesToClearOnSignout'] ?? []);
     _logDebugCloud = config['logDebugCloud'] ?? false;
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
 

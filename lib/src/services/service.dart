@@ -21,8 +21,8 @@ abstract class Service {
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
-    ignoreTables = config['tablesToIgnore'] ?? [];
-    ignoreReadTables = config['tablesToIgnoreRead'] ?? [];
+    ignoreTables = List<String>.from(config['tablesToIgnore'] ?? []);
+    ignoreReadTables = List<String>.from(config['tablesToIgnoreRead'] ?? []);
     _logDebugCloud = config['logDebugCloud'] ?? false;
   }
 
