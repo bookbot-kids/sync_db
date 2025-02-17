@@ -333,6 +333,8 @@ class CosmosService extends Service {
             error: e,
             stackTrace: stackTrace);
         if (e.statusCode == 409 && retryUpdate) {
+          Sync.shared.logger?.i(
+              'Try to update existing document $record instead of creating it');
           // Strange that this has happened. Record is already created. Log it and try an update.
           return await (_updateDocument(servicePoint, record));
         } else if (e.statusCode == 403) {
@@ -416,6 +418,8 @@ class CosmosService extends Service {
             error: e,
             stackTrace: stackTrace);
         if (e.statusCode == 409 || e.statusCode == 404) {
+          Sync.shared.logger
+              ?.i('Try to create new document $record instead of updating it');
           // Strange that this has happened. Record does not exist. Log it and try to create
           return await _createDocument(servicePoint, record,
               retryUpdate: false);
