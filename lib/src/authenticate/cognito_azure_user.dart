@@ -216,40 +216,44 @@ class CognitoAzureUserSession extends UserSession
             '[sync_db][DEBUG] refresh get mapped service point $mappedServicePoints');
       }
 
-      List permissions = response['permissions'] ?? [];
-      for (final permission in permissions) {
-        // ignore: unawaited_futures
-        _syncQueue.add(() async {
-          String tableName = permission['id'];
-          if (tableName.contains('-shared')) {
-            tableName = tableName.split('-shared')[0];
-          }
+      if (response['permissions'] is List) {
+        List permissions = response['permissions'];
+        for (final permission in permissions) {
+          if (permission is Map) {
+            // ignore: unawaited_futures
+            _syncQueue.add(() async {
+              String tableName = permission['id'];
+              if (tableName.contains('-shared')) {
+                tableName = tableName.split('-shared')[0];
+              }
 
-          final servicePoint = await _lock.synchronized(() =>
-              mappedServicePoints.putIfAbsent(
-                  tableName, () => ServicePoint(name: tableName)));
-          servicePoint.id = permission['id'];
-          if (permission['resourcePartitionKey'] is List) {
-            final List partitionKeys = permission['resourcePartitionKey'];
-            servicePoint.partition = partitionKeys.firstOrNull?.toString();
-          } else if (permission['resourcePartitionKey'] is String) {
-            servicePoint.partition = permission['resourcePartitionKey'];
-          } else {
-            throw Exception(
-                'Invalid partition type ${permission['resourcePartitionKey']?.runtimeType}');
-          }
+              final servicePoint = await _lock.synchronized(() =>
+                  mappedServicePoints.putIfAbsent(
+                      tableName, () => ServicePoint(name: tableName)));
+              servicePoint.id = permission['id'];
+              if (permission['resourcePartitionKey'] is List) {
+                final List partitionKeys = permission['resourcePartitionKey'];
+                servicePoint.partition = partitionKeys.firstOrNull?.toString();
+              } else if (permission['resourcePartitionKey'] is String) {
+                servicePoint.partition = permission['resourcePartitionKey'];
+              } else {
+                throw Exception(
+                    'Invalid partition type ${permission['resourcePartitionKey']?.runtimeType}');
+              }
 
-          servicePoint.token = permission['_token'];
-          servicePoint.access =
-              $Access.fromString(permission['permissionMode'].toLowerCase()) ??
+              servicePoint.token = permission['_token'];
+              servicePoint.access = $Access
+                      .fromString(permission['permissionMode'].toLowerCase()) ??
                   Access.read;
-          await servicePoint.save(syncToService: false);
+              await servicePoint.save(syncToService: false);
 
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] refresh save service point $servicePoint');
+              if (_logDebugCloud) {
+                Sync.shared.logger?.f(
+                    '[sync_db][DEBUG] refresh save service point $servicePoint');
+              }
+            });
           }
-        });
+        }
       }
 
       if (_logDebugCloud) {
