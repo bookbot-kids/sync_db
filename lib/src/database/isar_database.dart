@@ -128,8 +128,6 @@ class IsarDatabase {
             if (_logCallback != null) {
               stopwatch?.stop();
             }
-          } else {
-            _logDebug('Not found asset $asset to copy');
           }
         }
 
@@ -145,7 +143,7 @@ class IsarDatabase {
   }
 
   void _logDebug(String message) {
-    _logCallback?.call(message);
+    _logCallback?.call('[DEBUG] [IsarDatabase] $message');
   }
 
   /// Import isar json
@@ -160,10 +158,15 @@ class IsarDatabase {
 
     await local.writeTxn(() async {
       _logDebug('Clear table $tableName');
+      Stopwatch? stopwatch;
+      if (_logCallback != null) {
+        stopwatch = Stopwatch()..start();
+      }
       await modelHandler.call().clear();
       final entry = modelHandler.call();
       await entry.importJson(jsonData);
-      _logDebug('Imported json for table $tableName');
+      _logDebug(
+          'Imported json for table $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
     });
   }
 
