@@ -33,6 +33,7 @@ class IsarDatabase {
   static final _lock = Lock();
   static Isar? _local;
   int maxSavingTime = 1000; // in ms
+  Function(String)? _logCallback;
 
   Isar get local => IsarDatabase._local!;
 
@@ -44,7 +45,10 @@ class IsarDatabase {
     List<String> fileTypes = const ['.db', '.json'],
     int? maxSizeMiB,
     Map<String, dynamic> configs = const {},
+    logDetails = false,
+    Function(String)? logCallback,
   }) async {
+    _logCallback = logCallback;
     maxSavingTime = configs['maxSavingTime'] ?? 1000;
     Sync.shared.savingCacheStores.clear();
     models[ServicePointSchema] = () => ServicePoint();
@@ -64,6 +68,7 @@ class IsarDatabase {
 
     if (!_isInitialized || _local == null) {
       await _lock.synchronized(() async {
+        _logDebug('init isar at path $dir, size $_maxSizeMiB');
         _local ??= Isar.getInstance() ??
             await Isar.open(
               models.keys.toList(),
@@ -71,6 +76,7 @@ class IsarDatabase {
               maxSizeMiB: _maxSizeMiB,
             );
         _isInitialized = true;
+        _logDebug('init isar at path $dir completed');
       });
     }
 
@@ -78,12 +84,15 @@ class IsarDatabase {
     models.values.forEach((func) {
       final instance = func.call();
       modelInstances[instance.tableName] = func;
+      _logDebug('setup model handler ${instance.tableName}');
     });
 
     // copy database
     if (dbAssetPath.isNotEmpty != true ||
         version?.isNotEmpty != true ||
         manifest?.isNotEmpty != true) {
+      _logDebug(
+          'Ignore empty params dbAssetPath $dbAssetPath, version $version, manifest $manifest');
       return;
     }
 
@@ -95,28 +104,48 @@ class IsarDatabase {
     final prefs = await SharedPreferences.getInstance();
     final oldVersion = prefs.getString(appVersionKey);
     if (oldVersion != version) {
-      // do copy from asset
-      final futures = <Future>[];
-      for (final asset in manifest!) {
-        if (asset.startsWith(dbAssetPath) &&
-            fileTypes.any((element) => asset.toLowerCase().endsWith(element))) {
-          // copy asset to file dir
-          final assetContent = await rootBundle.load(asset);
-          final tableName = basenameWithoutExtension(asset);
+      _logDebug('start migrate data for version $version');
+      await _lock.synchronized(() async {
+        // do copy from asset
+        final assetItems = manifest ?? <String>[];
+        for (final asset in assetItems) {
+          if (asset.startsWith(dbAssetPath) &&
+              fileTypes
+                  .any((element) => asset.toLowerCase().endsWith(element))) {
+            final tableName = basenameWithoutExtension(asset);
+            _logDebug('Copy asset $asset to $tableName');
+            // copy asset to file dir
+            Stopwatch? stopwatch;
+            if (_logCallback != null) {
+              stopwatch = Stopwatch()..start();
+            }
+            final assetContent = await rootBundle.load(asset);
+            await importJsonSnapshotTable(
+                assetContent.buffer.asUint8List(), tableName);
 
-          futures.add(importJsonSnapshotTable(
-              assetContent.buffer.asUint8List(), tableName));
+            _logDebug(
+                'Copy db asset $asset to $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
+            if (_logCallback != null) {
+              stopwatch?.stop();
+            }
+          } else {
+            _logDebug('Not found asset $asset to copy');
+          }
         }
-      }
 
-      await Future.wait(futures);
-      await prefs.setString(appVersionKey, version!);
-      Sync.shared.logger?.i('copy done');
+        await prefs.setString(appVersionKey, version!);
+        Sync.shared.logger?.i('copy done');
+      });
     }
   }
 
   void close({bool deleteFromDisk = false}) {
     local.close(deleteFromDisk: deleteFromDisk);
+    _logDebug('close isar db done deleteFromDisk $deleteFromDisk');
+  }
+
+  void _logDebug(String message) {
+    _logCallback?.call(message);
   }
 
   /// Import isar json
@@ -125,14 +154,16 @@ class IsarDatabase {
     final modelHandler = modelInstances[tableName];
     if (modelHandler == null) {
       print('model handler $tableName not exist');
+      _logDebug('model handler $tableName not exist');
       return;
     }
 
     await local.writeTxn(() async {
+      _logDebug('Clear table $tableName');
       await modelHandler.call().clear();
-      Sync.shared.logger?.i('Clear table $tableName');
       final entry = modelHandler.call();
       await entry.importJson(jsonData);
+      _logDebug('Imported json for table $tableName');
     });
   }
 
