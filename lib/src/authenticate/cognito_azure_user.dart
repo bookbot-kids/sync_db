@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
+import 'package:flutter/foundation.dart';
 import 'package:queue/queue.dart';
 import 'package:robust_http/connection_helper.dart';
 import 'package:robust_http/exceptions.dart';
@@ -439,9 +440,16 @@ class CognitoAzureUserSession extends UserSession
 
     var isValid = _session!.isValid();
     if (!isValid) {
-      // try to get new session in case it's expired
-      _session = await _cognitoUser!.getSession();
-      return _session!.isValid();
+      try {
+        // try to get new session in case it's expired
+        _session = await _cognitoUser!.getSession();
+        return _session!.isValid();
+      } on FlutterError catch (e) {
+        if (e.message.contains('Local storage is missing an ID Token')) {
+          return false;
+        }
+        rethrow;
+      }
     }
     return true;
   }
