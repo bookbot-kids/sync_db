@@ -17,12 +17,17 @@ abstract class Service {
 
   /// ignore read tables
   List<String> ignoreReadTables = [];
+
+  /// ignore write tables
+  List<String> ignoreWriteTables = [];
+
   var _logDebugCloud = false;
 
   Service(Map config) {
     _syncQueue = Queue(parallel: config['parallelTask'] ?? 1);
     ignoreTables = List<String>.from(config['tablesToIgnore'] ?? []);
     ignoreReadTables = List<String>.from(config['tablesToIgnoreRead'] ?? []);
+    ignoreWriteTables = List<String>.from(config['tablesToIgnoreWrite'] ?? []);
     _logDebugCloud = config['logDebugCloud'] ?? false;
   }
 
@@ -223,6 +228,7 @@ abstract class Service {
   Future<void> writeServicePoint(ServicePoint service) async {
     // ignore given table from sync
     if (ignoreTables.contains(service.name)) return;
+    if (ignoreWriteTables.contains(service.name)) return;
     // Needs all or write access
     if (service.access == Access.read) return;
 

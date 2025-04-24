@@ -1,3 +1,5 @@
+// ignore_for_file: must_be_immutable
+
 import 'package:equatable/equatable.dart';
 import 'package:isar/isar.dart';
 import 'package:isar/src/native/isar_core.dart';

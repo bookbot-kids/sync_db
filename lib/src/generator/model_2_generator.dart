@@ -46,8 +46,7 @@ class Model2Generator extends Generator {
             ?.toBoolValue() ??
         false;
 
-    var parentType =
-        element.supertype?.getDisplayString(withNullability: false);
+    var parentType = element.supertype?.getDisplayString().replaceAll('?', '');
 
     String getterMap;
     String setterMap;
@@ -104,7 +103,7 @@ if (deletedAt != other.deletedAt) {
     for (var field in element.fields) {
       final name = field.name;
       final typeName = field.type.element?.displayName ?? '';
-      final typeFullName = field.type.getDisplayString(withNullability: true);
+      final typeFullName = field.type.getDisplayString();
       final fieldElement = field.type.element;
       print(
           'Type ${field.type.element} \n, fieldName $name, typeName $typeName');
@@ -114,8 +113,10 @@ if (deletedAt != other.deletedAt) {
       }
 
       // Only generate field that has both getter and setter
-      if (element.lookUpGetter(name, libElement) == null ||
-          element.lookUpSetter(name, libElement) == null) {
+      if (element.augmented.lookUpGetter(name: name, library: libElement) ==
+              null ||
+          element.augmented.lookUpSetter(name: name, library: libElement) ==
+              null) {
         continue;
       }
 

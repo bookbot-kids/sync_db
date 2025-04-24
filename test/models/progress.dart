@@ -1,3 +1,5 @@
+// ignore_for_file: must_be_immutable
+
 import 'package:enum_to_string/enum_to_string.dart';
 import 'package:equatable/equatable.dart';
 import 'package:isar/isar.dart';
