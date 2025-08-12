@@ -114,7 +114,7 @@ const EventSchema = CollectionSchema(
   getId: _eventGetId,
   getLinks: _eventGetLinks,
   attach: _eventAttach,
-  version: '3.1.8',
+  version: '3.2.0-dev.1',
 );
 
 int _eventEstimateSize(
@@ -2670,12 +2670,22 @@ const _EventTriggerActiontrackingTypeEnumValueMap = {
   r'facebookPixel': r'facebookPixel',
   r'activeCampaign': r'activeCampaign',
   r'mixpanel': r'mixpanel',
+  r'ga': r'ga',
+  r'fp': r'fp',
+  r'ac': r'ac',
+  r'mp': r'mp',
+  r'link': r'link',
 };
 const _EventTriggerActiontrackingTypeValueEnumMap = {
   r'googleAnalytics': TrackingType.googleAnalytics,
   r'facebookPixel': TrackingType.facebookPixel,
   r'activeCampaign': TrackingType.activeCampaign,
   r'mixpanel': TrackingType.mixpanel,
+  r'ga': TrackingType.ga,
+  r'fp': TrackingType.fp,
+  r'ac': TrackingType.ac,
+  r'mp': TrackingType.mp,
+  r'link': TrackingType.link,
 };
 
 extension EventTriggerActionQueryFilter
@@ -3017,6 +3027,7 @@ extension EventTriggerActionQueryObject
 // **************************************************************************
 
 // Event model generator
+// ignore_for_file: deprecated_member_use_from_same_package
 extension $Event on Event {
   Map get map {
     var map = {};

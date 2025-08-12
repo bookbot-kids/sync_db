@@ -1,8 +1,6 @@
-// ignore_for_file: must_be_immutable
-
 import 'package:equatable/equatable.dart';
-import 'package:isar/isar.dart';
-import 'package:isar/src/native/isar_core.dart';
+import 'package:isar_community/isar.dart';
+import 'package:isar_community/src/native/isar_core.dart';
 import 'package:sync_db/sync_db.dart';
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
@@ -114,6 +112,7 @@ class ClassRoom extends Model {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
+// ignore: must_be_immutable
 class ClassReward with EquatableMixin implements Reward {
   @override
   String name = '';

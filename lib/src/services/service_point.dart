@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:sync_db/sync_db.dart';
 part 'service_point.g.dart';
 

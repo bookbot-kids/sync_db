@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:recase/recase.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';

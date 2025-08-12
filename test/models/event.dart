@@ -1,24 +1,35 @@
-// ignore_for_file: must_be_immutable
-
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:enum_to_string/enum_to_string.dart';
 import 'package:equatable/equatable.dart';
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:collection/collection.dart';
+import 'dart:typed_data';
+
 part 'event.g.dart';
 
+// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use_from_same_package
 enum TrackingType {
+  @Deprecated('do not use this, will remove')
   googleAnalytics,
+  @Deprecated('do not use this, will remove')
   facebookPixel,
+  @Deprecated('do not use this, will remove')
   activeCampaign,
+  @Deprecated('do not use this, will remove')
   mixpanel,
+  ga,
+  fp,
+  ac,
+  mp,
+  link,
 }
 
 /// Because isar does not support Map type,
 /// so we have to convert Map from old model into List<Embedded> in isar, and have to use getter setter map for these properties
+@ModelLinter(ignoreDeprepcated: true)
 @collection
 class Event extends Model {
   String type = 'analytics'; // default type is for analytics purpose
@@ -26,7 +37,7 @@ class Event extends Model {
   List<EventData> eventData = [];
   @ModelIgnore()
   List<EventTriggerAction> triggerAction = [];
-  int version = 1;
+  int version = 2;
 
   @override
   String get tableName => 'Event';
@@ -120,6 +131,7 @@ class Event extends Model {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
+// ignore: must_be_immutable
 class EventData with EquatableMixin {
   String name = '';
   String jsonData = '';
@@ -141,9 +153,10 @@ class EventData with EquatableMixin {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
+// ignore: must_be_immutable
 class EventTriggerAction with EquatableMixin {
   @Enumerated(EnumType.name)
-  TrackingType trackingType = TrackingType.googleAnalytics;
+  TrackingType trackingType = TrackingType.ga;
   String jsonData = '';
 
   EventTriggerAction();

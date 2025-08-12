@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 import 'package:uuid/uuid.dart';

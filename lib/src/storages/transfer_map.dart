@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:sync_db/src/model.dart';
 import 'package:sync_db/src/services/service_point.dart';
 part 'transfer_map.g.dart';
