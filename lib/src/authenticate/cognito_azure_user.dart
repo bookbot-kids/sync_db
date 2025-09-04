@@ -459,6 +459,11 @@ class CognitoAzureUserSession extends UserSession
       {String? password, Function? signUpSuccess}) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> setUserProperty(String field, String value) {
+    throw UnimplementedError();
+  }
 }
 
 class InvalidPasscodeException implements Exception {
