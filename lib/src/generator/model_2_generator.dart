@@ -2,7 +2,7 @@ import 'package:isar_community/isar.dart';
 import 'package:recase/recase.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:sync_db/src/generator/model_annotation.dart';
 
 T? cast<T>(x) => x is T ? x : null;
@@ -11,36 +11,38 @@ class Model2Generator extends Generator {
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
     final values = <String>{};
-    library.allElements.forEach((element) {
-      final classElement = cast<ClassElement>(element);
+    // Use allElements2 instead of allElements
+    for (var element in library.allElements) {
+      final classElement = cast<ClassElement2>(element);
       if (classElement != null && // not null
-              !(classElement is EnumElement) && // not enum
-              (TypeChecker.fromRuntime(Embedded).hasAnnotationOfExact(element,
+              !(classElement is EnumElement2) && // not enum
+              (TypeChecker.typeNamed(Embedded).hasAnnotationOfExact(
+                      classElement,
                       throwOnUnresolved: false) !=
-                  true) // not embeded type
+                  true) // not embedded type
               &&
-              (TypeChecker.fromRuntime(ModelIgnore).hasAnnotationOfExact(
-                      element,
+              (TypeChecker.typeNamed(ModelIgnore).hasAnnotationOfExact(
+                      classElement,
                       throwOnUnresolved: false) !=
                   true) // not ignore model
           ) {
         var value = generateForClass(classElement, library.element);
         values.add(value);
       }
-    });
+    }
 
     return values.join('\n\n');
   }
 
-  String generateForClass(ClassElement element, LibraryElement libElement) {
+  String generateForClass(ClassElement2 element, LibraryElement2 libElement) {
     final output = <String>[];
-    final modelName = element.name;
+    final modelName = element.displayName;
     var collectionName = modelName.camelCase;
     if (!collectionName.endsWith('s')) {
       collectionName += 's';
     }
 
-    final ignoreDeprepcated = TypeChecker.fromRuntime(ModelLinter)
+    final ignoreDeprepcated = TypeChecker.typeNamed(ModelLinter)
             .firstAnnotationOfExact(element, throwOnUnresolved: false)
             ?.getField('ignoreDeprepcated')
             ?.toBoolValue() ??
@@ -100,27 +102,24 @@ if (deletedAt != other.deletedAt) {
 ''');
 
     // loop through fields
-    for (var field in element.fields) {
-      final name = field.name;
-      final typeName = field.type.element?.displayName ?? '';
+    for (var field in element.fields2) {
+      final name = field.displayName;
+      final typeName = field.type.element3?.displayName ?? '';
       final typeFullName = field.type.getDisplayString();
-      final fieldElement = field.type.element;
-      print(
-          'Type ${field.type.element} \n, fieldName $name, typeName $typeName');
+      final fieldElement = field.type.element3;
+
       // ignore static, private fields or property start with $
       if (field.isStatic || name.startsWith('_') || name.startsWith('\$')) {
         continue;
       }
 
       // Only generate field that has both getter and setter
-      if (element.augmented.lookUpGetter(name: name, library: libElement) ==
-              null ||
-          element.augmented.lookUpSetter(name: name, library: libElement) ==
-              null) {
+      if (element.lookUpGetter2(name: name, library: libElement) == null ||
+          element.lookUpSetter2(name: name, library: libElement) == null) {
         continue;
       }
 
-      final isNullable = TypeChecker.fromRuntime(ModelNullable)
+      final isNullable = TypeChecker.typeNamed(ModelNullable)
           .hasAnnotationOfExact(field, throwOnUnresolved: false);
 
       // add comparison
@@ -140,9 +139,9 @@ if (deletedAt != other.deletedAt) {
         }
       };
 
-      if (TypeChecker.fromRuntime(ModelIgnore)
+      if (TypeChecker.typeNamed(ModelIgnore)
           .hasAnnotationOfExact(field, throwOnUnresolved: false)) {
-        final ignoreEqual = TypeChecker.fromRuntime(ModelIgnore)
+        final ignoreEqual = TypeChecker.typeNamed(ModelIgnore)
             .firstAnnotationOfExact(field, throwOnUnresolved: false)
             ?.getField('ignoreEqual')
             ?.toBoolValue();
@@ -150,7 +149,7 @@ if (deletedAt != other.deletedAt) {
           addComparisonCallback();
         }
 
-        final ignoreKey = TypeChecker.fromRuntime(ModelIgnore)
+        final ignoreKey = TypeChecker.typeNamed(ModelIgnore)
             .firstAnnotationOfExact(field, throwOnUnresolved: false)
             ?.getField('ignoreKey')
             ?.toBoolValue();
@@ -163,8 +162,8 @@ if (deletedAt != other.deletedAt) {
       addComparisonCallback();
 
       // enum
-      if (fieldElement is EnumElement) {
-        final type = field.type.element!.name;
+      if (fieldElement is EnumElement2) {
+        final type = field.type.element3!.displayName;
         if (isNullable) {
           getterFields.add(
               "if($name != null) {map['${name}'] = EnumToString.convertToString(${name});}");
@@ -183,8 +182,8 @@ if (deletedAt != other.deletedAt) {
         keys.add('$name');
         ''');
         keyFields.add("result.add('$name');");
-      } else if (TypeChecker.fromRuntime(ModelSet).hasAnnotationOfExact(field,
-          throwOnUnresolved: false)) //list but treat as set
+      } else if (TypeChecker.typeNamed(ModelSet).hasAnnotationOfExact(field,
+          throwOnUnresolved: false)) // list but treat as set
       {
         final regex = RegExp('<[a-zA-Z0-9]*>');
         final match = regex.firstMatch(typeFullName)?.group(0) ?? '';
@@ -227,7 +226,7 @@ if (deletedAt != other.deletedAt) {
           keyFields.add("result.add('$name');");
         }
       } else if (typeName == 'double') {
-        //double
+        // double
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add('''
         if(map['${name}'] != null) { ${name} = map['${name}'] is int ? map['${name}'].toDouble(): map['${name}']; }
@@ -235,7 +234,7 @@ if (deletedAt != other.deletedAt) {
         ''');
         keyFields.add("result.add('$name');");
       } else if (typeName == 'int') {
-        //double
+        // int
         getterFields.add("map['${name}'] = ${name};");
         setterFields.add('''
         if(map['${name}'] != null) { ${name} = map['${name}'].toInt(); }

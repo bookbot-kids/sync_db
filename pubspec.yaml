@@ -4,7 +4,7 @@ description: A syncronising database that automatically gets and saves data to a
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
-isar_version: &isar_version 3.2.0-dev.2
+isar_version: &isar_version 3.3.0-dev.2
 dependencies:
   flutter:
     sdk: flutter
@@ -15,11 +15,11 @@ dependencies:
   shared_preferences: ^2.5.3
   synchronized: ^3.4.0
   universal_io: ^2.2.2
-  graphql_flutter: ^5.2.0
+  graphql_flutter: ^5.2.1
   ntp: ^2.0.0
   universal_platform: ^1.1.0
   amazon_cognito_identity_dart_2: ^3.8.1
-  source_gen: ^2.0.0
+  source_gen: ^3.1.0
   pool: ^1.5.1
   random_string: ^2.3.1
   queue: ^3.4.0
@@ -40,6 +40,6 @@ dev_dependencies:
   flutter_lints:
   flutter_test:
     sdk: flutter
-  build_runner: ^2.5.4
+  build_runner: ^2.7.1
   equatable: ^2.0.7
   isar_community_generator: *isar_version
