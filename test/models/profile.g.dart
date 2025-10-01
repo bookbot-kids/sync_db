@@ -227,7 +227,7 @@ const ProfileSchema = CollectionSchema(
   getId: _profileGetId,
   getLinks: _profileGetLinks,
   attach: _profileAttach,
-  version: '3.3.0-dev.3',
+  version: '3.3.0-dev.2',
 );
 
 int _profileEstimateSize(
