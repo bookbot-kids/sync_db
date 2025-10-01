@@ -217,6 +217,11 @@ class CognitoAzureUserSession extends UserSession
             '[sync_db][DEBUG] refresh get mapped service point $mappedServicePoints');
       }
 
+      if (response is! Map) {
+        throw Exception(
+            'Invalid response format from GetResourceTokens: ${response.runtimeType}, response $response');
+      }
+
       if (response['permissions'] is List) {
         List permissions = response['permissions'];
         for (final permission in permissions) {
