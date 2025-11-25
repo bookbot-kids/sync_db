@@ -10,17 +10,17 @@ dependencies:
     sdk: flutter
   path: ^1.9.1
   path_provider: ^2.1.5
-  uuid: ^4.5.1
+  uuid: ^4.5.2
   jaguar_jwt: ^3.0.0
   shared_preferences: ^2.5.3
   synchronized: ^3.4.0
-  universal_io: ^2.2.2
+  universal_io: ^2.3.1
   graphql_flutter: ^5.2.1
   ntp: ^2.0.0
   universal_platform: ^1.1.0
   amazon_cognito_identity_dart_2: ^3.8.1
   source_gen: ^3.1.0
-  pool: ^1.5.1
+  pool: ^1.5.2
   random_string: ^2.3.1
   queue: ^3.4.0
   mime_type: ^1.0.1

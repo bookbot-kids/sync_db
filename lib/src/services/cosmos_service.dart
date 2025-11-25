@@ -369,6 +369,7 @@ class CosmosService extends Service {
             error: e,
             stackTrace: stackTrace);
       }
+      await Future.delayed(Duration(seconds: i + 1));
     }
 
     throw exception ??
@@ -414,7 +415,7 @@ class CosmosService extends Service {
         return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
-            'Update Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            'Update Cosmos document $record failed: ${e.url} [${e.statusCode}] ${e.toString()}',
             error: e,
             stackTrace: stackTrace);
         if (e.statusCode == 409 || e.statusCode == 404) {
@@ -438,23 +439,30 @@ class CosmosService extends Service {
           } else {
             rethrow;
           }
+        } else if (e.statusCode == 412) {
+          // Precondition Failed
+          Sync.shared.logger?.e(
+              'Update cosmos $record document failed because of precondition failed, ${e.toString()}',
+              error: e,
+              stackTrace: stackTrace);
+          rethrow;
         } else {
           rethrow;
         }
       } on UnknownException catch (e, stackTrace) {
         exception = e;
         // retry if there is an exception
-        Sync.shared.logger?.e(
-            'Update cosmos $record document failed ${e.devDescription}',
-            error: e,
-            stackTrace: stackTrace);
+        Sync.shared.logger?.e('Update cosmos $record document unkown failed $e',
+            error: e, stackTrace: stackTrace);
       } on Exception catch (e, stackTrace) {
         exception = e;
         Sync.shared.logger?.e(
-            'Update cosmos $record document failed without reason',
+            'Update cosmos $record document exception failed $e',
             error: e,
             stackTrace: stackTrace);
       }
+
+      await Future.delayed(Duration(seconds: i + 1));
     }
 
     throw exception ??
@@ -493,7 +501,7 @@ class CosmosService extends Service {
         return null;
       } on UnexpectedResponseException catch (e, stackTrace) {
         Sync.shared.logger?.e(
-            'Update partial Cosmos document failed: ${e.url} [${e.statusCode}] ${e.errorMessage}',
+            'Update partial Cosmos document failed: ${e.url} [${e.statusCode}] ${e.toString()}',
             error: e,
             stackTrace: stackTrace);
         if (e.statusCode == 409 || e.statusCode == 404) {
@@ -516,6 +524,13 @@ class CosmosService extends Service {
           } else {
             rethrow;
           }
+        } else if (e.statusCode == 412) {
+          // Precondition Failed
+          Sync.shared.logger?.e(
+              'Update partial cosmos $record document failed because of precondition failed, ${e.toString()}',
+              error: e,
+              stackTrace: stackTrace);
+          return await _updateDocument(servicePoint, record);
         } else {
           rethrow;
         }
@@ -523,16 +538,18 @@ class CosmosService extends Service {
         exception = e;
         // retry if there is an exception
         Sync.shared.logger?.e(
-            'Update partial cosmos $record document failed ${e.devDescription}',
+            'Update partial cosmos $record document failed $e',
             error: e,
             stackTrace: stackTrace);
       } on Exception catch (e, stackTrace) {
         exception = e;
         Sync.shared.logger?.e(
-            'Update partial cosmos $record document failed without reason',
+            'Update partial cosmos $record document failed without reason $e',
             error: e,
             stackTrace: stackTrace);
       }
+
+      await Future.delayed(Duration(seconds: i + 1));
     }
 
     throw exception ??
