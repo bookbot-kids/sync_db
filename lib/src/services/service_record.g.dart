@@ -94,7 +94,7 @@ const ServiceRecordSchema = CollectionSchema(
   getId: _serviceRecordGetId,
   getLinks: _serviceRecordGetLinks,
   attach: _serviceRecordAttach,
-  version: '3.3.0-dev.2',
+  version: '3.3.0',
 );
 
 int _serviceRecordEstimateSize(
