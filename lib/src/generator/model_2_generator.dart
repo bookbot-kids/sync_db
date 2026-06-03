@@ -2,7 +2,7 @@ import 'package:isar_community/isar.dart';
 import 'package:recase/recase.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:build/build.dart';
-import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/dart/element/element.dart';
 import 'package:sync_db/src/generator/model_annotation.dart';
 
 T? cast<T>(x) => x is T ? x : null;
@@ -11,11 +11,10 @@ class Model2Generator extends Generator {
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
     final values = <String>{};
-    // Use allElements2 instead of allElements
     for (var element in library.allElements) {
-      final classElement = cast<ClassElement2>(element);
+      final classElement = cast<ClassElement>(element);
       if (classElement != null && // not null
-              !(classElement is EnumElement2) && // not enum
+              _isModelClass(classElement) && // only Model subclasses
               (TypeChecker.typeNamed(Embedded).hasAnnotationOfExact(
                       classElement,
                       throwOnUnresolved: false) !=
@@ -34,7 +33,18 @@ class Model2Generator extends Generator {
     return values.join('\n\n');
   }
 
-  String generateForClass(ClassElement2 element, LibraryElement2 libElement) {
+  bool _isModelClass(ClassElement element) {
+    for (var supertype = element.supertype;
+        supertype != null;
+        supertype = supertype.element.supertype) {
+      if (supertype.element.displayName == 'Model') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String generateForClass(ClassElement element, LibraryElement libElement) {
     final output = <String>[];
     final modelName = element.displayName;
     var collectionName = modelName.camelCase;
@@ -102,11 +112,11 @@ if (deletedAt != other.deletedAt) {
 ''');
 
     // loop through fields
-    for (var field in element.fields2) {
+    for (var field in element.fields) {
       final name = field.displayName;
-      final typeName = field.type.element3?.displayName ?? '';
+      final typeName = field.type.element?.displayName ?? '';
       final typeFullName = field.type.getDisplayString();
-      final fieldElement = field.type.element3;
+      final fieldElement = field.type.element;
 
       // ignore static, private fields or property start with $
       if (field.isStatic || name.startsWith('_') || name.startsWith('\$')) {
@@ -114,8 +124,8 @@ if (deletedAt != other.deletedAt) {
       }
 
       // Only generate field that has both getter and setter
-      if (element.lookUpGetter2(name: name, library: libElement) == null ||
-          element.lookUpSetter2(name: name, library: libElement) == null) {
+      if (element.lookUpGetter(name: name, library: libElement) == null ||
+          element.lookUpSetter(name: name, library: libElement) == null) {
         continue;
       }
 
@@ -162,8 +172,8 @@ if (deletedAt != other.deletedAt) {
       addComparisonCallback();
 
       // enum
-      if (fieldElement is EnumElement2) {
-        final type = field.type.element3!.displayName;
+      if (fieldElement is EnumElement) {
+        final type = field.type.element!.displayName;
         if (isNullable) {
           getterFields.add(
               "if($name != null) {map['${name}'] = EnumToString.convertToString(${name});}");

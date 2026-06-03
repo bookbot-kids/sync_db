@@ -4,22 +4,22 @@ description: A syncronising database that automatically gets and saves data to a
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
-isar_version: &isar_version 3.3.0
+isar_version: &isar_version 3.3.2
 dependencies:
   flutter:
     sdk: flutter
   path: ^1.9.1
   path_provider: ^2.1.5
-  uuid: ^4.5.2
+  uuid: ^4.5.3
   jaguar_jwt: ^3.0.0
-  shared_preferences: ^2.5.3
-  synchronized: ^3.4.0
+  shared_preferences: ^2.5.5
+  synchronized: ^3.4.1
   universal_io: ^2.3.1
-  graphql_flutter: ^5.2.1
+  graphql_flutter: ^5.3.0
   ntp: ^2.0.0
   universal_platform: ^1.1.0
-  amazon_cognito_identity_dart_2: ^3.8.1
-  source_gen: ^3.1.0
+  amazon_cognito_identity_dart_2: ^4.0.0
+  source_gen: ^4.2.3
   pool: ^1.5.2
   random_string: ^2.3.1
   queue: ^3.4.0
@@ -29,17 +29,20 @@ dependencies:
   recase: ^4.1.0
   isar_community: *isar_version
   isar_community_flutter_libs: *isar_version
-  sembast: ^3.8.5+1
-  sembast_web: ^2.4.2
+  sembast: ^3.8.8
+  sembast_web: ^2.4.5
 
   robust_http:
     git:
       url: https://github.com/bookbot-kids/robust_http.git
 
+dependency_overrides:  
+  connectivity_plus: ^7.1.1
+
 dev_dependencies:
   flutter_lints:
   flutter_test:
     sdk: flutter
-  build_runner: ^2.7.1
-  equatable: ^2.0.7
+  build_runner: ^2.15.0
+  equatable: ^2.0.8
   isar_community_generator: *isar_version

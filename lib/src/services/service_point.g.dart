@@ -110,7 +110,7 @@ const ServicePointSchema = CollectionSchema(
   getId: _servicePointGetId,
   getLinks: _servicePointGetLinks,
   attach: _servicePointAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _servicePointEstimateSize(

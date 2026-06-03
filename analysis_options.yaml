@@ -5,6 +5,9 @@
 # Google internally enforced rules. See README.md for more information,
 # including a list of lints that are intentionally _not_ enforced.
 
+analyzer:
+    errors:
+      experimental_member_use: ignore
 linter:
     rules:
       - always_declare_return_types

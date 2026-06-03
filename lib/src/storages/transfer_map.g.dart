@@ -105,7 +105,7 @@ const TransferMapSchema = CollectionSchema(
   getId: _transferMapGetId,
   getLinks: _transferMapGetLinks,
   attach: _transferMapAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _transferMapEstimateSize(

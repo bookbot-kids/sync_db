@@ -120,7 +120,7 @@ const ClassRoomSchema = CollectionSchema(
   getId: _classRoomGetId,
   getLinks: _classRoomGetLinks,
   attach: _classRoomAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _classRoomEstimateSize(
@@ -3057,8 +3057,8 @@ extension $ClassRoom on ClassRoom {
     map['name'] = name;
     map['teacherId'] = teacherId;
     map['school'] = school;
-    map['readingBookIds'] = readingBookIds.toSet().toList();
     map['level'] = level;
+    map['readingBookIds'] = readingBookIds.toSet().toList();
     return map;
   }
 
@@ -3092,15 +3092,15 @@ extension $ClassRoom on ClassRoom {
     }
     keys.add('school');
 
-    readingBookIds = Set<String>.from(
-            (map['readingBookIds'] as List?)?.nonNulls ?? <String>[])
-        .toList();
-    keys.add('readingBookIds');
-
     if (map['level'] != null) {
       level = map['level'].toInt();
     }
     keys.add('level');
+
+    readingBookIds = Set<String>.from(
+            (map['readingBookIds'] as List?)?.nonNulls ?? <String>[])
+        .toList();
+    keys.add('readingBookIds');
 
     return keys;
   }
@@ -3110,8 +3110,8 @@ extension $ClassRoom on ClassRoom {
     result.add('name');
     result.add('teacherId');
     result.add('school');
-    result.add('readingBookIds');
     result.add('level');
+    result.add('readingBookIds');
     return result;
   }
 
@@ -3224,6 +3224,10 @@ extension $ClassRoom on ClassRoom {
       result.add('school');
     }
 
+    if (level != other.level) {
+      result.add('level');
+    }
+
     if (!DeepCollectionEquality()
         .equals(readingBookIds, other.readingBookIds)) {
       result.add('readingBookIds');
@@ -3231,10 +3235,6 @@ extension $ClassRoom on ClassRoom {
 
     if (!DeepCollectionEquality().equals(rewards, other.rewards)) {
       result.add('rewards');
-    }
-
-    if (level != other.level) {
-      result.add('level');
     }
 
     final list = <String>[];
