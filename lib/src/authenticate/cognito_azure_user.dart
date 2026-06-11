@@ -177,6 +177,21 @@ class CognitoAzureUserSession extends UserSession
     // Refresh token is an authorisation token to get different permissions for resource tokens
     // Azure functions also need a key
     try {
+      // Without internet the request below is doomed: robust_http dumps the
+      // full request + DioError into the error log before mapping it to a
+      // ConnectivityException. Probe first and bail out with the exception
+      // type the callers already handle (warn + skip syncing).
+      if (!await ConnectionHelper.shared.hasConnection()) {
+        throw ConnectivityException('The connection is turn off',
+            hasConnectionStatus: false);
+      }
+      if (!await ConnectionHelper.shared
+          .hasInternetConnection(timeoutInSeconds: 4)) {
+        throw ConnectivityException(
+            'The connection is turn on but there is no internet connection',
+            hasConnectionStatus: true);
+      }
+
       Sync.shared.logger?.i('Start to request GetResourceTokens');
       if (_logDebugCloud) {
         Sync.shared.logger
@@ -286,6 +301,27 @@ class CognitoAzureUserSession extends UserSession
     } on UnexpectedResponseException catch (e, stackTrace) {
       // Only handle refresh token expiry, otherwise the rest can bubble up
       if (e.statusCode == 401) {
+        // A captive portal or intercepting proxy can also answer with a 401.
+        // Signing out on those wipes local data for a user whose token is
+        // perfectly fine, so only treat the 401 as a real token expiry when
+        // we have verified internet access and the response does not look
+        // like a portal page (HTML body instead of the auth server's JSON).
+        final hasInternet =
+            await ConnectionHelper.shared.hasInternetConnection();
+        final body = e.data;
+        final looksLikePortalPage =
+            body is String && body.trimLeft().startsWith('<');
+        if (!hasInternet || looksLikePortalPage) {
+          Sync.shared.logger?.w(
+              'Ignoring 401 from suspected captive portal/proxy '
+              '(hasInternet: $hasInternet, htmlBody: $looksLikePortalPage)',
+              error: e,
+              stackTrace: stackTrace);
+          throw ConnectivityException(
+              'Got 401 without verified internet connection',
+              hasConnectionStatus: true);
+        }
+
         // token is expired -> sign out user
         Sync.shared.logger!.i('Token expired, sign out user');
         await signout();
@@ -435,7 +471,12 @@ class CognitoAzureUserSession extends UserSession
         // try to get session
         _session = await _cognitoUser?.getSession();
       } catch (e) {
-        // ignore
+        // getSession needs the network when the cached tokens are expired.
+        // Offline (or captive portal), keep a previously signed-in user
+        // signed in instead of bouncing them to guest mode.
+        if (await _isOfflineAuthenticated()) {
+          return true;
+        }
       }
     }
 
@@ -454,9 +495,31 @@ class CognitoAzureUserSession extends UserSession
           return false;
         }
         rethrow;
+      } catch (e) {
+        // Same offline tolerance as above: an expired session that cannot
+        // be refreshed because there is no internet is still signed in.
+        if (await _isOfflineAuthenticated()) {
+          return true;
+        }
+        rethrow;
       }
     }
     return true;
+  }
+
+  /// Whether the user was previously signed in (persisted role survives until
+  /// an explicit signout) while the device currently has no usable internet.
+  /// Used to keep users signed in when an offline/captive-portal network
+  /// prevents refreshing the Cognito session.
+  Future<bool> _isOfflineAuthenticated() async {
+    final prefs = await _sharePrefInstance;
+    final persistedRole = prefs.getString(_userRoleKey);
+    final wasSignedIn = persistedRole != null && persistedRole != _defaultRole;
+    if (!wasSignedIn) {
+      return false;
+    }
+
+    return !await ConnectionHelper.shared.hasInternetConnection();
   }
 
   /// Get new token (sas uri) from server. It's valid in 24 hours
