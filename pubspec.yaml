@@ -9,7 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
   path: ^1.9.1
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   uuid: ^4.5.3
   jaguar_jwt: ^3.0.0
   shared_preferences: ^2.5.5
@@ -37,15 +37,15 @@ dependencies:
       url: https://github.com/ductranit/isar-community.git
       path: packages/isar_community_flutter_libs
       ref: support-linux-arm
-  sembast: ^3.8.8
-  sembast_web: ^2.4.5
+  sembast: ^3.8.9+1
+  sembast_web: ^2.4.5+1
 
   robust_http:
     git:
       url: https://github.com/bookbot-kids/robust_http.git
 
 dependency_overrides:  
-  connectivity_plus: ^7.1.1
+  connectivity_plus: ^7.2.0
   isar_community:
     git:
       url: https://github.com/ductranit/isar-community.git
