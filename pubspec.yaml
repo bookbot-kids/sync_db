@@ -27,8 +27,16 @@ dependencies:
   singleton: ^0.0.3-nullsafety
   tuple: ^2.0.2
   recase: ^4.1.0
-  isar_community: *isar_version
-  isar_community_flutter_libs: *isar_version
+  isar_community:
+    git:
+      url: https://github.com/ductranit/isar-community.git
+      path: packages/isar_community
+      ref: support-linux-arm
+  isar_community_flutter_libs:
+    git:
+      url: https://github.com/ductranit/isar-community.git
+      path: packages/isar_community_flutter_libs
+      ref: support-linux-arm
   sembast: ^3.8.8
   sembast_web: ^2.4.5
 
@@ -38,6 +46,11 @@ dependencies:
 
 dependency_overrides:  
   connectivity_plus: ^7.1.1
+  isar_community:
+    git:
+      url: https://github.com/ductranit/isar-community.git
+      path: packages/isar_community
+      ref: support-linux-arm
 
 dev_dependencies:
   flutter_lints:
@@ -45,4 +58,8 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.15.0
   equatable: ^2.0.8
-  isar_community_generator: *isar_version
+  isar_community_generator: 
+    git:
+      url: https://github.com/ductranit/isar-community.git
+      path: packages/isar_community_generator
+      ref: support-linux-arm
