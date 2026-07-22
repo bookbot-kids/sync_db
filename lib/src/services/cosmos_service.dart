@@ -2,6 +2,7 @@ import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
+import 'package:flutter/foundation.dart';
 
 class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
@@ -19,6 +20,8 @@ class CosmosService extends Service {
     _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
     _logDebugCloud = config['logDebugCloud'] ?? false;
     _syncPastDuration = config['syncPastDuration'] ?? 0;
+    _tablesRequireIdPartition =
+        Set<String>.from(config['tablesRequireIdPartition'] ?? []);
   }
 
   late HTTP _http;
@@ -26,6 +29,7 @@ class CosmosService extends Service {
   int _cosmosRetries = 3;
   var _throwOnNetworkError = true;
   var _logDebugCloud = false;
+  var _tablesRequireIdPartition = <String>{};
 
   /// The duration time to sync in the past in milliseconds
   var _syncPastDuration = 0;
@@ -107,29 +111,35 @@ class CosmosService extends Service {
     final createdRecords =
         await handler.queryStatus(SyncStatus.created, filterDeletedAt: false);
     for (final record in createdRecords) {
+      if (!preparePartitionForWrite(record)) {
+        continue;
+      }
+
+      var targetServicePoint = servicePoint;
       // If record has a partion and it doesn't match service point partition, then user shared service point
       if (record.partition != null &&
-          servicePoint.partition != record.partition) {
+          targetServicePoint.partition != record.partition) {
         final sharedServicePoint = await ServicePoint().find(
             ServicePoint.sharedKey(record.tableName, record.partition ?? ''));
         if (sharedServicePoint != null) {
-          servicePoint = sharedServicePoint;
+          targetServicePoint = sharedServicePoint;
         } else {
           continue;
         }
       }
 
       // if a record does not have partition, then use it from service point
-      record.partition ??= servicePoint.partition;
+      record.partition ??= targetServicePoint.partition;
+      final immutableServicePoint = snapshotServicePoint(targetServicePoint);
 
       // This allows multiple create records to happen at the same time with a pool limit
       futures.add(pool.withResource(() async {
         final recordMap = record.map;
         recordMap.addAll(record.metadataMap);
         recordMap[partitionKey] = record.partition;
-        var newRecord = await _createDocument(servicePoint, recordMap);
+        var newRecord = await _createDocument(immutableServicePoint, recordMap);
         if (newRecord != null) {
-          await updateRecordStatus(servicePoint, newRecord);
+          await updateRecordStatus(immutableServicePoint, newRecord);
         }
       }));
     }
@@ -137,20 +147,26 @@ class CosmosService extends Service {
     final updatedRecords =
         await handler.queryStatus(SyncStatus.updated, filterDeletedAt: false);
     for (final record in updatedRecords) {
+      if (!preparePartitionForWrite(record)) {
+        continue;
+      }
+
+      var targetServicePoint = servicePoint;
       // If record has a partion and it doesn't match service point partition, then user shared service point
       if (record.partition != null &&
-          servicePoint.partition != record.partition) {
+          targetServicePoint.partition != record.partition) {
         final sharedServicePoint = await ServicePoint().find(
             ServicePoint.sharedKey(record.tableName, record.partition ?? ''));
         if (sharedServicePoint != null) {
-          servicePoint = sharedServicePoint;
+          targetServicePoint = sharedServicePoint;
         } else {
           continue;
         }
       }
 
       // if a record does not have partition, then use it from service point
-      record.partition ??= servicePoint.partition;
+      record.partition ??= targetServicePoint.partition;
+      final immutableServicePoint = snapshotServicePoint(targetServicePoint);
 
       futures.add(pool.withResource(() async {
         // find service record to get partial update fields
@@ -182,9 +198,9 @@ class CosmosService extends Service {
             final pack = operations.sublist(
                 i, (i + maxPage) > size ? size : (i + maxPage));
             final updatedRecord = await _partialUpdateDocument(
-                servicePoint, {'operations': pack}, recordMap);
+                immutableServicePoint, {'operations': pack}, recordMap);
             if (updatedRecord != null) {
-              await updateRecordStatus(servicePoint, updatedRecord);
+              await updateRecordStatus(immutableServicePoint, updatedRecord);
               shouldDeleteServiceRecord = true;
             }
           }
@@ -198,15 +214,53 @@ class CosmosService extends Service {
           recordMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
               (await NetworkTime.shared.now).millisecondsSinceEpoch;
           recordMap[partitionKey] = record.partition;
-          final updatedRecord = await _updateDocument(servicePoint, recordMap);
+          final updatedRecord =
+              await _updateDocument(immutableServicePoint, recordMap);
           if (updatedRecord != null) {
-            await updateRecordStatus(servicePoint, updatedRecord);
+            await updateRecordStatus(immutableServicePoint, updatedRecord);
           }
         }
       }));
     }
 
     await Future.wait(futures);
+  }
+
+  /// Enforce table-specific partition invariants before selecting credentials.
+  /// Invalid records are kept locally for diagnosis but are never uploaded.
+  @visibleForTesting
+  bool preparePartitionForWrite(Model record) {
+    if (!_tablesRequireIdPartition.contains(record.tableName)) {
+      return true;
+    }
+
+    final id = record.id;
+    if (id == null || id.isEmpty) {
+      Sync.shared.logger
+          ?.e('Skip ${record.tableName} upload: record has no id');
+      return false;
+    }
+
+    if (record.partition != null && record.partition != id) {
+      Sync.shared.logger?.e(
+          'Skip ${record.tableName} $id upload: partition ${record.partition} must equal id');
+      return false;
+    }
+
+    record.partition = id;
+    return true;
+  }
+
+  /// A token refresh mutates persisted service points in place. Network work
+  /// must retain the partition/token selected for this individual record.
+  @visibleForTesting
+  ServicePoint snapshotServicePoint(ServicePoint source) {
+    final snapshot = ServicePoint(name: source.name, access: source.access);
+    snapshot.id = source.id;
+    snapshot.partition = source.partition;
+    snapshot.token = source.token;
+    snapshot.from = source.from;
+    return snapshot;
   }
 
   /// Cosmos API to Query documents
