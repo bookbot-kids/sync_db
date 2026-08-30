@@ -41,6 +41,20 @@ abstract class UserSession {
 
   /// delete user
   Future<void> deleteUser(String email);
+
+  /// The tables to request resource tokens for.
+  ///
+  /// An entry may carry a qualifier - `Book:bookbot` - which asks the token
+  /// service for a permission scoped to that partition. Use this when the
+  /// qualifier is only known at runtime (a profile's reading framework, for
+  /// example) rather than at construction.
+  ///
+  /// Returns true when the list actually changed, so the caller can decide
+  /// whether a [refresh] is needed.
+  bool setTablesToSync(List<String> tables) => false;
+
+  /// Current tables (with qualifiers) being synced.
+  List<String> get tablesToSync => const [];
 }
 
 class Notifier<T> extends ChangeNotifier {

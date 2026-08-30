@@ -434,6 +434,13 @@ class CognitoUserSession implements UserSession, CognitoAuthSession {
     return CognitoUserInfo(email: email);
   }
 
+  /// This session has no resource-token step, so there is nothing to qualify.
+  @override
+  List<String> get tablesToSync => const [];
+
+  @override
+  bool setTablesToSync(List<String> tables) => false;
+
   @override
   Future<void> deleteUser(String email) {
     throw UnimplementedError();

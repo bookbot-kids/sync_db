@@ -5,6 +5,7 @@ import 'package:robust_http/exceptions.dart';
 import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/utils/web_service_utils.dart';
+import 'package:collection/collection.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 
@@ -63,6 +64,20 @@ class AzureADB2CUserSession extends UserSession {
   SharedPreferences? _sharePref;
   final _lock = Lock();
   var _tablesToSync = <String>[];
+
+  @override
+  List<String> get tablesToSync => List.unmodifiable(_tablesToSync);
+
+  @override
+  bool setTablesToSync(List<String> tables) {
+    if (const ListEquality().equals(_tablesToSync, tables)) {
+      return false;
+    }
+
+    _tablesToSync = List<String>.from(tables);
+    Sync.shared.logger?.i('sync_tables updated to $_tablesToSync');
+    return true;
+  }
 
   @override
   String? role = _defaultRole;
@@ -137,10 +152,15 @@ class AzureADB2CUserSession extends UserSession {
           tableName = tableName.split('-shared')[0];
         }
 
+        final partition = permission['resourcePartitionKey'].first?.toString();
+
+        // Keyed by table *and* partition so a table synced under several
+        // qualifiers keeps one service point per partition.
         final servicePoint = mappedServicePoints.putIfAbsent(
-            tableName, () => ServicePoint(name: tableName));
+            ServicePoint.sharedKey(tableName, partition ?? ''),
+            () => ServicePoint(name: tableName));
         servicePoint.id = permission['id'];
-        servicePoint.partition = permission['resourcePartitionKey'].first;
+        servicePoint.partition = partition;
         servicePoint.token = permission['_token'];
         servicePoint.access =
             $Access.fromString(permission['permissionMode'].toLowerCase()) ??
@@ -285,7 +305,7 @@ class AzureADB2CUserSession extends UserSession {
     final servicePoints = await ServicePoint.all();
     final map = <String?, ServicePoint>{};
     for (final servicePoint in servicePoints) {
-      map[servicePoint.name] = servicePoint;
+      map[servicePoint.key] = servicePoint;
     }
     return map;
   }

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/authenticate/cognito_auth_session.dart';
 import 'package:sync_db/src/authenticate/cognito_share_pref_storage.dart';
 import 'package:sync_db/src/utils/web_service_utils.dart';
+import 'package:collection/collection.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
@@ -96,6 +97,21 @@ class CognitoAzureUserSession extends UserSession
   late cognito.CognitoUserPool _userPool;
   Future? _initializeTask;
   var _tablesToSync = <String>[];
+
+  @override
+  List<String> get tablesToSync => List.unmodifiable(_tablesToSync);
+
+  @override
+  bool setTablesToSync(List<String> tables) {
+    if (const ListEquality().equals(_tablesToSync, tables)) {
+      return false;
+    }
+
+    _tablesToSync = List<String>.from(tables);
+    Sync.shared.logger?.i('sync_tables updated to $_tablesToSync');
+    return true;
+  }
+
   var _logDebugCloud = false;
   late Queue _syncQueue;
 
@@ -207,6 +223,11 @@ class CognitoAzureUserSession extends UserSession
 
         if (_tablesToSync.isNotEmpty) {
           params['sync_tables'] = _tablesToSync.join(',');
+          // Table names only, no secrets: the pair of "asked for" and
+          // "granted" is what tells a qualifier that was never sent apart
+          // from one the server chose to ignore.
+          Sync.shared.logger
+              ?.i('GetResourceTokens asking: ${params['sync_tables']}');
         }
 
         if (userId != null) {
@@ -239,29 +260,55 @@ class CognitoAzureUserSession extends UserSession
 
       if (response['permissions'] is List) {
         List permissions = response['permissions'];
+
+        // Ids and partitions only - never the tokens. Without this, a
+        // permission that came back unscoped is invisible until it shows up
+        // as an empty table much later, with nothing to point at.
+        // The group matters as much as the permissions: "guest" means the
+        // request had no refresh token and took the guest branch, which
+        // ignores sync_tables entirely.
+        Sync.shared.logger?.i('GetResourceTokens group: ${response['group']}');
+        Sync.shared.logger?.i('GetResourceTokens granted: ' +
+            permissions
+                .whereType<Map>()
+                .map((permission) =>
+                    '${permission['id']}(${permission['resourcePartitionKey']})')
+                .join(', '));
+
+        // `ServicePoint.id` is a unique index, so two permissions sharing an id
+        // would replace each other in the database. The token service gives a
+        // distinct id per partition (`Book-bookbot`, `Book-ufli`), so this is
+        // only a guard against a service that does not - and it keeps the id
+        // stable, which matters: a changed id orphans the old service point,
+        // which then keeps syncing with a token that will expire.
+        final permissionCountPerId = <String, int>{};
+        for (final permission in permissions) {
+          if (permission is Map) {
+            final id = permission['id']?.toString() ?? '';
+            permissionCountPerId[id] = (permissionCountPerId[id] ?? 0) + 1;
+          }
+        }
+
         for (final permission in permissions) {
           if (permission is Map) {
             // ignore: unawaited_futures
             _syncQueue.add(() async {
-              String tableName = permission['id'];
-              if (tableName.contains('-shared')) {
-                tableName = tableName.split('-shared')[0];
-              }
+              final tableName = _tableNameOf(permission);
+              final partition = _partitionOf(permission);
 
+              // Key by table *and* partition. Keying by table alone made two
+              // partitions of the same table overwrite each other, so only the
+              // last one was ever synced.
               final servicePoint = await _lock.synchronized(() =>
                   mappedServicePoints.putIfAbsent(
-                      tableName, () => ServicePoint(name: tableName)));
-              servicePoint.id = permission['id'];
-              if (permission['resourcePartitionKey'] is List) {
-                final List partitionKeys = permission['resourcePartitionKey'];
-                servicePoint.partition = partitionKeys.firstOrNull?.toString();
-              } else if (permission['resourcePartitionKey'] is String) {
-                servicePoint.partition = permission['resourcePartitionKey'];
-              } else {
-                throw Exception(
-                    'Invalid partition type ${permission['resourcePartitionKey']?.runtimeType}');
-              }
+                      ServicePoint.sharedKey(tableName, partition ?? ''),
+                      () => ServicePoint(name: tableName)));
 
+              final permissionId = permission['id'];
+              servicePoint.id = (permissionCountPerId[permissionId] ?? 0) > 1
+                  ? ServicePoint.sharedKey(permissionId, partition ?? '')
+                  : permissionId;
+              servicePoint.partition = partition;
               servicePoint.token = permission['_token'];
               servicePoint.access = $Access
                       .fromString(permission['permissionMode'].toLowerCase()) ??
@@ -411,13 +458,59 @@ class CognitoAzureUserSession extends UserSession
     return _sharePref!;
   }
 
+  /// Existing service points keyed by `name-partition`, so a table synced
+  /// under several qualifiers keeps one record per partition.
   Future<Map<String?, ServicePoint>> _mappedServicePoints() async {
     final servicePoints = await ServicePoint.all();
     final map = <String?, ServicePoint>{};
     for (final servicePoint in servicePoints) {
-      map[servicePoint.name] = servicePoint;
+      map[servicePoint.key] = servicePoint;
     }
     return map;
+  }
+
+  /// The table a permission belongs to.
+  ///
+  /// A permission id is the table name, optionally suffixed: `-shared` for
+  /// records shared between users, or `-<qualifier>` when the token was minted
+  /// for one partition (`Book-bookbot`). Both have to resolve back to the table
+  /// the app registered a model handler for, or nothing syncs.
+  String _tableNameOf(Map permission) {
+    final String id = permission['id'];
+    if (id.contains('-shared')) {
+      return id.split('-shared')[0];
+    }
+
+    final handlers = Sync.shared.db.modelHandlers;
+    if (handlers.containsKey(id)) {
+      return id;
+    }
+
+    // Longest registered prefix wins, so a qualifier containing a dash is
+    // still resolved correctly.
+    final parts = id.split('-');
+    for (var count = parts.length - 1; count > 0; count--) {
+      final candidate = parts.take(count).join('-');
+      if (handlers.containsKey(candidate)) {
+        return candidate;
+      }
+    }
+
+    return id;
+  }
+
+  /// Cosmos returns the partition either as a single value or a list.
+  String? _partitionOf(Map permission) {
+    final value = permission['resourcePartitionKey'];
+    if (value is List) {
+      return value.firstOrNull?.toString();
+    }
+
+    if (value is String) {
+      return value;
+    }
+
+    throw Exception('Invalid partition type ${value?.runtimeType}');
   }
 
   // check to refresh the refresh token

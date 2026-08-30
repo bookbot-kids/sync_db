@@ -8,6 +8,14 @@
 analyzer:
     errors:
       experimental_member_use: ignore
+    exclude:
+        - build/**
+        - android/**
+        - ios/**
+        - web/**
+        - windows/**
+        - macos/**
+        - linux/**
 linter:
     rules:
       - always_declare_return_types

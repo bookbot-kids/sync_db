@@ -13,9 +13,8 @@ abstract class CognitoAuthSession {
 
   Future forgotPassword(String email);
 
-  Future<bool> confirmForgotPassword(String email,
-      String confirmationCode, String newPassword);
+  Future<bool> confirmForgotPassword(
+      String email, String confirmationCode, String newPassword);
 
-  Future<CognitoUserInfo?> confirmEmailPasscode(
-      String email, String passcode);
+  Future<CognitoUserInfo?> confirmEmailPasscode(String email, String passcode);
 }

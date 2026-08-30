@@ -39,6 +39,7 @@ class IsarDatabase {
 
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
+    List<CollectionSchema<dynamic>> localSchemas = const [],
     String dbAssetPath = 'assets/db',
     String? version,
     List<String>? manifest,
@@ -71,7 +72,9 @@ class IsarDatabase {
         _logDebug('init isar at path $dir, size $_maxSizeMiB');
         _local ??= Isar.getInstance() ??
             await Isar.open(
-              models.keys.toList(),
+              // Local-only collections are opened alongside the synced models,
+              // but never registered as model handlers - nothing syncs them.
+              [...models.keys, ...localSchemas],
               directory: dir,
               maxSizeMiB: _maxSizeMiB,
             );
