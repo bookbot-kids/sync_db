@@ -98,6 +98,15 @@ class CognitoAzureUserSession extends UserSession
   Future? _initializeTask;
   var _tablesToSync = <String>[];
 
+  /// Set when the partitions asked for have changed since the last token.
+  ///
+  /// The token service caches its answer per set of tables. Asking again after
+  /// a partition change - a new reading framework, a different language for
+  /// the dictionary - can be answered from that cache with permissions scoped
+  /// to the *old* partition, and a device then syncs nothing it can see. One
+  /// `nocache` on the request after a change is what stops that.
+  var _partitionsChanged = false;
+
   @override
   List<String> get tablesToSync => List.unmodifiable(_tablesToSync);
 
@@ -108,6 +117,7 @@ class CognitoAzureUserSession extends UserSession
     }
 
     _tablesToSync = List<String>.from(tables);
+    _partitionsChanged = true;
     Sync.shared.logger?.i('sync_tables updated to $_tablesToSync');
     return true;
   }
@@ -223,11 +233,19 @@ class CognitoAzureUserSession extends UserSession
 
         if (_tablesToSync.isNotEmpty) {
           params['sync_tables'] = _tablesToSync.join(',');
+          // Only when they changed. Every request carrying it would defeat the
+          // cache for the common case, which is asking for the same partitions
+          // as last time.
+          if (_partitionsChanged) {
+            params['nocache'] = true;
+          }
+
           // Table names only, no secrets: the pair of "asked for" and
           // "granted" is what tells a qualifier that was never sent apart
           // from one the server chose to ignore.
-          Sync.shared.logger
-              ?.i('GetResourceTokens asking: ${params['sync_tables']}');
+          Sync.shared.logger?.i('GetResourceTokens asking: '
+              '${params['sync_tables']}'
+              '${_partitionsChanged ? ' (nocache: partitions changed)' : ''}');
         }
 
         if (userId != null) {
@@ -243,6 +261,10 @@ class CognitoAzureUserSession extends UserSession
       }
 
       Sync.shared.logger?.i('Finished request GetResourceTokens');
+
+      // Cleared only now: a request that threw has not got past the cache, so
+      // the next attempt still has to ask for a fresh answer.
+      _partitionsChanged = false;
       _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));
 
       // Setup or update ServicePoints
