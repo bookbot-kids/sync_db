@@ -37,9 +37,15 @@ class IsarDatabase {
 
   Isar get local => IsarDatabase._local!;
 
+  /// Opens the database and imports bundled snapshots when [version] changes.
+  ///
+  /// Tables listed in [invalidateSyncStateForTables] are authoritative
+  /// replacements of locally synced data. Their service points are deleted
+  /// with the import so their next authenticated sync starts from zero.
   Future<void> init(
     Map<CollectionSchema<dynamic>, Model Function()> models, {
     List<CollectionSchema<dynamic>> localSchemas = const [],
+    Set<String> invalidateSyncStateForTables = const {},
     String dbAssetPath = 'assets/db',
     String? version,
     List<String>? manifest,
@@ -124,7 +130,11 @@ class IsarDatabase {
             }
             final assetContent = await rootBundle.load(asset);
             await importJsonSnapshotTable(
-                assetContent.buffer.asUint8List(), tableName);
+              assetContent.buffer.asUint8List(),
+              tableName,
+              invalidateSyncState:
+                  invalidateSyncStateForTables.contains(tableName),
+            );
 
             _logDebug(
                 'Copy db asset $asset to $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
@@ -149,9 +159,15 @@ class IsarDatabase {
     _logCallback?.call('[DEBUG] [IsarDatabase] $message');
   }
 
-  /// Import isar json
+  /// Replaces one Isar collection with a JSON snapshot.
+  ///
+  /// When [invalidateSyncState] is true, all remote partition cursors for the
+  /// table are removed atomically with the replacement.
   Future<void> importJsonSnapshotTable(
-      Uint8List jsonData, String tableName) async {
+    Uint8List jsonData,
+    String tableName, {
+    bool invalidateSyncState = false,
+  }) async {
     final modelHandler = modelInstances[tableName];
     if (modelHandler == null) {
       print('model handler $tableName not exist');
@@ -168,6 +184,24 @@ class IsarDatabase {
       await modelHandler.call().clear();
       final entry = modelHandler.call();
       await entry.importJson(jsonData);
+      if (invalidateSyncState) {
+        // Replacing a table destroys records that may still exist in the
+        // remote partition. Its incremental cursor can no longer describe
+        // the local table, so remove every partition's service point. The
+        // next authenticated sync obtains a fresh token and starts at zero.
+        // This is deliberately in the same transaction as the replacement:
+        // a failed import must preserve both the old rows and their cursors.
+        final servicePointIds = await local.servicePoints
+            .filter()
+            .nameEqualTo(tableName)
+            .localIdProperty()
+            .findAll();
+        if (servicePointIds.isNotEmpty) {
+          await local.servicePoints.deleteAll(servicePointIds);
+        }
+        _logDebug(
+            'Invalidated ${servicePointIds.length} sync service point(s) for $tableName');
+      }
       _logDebug(
           'Imported json for table $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
     });
