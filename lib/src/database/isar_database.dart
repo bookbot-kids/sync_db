@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'open_isar_with_retry.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:isar_community/isar.dart';
@@ -53,6 +55,7 @@ class IsarDatabase {
     int? maxSizeMiB,
     Map<String, dynamic> configs = const {},
     logDetails = false,
+    Future<void> Function(IsarError, StackTrace)? onOpenFailure,
     Function(String)? logCallback,
   }) async {
     _logCallback = logCallback;
@@ -77,13 +80,16 @@ class IsarDatabase {
       await _lock.synchronized(() async {
         _logDebug('init isar at path $dir, size $_maxSizeMiB');
         _local ??= Isar.getInstance() ??
-            await Isar.open(
-              // Local-only collections are opened alongside the synced models,
-              // but never registered as model handlers - nothing syncs them.
-              [...models.keys, ...localSchemas],
-              directory: dir,
-              maxSizeMiB: _maxSizeMiB,
-            );
+            await openIsarWithRetry(
+                () => Isar.open(
+                      // Local-only collections are opened alongside the synced models,
+                      // but never registered as model handlers - nothing syncs them.
+                      [...models.keys, ...localSchemas],
+                      directory: dir,
+                      maxSizeMiB: _maxSizeMiB,
+                    ),
+                log: _logDebug,
+                onOpenFailure: onOpenFailure);
         _isInitialized = true;
         _logDebug('init isar at path $dir completed');
       });
