@@ -25,7 +25,8 @@ class GraphQLService extends Service {
   }
 
   @override
-  Future<void> readFromService(ServicePoint service) async {
+  Future<void> readFromService(ServicePoint service,
+      {bool fullRefresh = false}) async {
     var table = service.name;
     var fields = _getFields(table);
     // maximum limit is 1000 https://docs.aws.amazon.com/general/latest/gr/appsync.html
@@ -36,13 +37,10 @@ class GraphQLService extends Service {
     // ignore: unawaited_futures
     do {
       var variables = <String, dynamic>{'nextToken': nextToken};
+      final filter = fullRefresh ? '' : 'filter: {lastSynced: {ge: $start}},';
       var select = '''
         query list$table (\$nextToken: String) {
-            list${table}s(filter: {
-              lastSynced: {
-                ge: ${start}
-              }
-            }, limit: $limit, nextToken: \$nextToken){
+            list${table}s($filter limit: $limit, nextToken: \$nextToken){
               items{
                 $fields
               },

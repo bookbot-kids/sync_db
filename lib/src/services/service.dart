@@ -122,68 +122,23 @@ abstract class Service {
       Sync.shared.logger
           ?.f('[sync_db][DEBUG] _syncServicePoints start $servicePoints');
     }
+    final tasks = <Future<void>>[];
     for (final servicePoint in servicePoints) {
-      if (!Sync.shared.networkAvailable) {
-        return;
-      }
-      // ignore: unawaited_futures
-      _syncQueue.add(() async {
-        if (!Sync.shared.networkAvailable) {
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} network not available');
-          }
-          return;
-        }
+      if (!Sync.shared.networkAvailable) break;
+      // Each partition must finish reading before writing. Keep the returned
+      // future: queue completion alone does not propagate task failures.
+      tasks.add(_syncQueue.add<void>(() async {
+        if (!Sync.shared.networkAvailable) return;
         try {
           await readServicePoint(servicePoint);
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName}');
-          }
-        } catch (e) {
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints read servicePoint ${servicePoint.tableName} error $e');
-          }
-          await Sync.shared.listenInternetChangedIfNeeded();
-          rethrow;
-        }
-      });
-      // ignore: unawaited_futures
-      _syncQueue.add(() async {
-        if (!Sync.shared.networkAvailable) {
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} network not available');
-          }
-          return;
-        }
-
-        try {
           await writeServicePoint(servicePoint);
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName}');
-          }
-        } catch (e) {
-          if (_logDebugCloud) {
-            Sync.shared.logger?.f(
-                '[sync_db][DEBUG] _syncServicePoints write servicePoint ${servicePoint.tableName} error $e');
-          }
-          // listen internet change when there is network error
+        } catch (_) {
           await Sync.shared.listenInternetChangedIfNeeded();
           rethrow;
         }
-      });
+      }));
     }
-
-    // add this line to make sure the queue is not empty, according to this bug https://github.com/rknell/dart_queue/issues/8
-    unawaited(_syncQueue.add(() => Future.value()));
-    if (_logDebugCloud) {
-      Sync.shared.logger?.f('[sync_db][DEBUG] _syncServicePoints queue starts');
-    }
-    await _syncQueue.onComplete;
+    await Future.wait(tasks);
 
     if (_logDebugCloud) {
       Sync.shared.logger?.f('[sync_db][DEBUG] _syncServicePoints completed');
@@ -209,7 +164,15 @@ abstract class Service {
     await Future.wait(futures);
   }
 
-  Future<void> readServicePoint(ServicePoint service) async {
+  Future<void> readServicePoint(ServicePoint service,
+      {bool fullRefresh = false}) async {
+    if (fullRefresh &&
+        (ignoreTables.contains(service.name) ||
+            ignoreReadTables.contains(service.name) ||
+            service.access == Access.write)) {
+      throw StateError(
+          'Cannot refresh unreadable service point ${service.key}');
+    }
     // ignore given table from sync
     if (ignoreTables.contains(service.name)) return;
     if (ignoreReadTables.contains(service.name)) return;
@@ -220,7 +183,13 @@ abstract class Service {
     // Get lock for only running one service point at a time
     final lock = _serviceLock.putIfAbsent(service.key, () => Lock());
     await lock.synchronized(() async {
-      await readFromService(service);
+      if (fullRefresh) {
+        // Removing local records invalidates the incremental cursor. Reset it
+        // under the same lock as reads/writes so an older read cannot win.
+        service.from = 0;
+        await service.save(syncToService: false);
+      }
+      await readFromService(service, fullRefresh: fullRefresh);
       Sync.shared.logger?.i('[end readFromService ${service.name}]');
     });
   }
@@ -249,7 +218,8 @@ abstract class Service {
   /// Get records from online service and send to _saveLocalRecords
   /// When accessing a web service will use the _pool to limit accesses at the same time
   /// Save the response timestamp to ServicePoint.from
-  Future<void> readFromService(ServicePoint service);
+  Future<void> readFromService(ServicePoint service,
+      {bool fullRefresh = false});
 
   /// Write records to online services and update record status with _updateRecordStatus
   /// When accessing a web service will use the _pool to limit accesses at the same time
@@ -295,8 +265,9 @@ abstract class Service {
           existingRecord.syncStatus = SyncStatus.synced;
           final keys = await existingRecord.setMap(record);
           existingRecord.setMetadata(keys, record);
-          if (existingRecord?.partition == null &&
-              record['partition'] != null) {
+          if (record['partition'] != null) {
+            // init() may choose the current account's default partition.
+            // A downloaded document's partition is authoritative.
             existingRecord.partition = record['partition'];
           }
           await existingRecord.save(

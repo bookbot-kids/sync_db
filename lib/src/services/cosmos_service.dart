@@ -7,21 +7,24 @@ import 'package:flutter/foundation.dart';
 class CosmosService extends Service {
   /// Configure the Cosmos DB, which in this case is the DB url
   /// This will require the `cosmosDatabaseAccount` name, and database id `cosmosDatabaseId` in the config map
-  CosmosService(Map config) : super(config) {
+  CosmosService(Map config, {HTTP? http}) : super(config) {
     _cosmosRetries = config['cosmosRetries'] ?? 3;
     final httpConfig = {
       'httpRetries': 1,
       'proxyUrl': config['proxyUrl'],
     };
-    _http = HTTP(
-        'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
-        httpConfig);
+    _http = http ??
+        HTTP(
+            'https://${config["cosmosDatabaseAccount"]}.documents.azure.com/dbs/${config["cosmosDatabaseId"]}/',
+            httpConfig);
     _pageSize = config['pageSize'] ?? 1000;
     _throwOnNetworkError = config['throwOnNetworkError'] ?? true;
     _logDebugCloud = config['logDebugCloud'] ?? false;
     _syncPastDuration = config['syncPastDuration'] ?? 0;
     _tablesRequireIdPartition =
         Set<String>.from(config['tablesRequireIdPartition'] ?? []);
+    _tablesPreventCreateOverwrite =
+        Set<String>.from(config['tablesPreventCreateOverwrite'] ?? []);
   }
 
   late HTTP _http;
@@ -30,19 +33,19 @@ class CosmosService extends Service {
   var _throwOnNetworkError = true;
   var _logDebugCloud = false;
   var _tablesRequireIdPartition = <String>{};
+  var _tablesPreventCreateOverwrite = <String>{};
 
   /// The duration time to sync in the past in milliseconds
   var _syncPastDuration = 0;
 
   final _apiVersion = '2018-12-31';
 
-  static const _cosmosLastUpdatedKey = '_ts';
-
   /// Get records from online service and send to _saveLocalRecords
   /// When accessing a web service will use the _pool to limit accesses at the same time
   /// Save the response timestamp to ServicePoint.from
   @override
-  Future<void> readFromService(ServicePoint servicePoint) async {
+  Future<void> readFromService(ServicePoint servicePoint,
+      {bool fullRefresh = false}) async {
     // query records in cosmos that have updated timestamp > given timestamp
     var lastSyncTimestamp = servicePoint.from ?? 0;
     var hasPastSync = false;
@@ -51,8 +54,11 @@ class CosmosService extends Service {
       hasPastSync = true;
     }
 
-    final query =
-        'SELECT * FROM c WHERE c.updatedAt > $lastSyncTimestamp ORDER BY c.updatedAt ASC';
+    // A full read must include legacy records without updatedAt. ORDER BY
+    // updatedAt would also exclude documents where that field is undefined.
+    final query = fullRefresh
+        ? 'SELECT * FROM c'
+        : 'SELECT * FROM c WHERE c.updatedAt > $lastSyncTimestamp ORDER BY c.updatedAt ASC';
     var paginationToken;
 
     // Query the document with paging
@@ -64,7 +70,10 @@ class CosmosService extends Service {
       }
       final response = await _queryDocuments(servicePoint, query,
           paginationToken: paginationToken);
-      final docs = response['response'] ?? [];
+      final docs = response['response'];
+      if (docs is! List) {
+        throw StateError('No confirmed read result for ${servicePoint.key}');
+      }
       if (_logDebugCloud) {
         Sync.shared.logger?.f(
             '[sync_db][DEBUG] readFromService ${servicePoint.tableName}, docs $docs');
@@ -81,18 +90,18 @@ class CosmosService extends Service {
       }
 
       if (docs.isNotEmpty) {
-        int? lastTimestamp = 0;
-        if (docs.last[updatedKey] is int) {
-          lastTimestamp = docs.last[updatedKey];
-        } else if (docs.last[_cosmosLastUpdatedKey] is int) {
-          // some table don't have the updatedAt key, then we use _ts
-          lastTimestamp = docs.last[_cosmosLastUpdatedKey];
+        var lastTimestamp = servicePoint.from ?? 0;
+        for (final doc in docs) {
+          final timestamp = doc[updatedKey];
+          if (timestamp is int && timestamp > lastTimestamp) {
+            lastTimestamp = timestamp;
+          }
         }
 
         Sync.shared.logger?.i(
             'readFromService ${servicePoint.name} lastTimestamp $lastTimestamp');
 
-        if (lastTimestamp! > 0) servicePoint.from = lastTimestamp;
+        if (lastTimestamp > 0) servicePoint.from = lastTimestamp;
         await servicePoint.save(syncToService: false);
       }
     } while (paginationToken != null);
@@ -101,7 +110,7 @@ class CosmosService extends Service {
   /// Writes created and updated records to Cosmos DB
   @override
   Future<void> writeToService(ServicePoint servicePoint) async {
-    var futures = <Future>[];
+    final writes = <Future<void> Function()>[];
     final handler = Sync.shared.db.modelHandlers[servicePoint.name];
     if (handler == null) {
       Sync.shared.logger?.w('${servicePoint.name} does not register handler');
@@ -133,15 +142,16 @@ class CosmosService extends Service {
       final immutableServicePoint = snapshotServicePoint(targetServicePoint);
 
       // This allows multiple create records to happen at the same time with a pool limit
-      futures.add(pool.withResource(() async {
-        final recordMap = record.map;
-        recordMap.addAll(record.metadataMap);
-        recordMap[partitionKey] = record.partition;
-        var newRecord = await _createDocument(immutableServicePoint, recordMap);
-        if (newRecord != null) {
-          await updateRecordStatus(immutableServicePoint, newRecord);
-        }
-      }));
+      writes.add(() => pool.withResource(() async {
+            final recordMap = record.map;
+            recordMap.addAll(record.metadataMap);
+            recordMap[partitionKey] = record.partition;
+            var newRecord =
+                await _createDocument(immutableServicePoint, recordMap);
+            if (newRecord != null) {
+              await updateRecordStatus(immutableServicePoint, newRecord);
+            }
+          }));
     }
 
     final updatedRecords =
@@ -168,62 +178,68 @@ class CosmosService extends Service {
       record.partition ??= targetServicePoint.partition;
       final immutableServicePoint = snapshotServicePoint(targetServicePoint);
 
-      futures.add(pool.withResource(() async {
-        // find service record to get partial update fields
-        final serviceRecord =
-            await ServiceRecord().findBy(record.id, record.tableName);
-        if (serviceRecord != null && serviceRecord.updatedFields.isNotEmpty) {
-          // partial update
-          final recordMap = record.map;
-          recordMap.addAll(record.metadataMap);
-          recordMap[partitionKey] = record.partition;
-          recordMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
-              (await NetworkTime.shared.now).millisecondsSinceEpoch;
-          final operations = [];
-          final fields = serviceRecord.updatedFields.toSet();
-          fields.add(updatedKey);
-          for (final field in fields) {
-            operations.add({
-              'op': 'set',
-              'path': '/$field',
-              'value': recordMap[field],
-            });
-          }
+      writes.add(() => pool.withResource(() async {
+            // find service record to get partial update fields
+            final serviceRecord =
+                await ServiceRecord().findBy(record.id, record.tableName);
+            if (serviceRecord != null &&
+                serviceRecord.updatedFields.isNotEmpty) {
+              // partial update
+              final recordMap = record.map;
+              recordMap.addAll(record.metadataMap);
+              recordMap[partitionKey] = record.partition;
+              recordMap[updatedKey] =
+                  record.updatedAt?.millisecondsSinceEpoch ??
+                      (await NetworkTime.shared.now).millisecondsSinceEpoch;
+              final operations = [];
+              final fields = serviceRecord.updatedFields.toSet();
+              fields.add(updatedKey);
+              for (final field in fields) {
+                operations.add({
+                  'op': 'set',
+                  'path': '/$field',
+                  'value': recordMap[field],
+                });
+              }
 
-          // paging operations (limit = 10)
-          final size = operations.length;
-          const maxPage = 9;
-          var shouldDeleteServiceRecord = false;
-          for (var i = 0; i < size; i += maxPage) {
-            final pack = operations.sublist(
-                i, (i + maxPage) > size ? size : (i + maxPage));
-            final updatedRecord = await _partialUpdateDocument(
-                immutableServicePoint, {'operations': pack}, recordMap);
-            if (updatedRecord != null) {
-              await updateRecordStatus(immutableServicePoint, updatedRecord);
-              shouldDeleteServiceRecord = true;
+              // paging operations (limit = 10)
+              final size = operations.length;
+              const maxPage = 9;
+              var shouldDeleteServiceRecord = false;
+              for (var i = 0; i < size; i += maxPage) {
+                final pack = operations.sublist(
+                    i, (i + maxPage) > size ? size : (i + maxPage));
+                final updatedRecord = await _partialUpdateDocument(
+                    immutableServicePoint, {'operations': pack}, recordMap);
+                if (updatedRecord != null) {
+                  await updateRecordStatus(
+                      immutableServicePoint, updatedRecord);
+                  shouldDeleteServiceRecord = true;
+                }
+              }
+
+              if (shouldDeleteServiceRecord) {
+                await serviceRecord.deleteLocal();
+              }
+            } else {
+              final recordMap = record.map;
+              recordMap.addAll(record.metadataMap);
+              recordMap[updatedKey] =
+                  record.updatedAt?.millisecondsSinceEpoch ??
+                      (await NetworkTime.shared.now).millisecondsSinceEpoch;
+              recordMap[partitionKey] = record.partition;
+              final updatedRecord =
+                  await _updateDocument(immutableServicePoint, recordMap);
+              if (updatedRecord != null) {
+                await updateRecordStatus(immutableServicePoint, updatedRecord);
+              }
             }
-          }
-
-          if (shouldDeleteServiceRecord) {
-            await serviceRecord.deleteLocal();
-          }
-        } else {
-          final recordMap = record.map;
-          recordMap.addAll(record.metadataMap);
-          recordMap[updatedKey] = record.updatedAt?.millisecondsSinceEpoch ??
-              (await NetworkTime.shared.now).millisecondsSinceEpoch;
-          recordMap[partitionKey] = record.partition;
-          final updatedRecord =
-              await _updateDocument(immutableServicePoint, recordMap);
-          if (updatedRecord != null) {
-            await updateRecordStatus(immutableServicePoint, updatedRecord);
-          }
-        }
-      }));
+          }));
     }
 
-    await Future.wait(futures);
+    // Start writes only when Future.wait can attach error handlers immediately.
+    // A fast create failure must not escape while we query updated records.
+    await Future.wait(writes.map((write) => write()));
   }
 
   /// Enforce table-specific partition invariants before selecting credentials.
@@ -387,6 +403,11 @@ class CosmosService extends Service {
             error: e,
             stackTrace: stackTrace);
         if (e.statusCode == 409 && retryUpdate) {
+          if (_tablesPreventCreateOverwrite.contains(servicePoint.name)) {
+            // A local placeholder is not evidence that the server record can
+            // be replaced. Require a successful read/reconciliation instead.
+            rethrow;
+          }
           Sync.shared.logger?.i(
               'Try to update existing document $record instead of creating it');
           // Strange that this has happened. Record is already created. Log it and try an update.
