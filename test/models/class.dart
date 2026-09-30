@@ -113,7 +113,7 @@ class ClassRoom extends Model {
 
 @Embedded(ignore: {'props', 'stringify'})
 // ignore: must_be_immutable
-class ClassReward with EquatableMixin implements Reward {
+class ClassReward with Equatable implements Reward {
   @override
   String name = '';
   @override

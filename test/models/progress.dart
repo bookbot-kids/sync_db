@@ -147,7 +147,7 @@ class Progress extends Model {
 
 @Embedded(ignore: {'props', 'stringify'})
 // ignore: must_be_immutable
-class ProgressCorrectWords with EquatableMixin {
+class ProgressCorrectWords with Equatable {
   String word = '';
   bool correct = false;
 

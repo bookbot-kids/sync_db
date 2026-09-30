@@ -132,7 +132,7 @@ class Event extends Model {
 
 @Embedded(ignore: {'props', 'stringify'})
 // ignore: must_be_immutable
-class EventData with EquatableMixin {
+class EventData with Equatable {
   String name = '';
   String jsonData = '';
 
@@ -154,7 +154,7 @@ class EventData with EquatableMixin {
 
 @Embedded(ignore: {'props', 'stringify'})
 // ignore: must_be_immutable
-class EventTriggerAction with EquatableMixin {
+class EventTriggerAction with Equatable {
   @Enumerated(EnumType.name)
   TrackingType trackingType = TrackingType.ga;
   String jsonData = '';

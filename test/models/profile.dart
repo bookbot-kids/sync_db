@@ -324,7 +324,7 @@ class Profile extends Model {
 */
 
 @Embedded(ignore: {'props', 'stringify'})
-class ProfileTeacherInfo with EquatableMixin {
+class ProfileTeacherInfo with Equatable {
   String id = '';
   String jsonInfo = '';
 
@@ -349,7 +349,7 @@ class ProfileTeacherInfo with EquatableMixin {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
-class ProfileScriptStatus with EquatableMixin {
+class ProfileScriptStatus with Equatable {
   String name = '';
   bool enabled = false;
 
@@ -361,7 +361,7 @@ class ProfileScriptStatus with EquatableMixin {
 }
 
 @Embedded(ignore: {'props', 'stringify'})
-class LevelEntry with EquatableMixin {
+class LevelEntry with Equatable {
   String name = '';
   int level = 0;
 
@@ -375,7 +375,7 @@ class LevelEntry with EquatableMixin {
 /// Level embedded object
 /// WARNING: to use double property here, we have to make sure to call `.toDouble()` in setMap because int value can come from server
 @Embedded(ignore: {'props', 'stringify'})
-class ProfileLevel with EquatableMixin {
+class ProfileLevel with Equatable {
   @Enumerated(EnumType.name)
   LibraryLanguage language = LibraryLanguage.en;
   List<LevelEntry> levelsCompletedAt = [];
@@ -400,7 +400,7 @@ class ProfileLevel with EquatableMixin {
 /// Progress embedded object
 /// WARNING: to use double property here, we have to make sure to call `.toDouble()` in setMap because int value can come from server
 @Embedded(ignore: {'props', 'stringify'})
-class ProfileProgress with EquatableMixin {
+class ProfileProgress with Equatable {
   @Enumerated(EnumType.name)
   LibraryLanguage language = LibraryLanguage.en;
   double averageAccuracy = 0.0;
