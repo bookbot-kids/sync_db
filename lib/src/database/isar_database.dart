@@ -122,32 +122,36 @@ class IsarDatabase {
       _logDebug('start migrate data for version $version');
       await _lock.synchronized(() async {
         // do copy from asset
-        final assetItems = manifest ?? <String>[];
-        for (final asset in assetItems) {
+        // A large table ships as Table.001.json, Table.002.json... so that it
+        // is never read into memory whole. Group each table's parts.
+        final tables = <String, List<String>>{};
+        for (final asset in manifest ?? <String>[]) {
           if (asset.startsWith(dbAssetPath) &&
               fileTypes
                   .any((element) => asset.toLowerCase().endsWith(element))) {
-            final tableName = basenameWithoutExtension(asset);
-            _logDebug('Copy asset $asset to $tableName');
-            // copy asset to file dir
-            Stopwatch? stopwatch;
-            if (_logCallback != null) {
-              stopwatch = Stopwatch()..start();
-            }
-            final assetContent = await rootBundle.load(asset);
-            await importJsonSnapshotTable(
-              assetContent.buffer.asUint8List(),
-              tableName,
-              invalidateSyncState:
-                  invalidateSyncStateForTables.contains(tableName),
-            );
-
-            _logDebug(
-                'Copy db asset $asset to $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
-            if (_logCallback != null) {
-              stopwatch?.stop();
-            }
+            final tableName = basenameWithoutExtension(asset).split('.').first;
+            tables.putIfAbsent(tableName, () => []).add(asset);
           }
+        }
+        for (final entry in tables.entries) {
+          final tableName = entry.key;
+          final assets = entry.value..sort();
+          _logDebug('Copy asset ${assets.join(', ')} to $tableName');
+          Stopwatch? stopwatch;
+          if (_logCallback != null) {
+            stopwatch = Stopwatch()..start();
+          }
+          await importJsonSnapshotTableParts(
+            tableName,
+            [
+              for (final asset in assets)
+                () async => (await rootBundle.load(asset)).buffer.asUint8List()
+            ],
+            invalidateSyncState:
+                invalidateSyncStateForTables.contains(tableName),
+          );
+          _logDebug(
+              'Copy db asset ${assets.length} file(s) to $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
         }
 
         await prefs.setString(appVersionKey, version!);
@@ -168,11 +172,40 @@ class IsarDatabase {
   /// Replaces one Isar collection with a JSON snapshot.
   ///
   /// When [invalidateSyncState] is true, all remote partition cursors for the
-  /// table are removed atomically with the replacement.
+  /// table are removed together with the old rows.
+  ///
+  /// Not one transaction. MDBX cannot reuse pages freed inside a transaction
+  /// until it commits, so clearing and importing together needed room for the
+  /// old and the new table at once: 275 MiB for the 597k-word Spanish
+  /// dictionary, over a 256 MiB cap. Clearing commits first, and the new rows
+  /// then go in chunks of about [chunkBytes] of JSON, each committed, which
+  /// also bounds the native memory one import holds.
+  ///
+  /// The file's structure is checked before anything is cleared, so a
+  /// malformed snapshot keeps the old rows and their cursors. A failure part
+  /// way through leaves the table partial; [init] records the new version only
+  /// after every table imports, so the next launch imports it again.
   Future<void> importJsonSnapshotTable(
     Uint8List jsonData,
     String tableName, {
     bool invalidateSyncState = false,
+    int chunkBytes = 8 * 1024 * 1024,
+  }) =>
+      importJsonSnapshotTableParts(
+        tableName,
+        [() async => jsonData],
+        invalidateSyncState: invalidateSyncState,
+        chunkBytes: chunkBytes,
+      );
+
+  /// [importJsonSnapshotTable] for a table shipped as several JSON arrays,
+  /// read one at a time through [parts] so only one is in memory at once.
+  /// Every part is checked before the old rows are cleared.
+  Future<void> importJsonSnapshotTableParts(
+    String tableName,
+    List<Future<Uint8List> Function()> parts, {
+    bool invalidateSyncState = false,
+    int chunkBytes = 8 * 1024 * 1024,
   }) async {
     final modelHandler = modelInstances[tableName];
     if (modelHandler == null) {
@@ -181,22 +214,26 @@ class IsarDatabase {
       return;
     }
 
+    // Loaded twice, check then import, rather than holding every part at once.
+    for (final load in parts) {
+      final bytes = await load();
+      splitJsonArray(bytes, bytes.length + 1);
+    }
+    var chunkCount = 0;
+    Stopwatch? stopwatch;
+    if (_logCallback != null) {
+      stopwatch = Stopwatch()..start();
+    }
+
     await local.writeTxn(() async {
       _logDebug('Clear table $tableName');
-      Stopwatch? stopwatch;
-      if (_logCallback != null) {
-        stopwatch = Stopwatch()..start();
-      }
       await modelHandler.call().clear();
-      final entry = modelHandler.call();
-      await entry.importJson(jsonData);
       if (invalidateSyncState) {
         // Replacing a table destroys records that may still exist in the
         // remote partition. Its incremental cursor can no longer describe
         // the local table, so remove every partition's service point. The
         // next authenticated sync obtains a fresh token and starts at zero.
-        // This is deliberately in the same transaction as the replacement:
-        // a failed import must preserve both the old rows and their cursors.
+        // Cleared with the old rows, so rows and cursors never disagree.
         final servicePointIds = await local.servicePoints
             .filter()
             .nameEqualTo(tableName)
@@ -208,9 +245,124 @@ class IsarDatabase {
         _logDebug(
             'Invalidated ${servicePointIds.length} sync service point(s) for $tableName');
       }
-      _logDebug(
-          'Imported json for table $tableName done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
     });
+
+    for (final load in parts) {
+      for (final chunk in splitJsonArray(await load(), chunkBytes)) {
+        await local.writeTxn(() => modelHandler.call().importJson(chunk));
+        chunkCount++;
+      }
+    }
+    _logDebug(
+        'Imported json for table $tableName in $chunkCount chunk(s) from ${parts.length} part(s) done in ${_logCallback != null ? '${stopwatch?.elapsedMilliseconds}ms' : ''}');
+  }
+
+  /// Cuts a JSON array into smaller arrays of whole elements, each about
+  /// [maxBytes] long (one element larger than that becomes its own chunk).
+  ///
+  /// Scans bytes only - no decoding - but checks the structure: the input must
+  /// be a single array with balanced brackets and closed strings, or this
+  /// throws [FormatException] before the caller has changed anything.
+  @visibleForTesting
+  static List<Uint8List> splitJsonArray(Uint8List json, int maxBytes) {
+    const openArray = 0x5B, closeArray = 0x5D, openObject = 0x7B;
+    const closeObject = 0x7D, quote = 0x22, backslash = 0x5C, comma = 0x2C;
+    bool isSpace(int b) => b == 0x20 || b == 0x0A || b == 0x0D || b == 0x09;
+
+    var i = 0;
+    // A UTF-8 byte order mark is not part of the JSON.
+    if (json.length >= 3 && json[0] == 0xEF && json[1] == 0xBB && json[2] == 0xBF) {
+      i = 3;
+    }
+    while (i < json.length && isSpace(json[i])) {
+      i++;
+    }
+    if (i >= json.length || json[i] != openArray) {
+      throw const FormatException('Snapshot is not a JSON array');
+    }
+
+    final chunks = <Uint8List>[];
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+    var elementStart = -1; // first byte of the current run of elements
+    var runStart = -1;
+    var closed = false;
+
+    void emit(int end) {
+      // [runStart, end) holds whole elements separated by commas.
+      final chunk = Uint8List(end - runStart + 2);
+      chunk[0] = openArray;
+      chunk.setRange(1, chunk.length - 1, json, runStart);
+      chunk[chunk.length - 1] = closeArray;
+      chunks.add(chunk);
+      runStart = -1;
+    }
+
+    for (; i < json.length; i++) {
+      final b = json[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (b == backslash) {
+          escaped = true;
+        } else if (b == quote) {
+          inString = false;
+        }
+        continue;
+      }
+      if (b == quote) {
+        inString = true;
+        if (depth == 1 && elementStart < 0) elementStart = i;
+      } else if (b == openArray || b == openObject) {
+        if (depth == 1 && elementStart < 0) elementStart = i;
+        depth++;
+      } else if (b == closeArray || b == closeObject) {
+        depth--;
+        if (depth < 0) {
+          throw const FormatException('Unbalanced brackets in snapshot');
+        }
+        if (depth == 0) {
+          // The array itself closed: flush what is left.
+          if (runStart >= 0) emit(_trimEnd(json, i, isSpace));
+          closed = true;
+          i++;
+          break;
+        }
+      } else if (b == comma && depth == 1) {
+        if (elementStart < 0) {
+          throw const FormatException('Empty element in snapshot');
+        }
+        runStart = runStart < 0 ? elementStart : runStart;
+        elementStart = -1;
+        if (i - runStart >= maxBytes) {
+          emit(i);
+        }
+      } else if (depth == 1 && elementStart < 0 && !isSpace(b)) {
+        elementStart = i; // a number, true, false or null
+      }
+      if (depth == 1 && runStart < 0 && elementStart >= 0) {
+        runStart = elementStart;
+      }
+    }
+
+    if (inString || !closed) {
+      throw const FormatException('Snapshot JSON is truncated');
+    }
+    while (i < json.length && isSpace(json[i])) {
+      i++;
+    }
+    if (i != json.length) {
+      throw const FormatException('Unexpected data after the snapshot array');
+    }
+    return chunks;
+  }
+
+  static int _trimEnd(Uint8List json, int end, bool Function(int) isSpace) {
+    while (end > 0 && isSpace(json[end - 1])) {
+      end--;
+    }
+    return end;
   }
 
   // Copy sembast database into isar
