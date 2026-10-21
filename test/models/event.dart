@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:enum_to_string/enum_to_string.dart';
+import 'enum_utils.dart';
 import 'package:equatable/equatable.dart';
 import 'package:isar_community/isar.dart';
 import 'package:sync_db/sync_db.dart';
@@ -95,8 +95,8 @@ class Event extends Model {
     if (newTriggerAction != null) {
       triggerAction =
           List<EventTriggerAction>.from(newTriggerAction.entries.map((e) {
-        final item = EventTriggerAction.from(
-            EnumToString.fromString(TrackingType.values, e.key)!, '');
+        final item =
+            EventTriggerAction.from(parseEnum(TrackingType.values, e.key)!, '');
         item.toJson(e.value);
         return item;
       }).toList());

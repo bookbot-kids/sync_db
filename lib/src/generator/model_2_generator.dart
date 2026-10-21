@@ -174,20 +174,49 @@ if (deletedAt != other.deletedAt) {
       // enum
       if (fieldElement is EnumElement) {
         final type = field.type.element!.displayName;
+        // enum_to_string honored a String-valued `value` getter on enhanced
+        // enums. Resolve the getter statically so generated enum access remains
+        // typed, including getters whose declared type is Object or dynamic.
+        final mappingGetter =
+            fieldElement.lookUpGetter(name: 'value', library: libElement);
+        final hasMapping = mappingGetter != null && !mappingGetter.isStatic;
+        final nullableType = field.type.getDisplayString().endsWith('?');
+        final fieldReceiver = name == 'enumMapping' ? 'this.$name' : name;
+        final receiver = nullableType ? '$fieldReceiver!' : fieldReceiver;
+        final setterReceiver =
+            {'value', 'enumName'}.contains(name) ? 'this.$name' : name;
+        String wireName(String receiver) {
+          final nativeName = 'EnumName($receiver).name';
+          if (!hasMapping) return nativeName;
+          return '''(() {
+            try {
+              // Explicit Object? also supports non-String declared getter types.
+              // ignore: omit_local_variable_types
+              final Object? enumMapping = $receiver.value;
+              if (enumMapping is String) return enumMapping;
+            } catch (_) {
+              // Legacy custom getters may throw; fall back to the enum name.
+            }
+            return $nativeName;
+          })()''';
+        }
+
         if (isNullable) {
           getterFields.add(
-              "if($name != null) {map['${name}'] = EnumToString.convertToString(${name});}");
+              "if($name != null) {map['${name}'] = ${wireName(receiver)};}");
         } else {
-          getterFields
-              .add("map['${name}'] = EnumToString.convertToString(${name});");
+          getterFields.add("map['${name}'] = ${wireName(receiver)};");
         }
 
         setterFields.add('''
-        if(map['${name}'] != null) { 
-          final value = EnumToString.fromString(${type}.values, map['${name}']);
-          if(value != null) {
-            ${name} = value;
-          } 
+        if(map['${name}'] != null) {
+          final enumName = (map['${name}'] as String).toLowerCase();
+          for (final value in ${type}.values) {
+            if (${wireName('value')}.toLowerCase() == enumName) {
+              $setterReceiver = value;
+              break;
+            }
+          }
         }
         keys.add('$name');
         ''');

@@ -1,4 +1,3 @@
-import 'package:enum_to_string/enum_to_string.dart';
 import 'package:equatable/equatable.dart';
 import 'package:isar_community/isar.dart';
 import 'package:sync_db/sync_db.dart';

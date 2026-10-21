@@ -7732,11 +7732,11 @@ extension $Profile on Profile {
     }
 
     map['name'] = name;
-    map['bot'] = EnumToString.convertToString(bot);
+    map['bot'] = EnumName(bot).name;
     map['botType'] = botType;
     map['dob'] = dob;
     map['about'] = about;
-    map['onboarding'] = EnumToString.convertToString(onboarding);
+    map['onboarding'] = EnumName(onboarding).name;
     map['readToMe'] = readToMe;
     map['autoTurnPage'] = autoTurnPage;
     map['lastRead'] = lastRead;
@@ -7745,7 +7745,7 @@ extension $Profile on Profile {
     map['email'] = email;
     map['lastName'] = lastName;
     map['phoneNumber'] = phoneNumber;
-    map['inviteStatus'] = EnumToString.convertToString(inviteStatus);
+    map['inviteStatus'] = EnumName(inviteStatus).name;
     map['classesIds'] = classesIds.toSet().toList();
     map['teacherIds'] = teacherIds.toSet().toList();
     map['trackerBooksRead'] = trackerBooksRead;
@@ -7776,9 +7776,12 @@ extension $Profile on Profile {
     keys.add('name');
 
     if (map['bot'] != null) {
-      final value = EnumToString.fromString(Bot.values, map['bot']);
-      if (value != null) {
-        bot = value;
+      final enumName = (map['bot'] as String).toLowerCase();
+      for (final value in Bot.values) {
+        if (EnumName(value).name.toLowerCase() == enumName) {
+          bot = value;
+          break;
+        }
       }
     }
     keys.add('bot');
@@ -7797,10 +7800,12 @@ extension $Profile on Profile {
     keys.add('about');
 
     if (map['onboarding'] != null) {
-      final value =
-          EnumToString.fromString(Onboarding.values, map['onboarding']);
-      if (value != null) {
-        onboarding = value;
+      final enumName = (map['onboarding'] as String).toLowerCase();
+      for (final value in Onboarding.values) {
+        if (EnumName(value).name.toLowerCase() == enumName) {
+          onboarding = value;
+          break;
+        }
       }
     }
     keys.add('onboarding');
@@ -7846,10 +7851,12 @@ extension $Profile on Profile {
     keys.add('phoneNumber');
 
     if (map['inviteStatus'] != null) {
-      final value =
-          EnumToString.fromString(InviteStatus.values, map['inviteStatus']);
-      if (value != null) {
-        inviteStatus = value;
+      final enumName = (map['inviteStatus'] as String).toLowerCase();
+      for (final value in InviteStatus.values) {
+        if (EnumName(value).name.toLowerCase() == enumName) {
+          inviteStatus = value;
+          break;
+        }
       }
     }
     keys.add('inviteStatus');

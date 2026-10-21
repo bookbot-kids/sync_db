@@ -35,6 +35,7 @@ targets:
       sync_db:model2_builer:
         enabled: true
         generate_for:
+          - test/models/enum_fixture.dart
           - test/models/class.dart
           - test/models/event.dart
           - test/models/profile.dart

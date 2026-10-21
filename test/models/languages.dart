@@ -1,4 +1,4 @@
-import 'package:enum_to_string/enum_to_string.dart';
+import 'enum_utils.dart';
 
 enum Language {
   us,
@@ -12,12 +12,10 @@ enum Language {
 }
 
 extension $Language on Language {
-  String get name => EnumToString.convertToString(this);
   static Language fromString(String? value,
       {Language defaultLanguage = Language.us}) {
     if (value?.isNotEmpty == true) {
-      return EnumToString.fromString(Language.values, value!) ??
-          defaultLanguage;
+      return parseEnum(Language.values, value!) ?? defaultLanguage;
     }
 
     return defaultLanguage;
@@ -25,7 +23,7 @@ extension $Language on Language {
 }
 
 Language languageStringToEnum(String language) {
-  final languageEnum = EnumToString.fromString(Language.values, language);
+  final languageEnum = parseEnum(Language.values, language);
   if (languageEnum == null) {
     throw Exception('Unknown language $language');
   }
@@ -64,12 +62,10 @@ class LanguageGroups {
 enum LibraryLanguage { en, id, sw }
 
 extension $LibraryLanguage on LibraryLanguage {
-  String get name => EnumToString.convertToString(this);
   static LibraryLanguage fromString(String? value,
       {LibraryLanguage defaultLanguage = LibraryLanguage.en}) {
     if (value?.isNotEmpty == true) {
-      return EnumToString.fromString(LibraryLanguage.values, value!) ??
-          defaultLanguage;
+      return parseEnum(LibraryLanguage.values, value!) ?? defaultLanguage;
     }
 
     return defaultLanguage;

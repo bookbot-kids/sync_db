@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 
-import 'package:enum_to_string/enum_to_string.dart';
+import 'enum_utils.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar_community/isar.dart';
@@ -165,8 +165,7 @@ class Profile extends Model {
       Map displayLevels = map['displayLevels'];
       for (final item in displayLevels.entries) {
         final language =
-            EnumToString.fromString(LibraryLanguage.values, item.key) ??
-                LibraryLanguage.en;
+            parseEnum(LibraryLanguage.values, item.key) ?? LibraryLanguage.en;
         levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
         levelMap[language]?.displayLevel =
             item.value.toDouble(); // handle int value from server
@@ -177,8 +176,7 @@ class Profile extends Model {
       Map libraryLevels = map['libraryLevels'];
       for (final item in libraryLevels.entries) {
         final language =
-            EnumToString.fromString(LibraryLanguage.values, item.key) ??
-                LibraryLanguage.en;
+            parseEnum(LibraryLanguage.values, item.key) ?? LibraryLanguage.en;
         levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
         levelMap[language]?.libraryLevel =
             item.value.toInt(); // handle double value from server
@@ -189,8 +187,7 @@ class Profile extends Model {
       Map levelsCompletedAt = map['levelsCompletedAt'];
       for (final item in levelsCompletedAt.entries) {
         final language =
-            EnumToString.fromString(LibraryLanguage.values, item.key) ??
-                LibraryLanguage.en;
+            parseEnum(LibraryLanguage.values, item.key) ?? LibraryLanguage.en;
         levelMap.putIfAbsent(language, () => ProfileLevel.from(language));
         levelMap[language]?.levelsCompletedAt =
             levelMap[language]?.levelsCompletedAt.toList() ?? [];
@@ -206,8 +203,7 @@ class Profile extends Model {
       Map averageAccuracies = map['averageAccuracies'];
       for (final item in averageAccuracies.entries) {
         final language =
-            EnumToString.fromString(LibraryLanguage.values, item.key) ??
-                LibraryLanguage.en;
+            parseEnum(LibraryLanguage.values, item.key) ?? LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress.from(language));
         progresMap[language]?.averageAccuracy =
             item.value.toDouble(); // handle int value from server
@@ -218,8 +214,7 @@ class Profile extends Model {
       Map averageFluencies = map['averageFluencies'];
       for (final item in averageFluencies.entries) {
         final language =
-            EnumToString.fromString(LibraryLanguage.values, item.key) ??
-                LibraryLanguage.en;
+            parseEnum(LibraryLanguage.values, item.key) ?? LibraryLanguage.en;
         progresMap.putIfAbsent(language, () => ProfileProgress.from(language));
         progresMap[language]?.averageFluency =
             item.value.toDouble(); // handle int value from server

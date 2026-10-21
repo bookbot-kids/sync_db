@@ -5258,7 +5258,7 @@ extension $Progress on Progress {
     map['bookId'] = bookId;
     map['currentPage'] = currentPage;
     map['rating'] = rating;
-    map['bookLanguage'] = EnumToString.convertToString(bookLanguage);
+    map['bookLanguage'] = EnumName(bookLanguage).name;
     map['progress'] = progress;
     map['correct'] = correct;
     map['fluency'] = fluency;
@@ -5313,10 +5313,12 @@ extension $Progress on Progress {
     keys.add('rating');
 
     if (map['bookLanguage'] != null) {
-      final value =
-          EnumToString.fromString(LibraryLanguage.values, map['bookLanguage']);
-      if (value != null) {
-        bookLanguage = value;
+      final enumName = (map['bookLanguage'] as String).toLowerCase();
+      for (final value in LibraryLanguage.values) {
+        if (EnumName(value).name.toLowerCase() == enumName) {
+          bookLanguage = value;
+          break;
+        }
       }
     }
     keys.add('bookLanguage');
