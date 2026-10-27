@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:isar_community/isar.dart';
+import 'package:robust_http/exceptions.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:universal_io/io.dart';
 import 'package:uuid/uuid.dart';
@@ -251,8 +252,18 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     }
 
     if (syncPermission == SyncPermission.user) {
-      // ignore: unawaited_futures
-      Sync.shared.service?.writeTable(tableName);
+      // Not awaited, so handle the failure here: an offline save would
+      // otherwise surface as an unhandled async error. The record stays
+      // created/updated and the next sync sends it.
+      final write = Sync.shared.service?.writeTable(tableName);
+      unawaited(write?.catchError((Object e, StackTrace stackTrace) {
+        if (e is ConnectivityException) {
+          Sync.shared.logger?.i('writeTable $tableName skipped: $e');
+        } else {
+          Sync.shared.logger?.w('writeTable $tableName failed $e',
+              error: e, stackTrace: stackTrace);
+        }
+      }));
     }
   }
 

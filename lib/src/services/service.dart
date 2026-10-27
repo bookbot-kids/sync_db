@@ -151,17 +151,31 @@ abstract class Service {
       return;
     }
 
-    final servicePoints =
-        await Sync.shared.userSession?.servicePointsForTable(table) ?? [];
-    var futures = <Future>[];
-    Sync.shared.logger?.i('writeTable $table');
-    for (final servicePoint in servicePoints) {
-      if (!Sync.shared.networkAvailable) {
-        return;
+    try {
+      final servicePoints =
+          await Sync.shared.userSession?.servicePointsForTable(table) ?? [];
+      var futures = <Future>[];
+      Sync.shared.logger?.i('writeTable $table');
+      for (final servicePoint in servicePoints) {
+        if (!Sync.shared.networkAvailable) {
+          // Still await the writes already started, so their errors are
+          // handled here rather than left unobserved.
+          break;
+        }
+        futures.add(writeServicePoint(servicePoint));
       }
-      futures.add(writeServicePoint(servicePoint));
+      await Future.wait(futures);
+    } catch (_) {
+      // Same as syncTable: a failure (usually offline) starts the internet
+      // watcher, so later saves skip the network until it is back. Best
+      // effort: the caller needs the original error, not one from the check.
+      try {
+        await Sync.shared.listenInternetChangedIfNeeded();
+      } catch (e) {
+        Sync.shared.logger?.w('Could not start the internet watcher: $e');
+      }
+      rethrow;
     }
-    await Future.wait(futures);
   }
 
   Future<void> readServicePoint(ServicePoint service,

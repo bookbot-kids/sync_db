@@ -276,7 +276,7 @@ class AzureADB2CUserSession extends UserSession {
         _azureSubject,
         _azureIssuer,
         _azureAudience,
-        await NetworkTime.shared.now,
+        await NetworkTime.shared.networkNow,
         jwtId: Random().nextInt(10000).toString());
     if (!await ConnectionHelper.shared.hasConnection()) {
       throw ConnectivityException('The connection is turn off',

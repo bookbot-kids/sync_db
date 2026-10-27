@@ -375,7 +375,7 @@ class CosmosService extends Service {
     Exception? exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
-        var now = HttpDate.format(await NetworkTime.shared.now);
+        var now = HttpDate.format(await NetworkTime.shared.networkNow);
         _http.headers = {
           'x-ms-date': now,
           'authorization': Uri.encodeComponent(servicePoint.token!),
@@ -465,7 +465,7 @@ class CosmosService extends Service {
     Exception? exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
-        var now = HttpDate.format(await NetworkTime.shared.now);
+        var now = HttpDate.format(await NetworkTime.shared.networkNow);
         _http.headers = {
           'x-ms-date': now,
           'authorization': Uri.encodeComponent(servicePoint.token!),
@@ -556,7 +556,7 @@ class CosmosService extends Service {
     Exception? exception;
     for (var i = 0; i < _cosmosRetries; i++) {
       try {
-        var now = HttpDate.format(await NetworkTime.shared.now);
+        var now = HttpDate.format(await NetworkTime.shared.networkNow);
         _http.headers = {
           'x-ms-date': now,
           'authorization': Uri.encodeComponent(servicePoint.token!),

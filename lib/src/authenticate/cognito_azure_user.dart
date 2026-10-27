@@ -10,12 +10,14 @@ import 'package:robust_http/robust_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sync_db/src/authenticate/cognito_auth_session.dart';
 import 'package:sync_db/src/authenticate/cognito_share_pref_storage.dart';
+import 'package:sync_db/src/authenticate/timeout_http_client.dart';
 import 'package:sync_db/src/utils/web_service_utils.dart';
 import 'package:collection/collection.dart';
 import 'package:sync_db/sync_db.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:amazon_cognito_identity_dart_2/cognito.dart' as cognito;
 import 'package:tuple/tuple.dart';
+import 'package:universal_io/io.dart';
 
 /// A class that handles the authentication of a user with Cognito.
 /// And also handles the refreshing of the authentication token from azure services.
@@ -26,6 +28,8 @@ class CognitoAzureUserSession extends UserSession
   /// `azureKey` the secure code to request azure function
   /// `tablesToClearOnSignout` a list of tables to remove when signing out
   /// `autoRefresh` auto refresh token
+  /// `cognitoTimeout` (ms, optional) limit for each Cognito request, 15 s by default
+  /// `refreshTimeout` (ms, optional) limit for waiting on a token refresh, 2 min by default
   CognitoAzureUserSession(
     Map<String, dynamic> config, {
     bool autoRefresh = true,
@@ -38,9 +42,25 @@ class CognitoAzureUserSession extends UserSession
       'proxyUrl': config['proxyUrl'],
     });
 
+    final cognitoTimeout = config['cognitoTimeout'];
+    if (cognitoTimeout is int && cognitoTimeout > 0) {
+      _cognitoTimeout = Duration(milliseconds: cognitoTimeout);
+    }
+    final refreshTimeout = config['refreshTimeout'];
+    if (refreshTimeout is int && refreshTimeout > 0) {
+      _refreshTimeout = Duration(milliseconds: refreshTimeout);
+    }
+
     // cognito keys
-    _userPool = cognito.CognitoUserPool(
-        config['cognitoPoolId'], config['cognitoClientId']);
+    // The package's own client has no timeout, and every session call waits
+    // on the first one: a request that connects and then stalls would hold
+    // launch and all sync until restart. Same region (and so endpoint) the
+    // pool derives from its id by default.
+    final String poolId = config['cognitoPoolId'];
+    _userPool = cognito.CognitoUserPool(poolId, config['cognitoClientId'],
+        customClient: cognito.Client(
+            region: poolId.split('_')[0],
+            client: TimeoutHttpClient(_cognitoTimeout)));
 
     // azure keys are used to request azure functions
     _azureKey = config['azureKey'] ?? '';
@@ -98,6 +118,29 @@ class CognitoAzureUserSession extends UserSession
   Future? _initializeTask;
   var _tablesToSync = <String>[];
 
+  /// Limit for each Cognito request (the whole request, body included).
+  var _cognitoTimeout = const Duration(seconds: 15);
+
+  /// Limit for waiting on [_initializeTask]. Above [_cognitoTimeout], so it
+  /// only fires when something other than one request is stuck.
+  Duration get _initializeTimeout =>
+      _cognitoTimeout + const Duration(seconds: 5);
+
+  /// Limit for waiting on a token refresh in [_refreshIfExpired]. Generous: a
+  /// refresh is several requests, each with its own timeouts. This is only
+  /// there so a stuck one cannot block every later sync.
+  var _refreshTimeout = const Duration(minutes: 2);
+
+  /// The refresh check everyone is waiting on, if one is running.
+  Future<void>? _refreshIfExpiredTask;
+
+  /// The last refresh that failed for connectivity, and when. While recent,
+  /// [_refreshIfExpired] fails fast instead of probing the internet again for
+  /// every save made offline.
+  ConnectivityException? _lastConnectivityError;
+  DateTime? _lastConnectivityFailure;
+  static const _connectivityBackoff = Duration(seconds: 30);
+
   /// Set when the partitions asked for have changed since the last token.
   ///
   /// The token service caches its answer per set of tables. Asking again after
@@ -136,7 +179,7 @@ class CognitoAzureUserSession extends UserSession
         _azureSubject,
         _azureIssuer,
         _azureAudience,
-        await NetworkTime.shared.now,
+        await NetworkTime.shared.networkNow,
         jwtId: Random().nextInt(10000).toString());
     if (!await ConnectionHelper.shared.hasConnection()) {
       throw ConnectivityException('The connection is turn off',
@@ -147,6 +190,9 @@ class CognitoAzureUserSession extends UserSession
           'The connection is turn on but there is no internet connection',
           hasConnectionStatus: true);
     }
+    // Same guard as refresh(): never send an empty token for a signed-in user.
+    await ensureSession();
+    refreshToken = await token;
     final response = await _http.post('/DeleteUser',
         parameters: {
           'email': email,
@@ -164,21 +210,32 @@ class CognitoAzureUserSession extends UserSession
 
   @override
   Future<bool> hasSignedIn() async {
-    if (_initializeTask != null) {
-      await _initializeTask;
-    }
-
+    await _awaitInitialized();
     return await _checkAuthenticated();
   }
 
   @override
   Future<void> refresh({bool forceRefreshToken = false, String? userId}) async {
+    try {
+      await _refresh(forceRefreshToken: forceRefreshToken, userId: userId);
+      _lastConnectivityError = null;
+      _lastConnectivityFailure = null;
+    } on ConnectivityException catch (e) {
+      _lastConnectivityError = e;
+      _lastConnectivityFailure = DateTime.now();
+      rethrow;
+    }
+  }
+
+  Future<void> _refresh(
+      {bool forceRefreshToken = false, String? userId}) async {
     if (_logDebugCloud) {
       Sync.shared.logger?.f('[sync_db][DEBUG] refresh start');
     }
 
-    if (_initializeTask != null) {
-      await _initializeTask;
+    if (!await _awaitInitialized()) {
+      throw ConnectivityException('Cognito session is still loading',
+          hasConnectionStatus: true);
     }
 
     if (_logDebugCloud) {
@@ -187,7 +244,6 @@ class CognitoAzureUserSession extends UserSession
 
     // Start some tasks to await later
     final asyncTimeStamp = NetworkTime.shared.now;
-    final asyncMapped = _mappedServicePoints();
 
     if (_logDebugCloud) {
       Sync.shared.logger?.f('[sync_db][DEBUG] refresh start token');
@@ -217,6 +273,11 @@ class CognitoAzureUserSession extends UserSession
             'The connection is turn on but there is no internet connection',
             hasConnectionStatus: true);
       }
+
+      // A signed-in user must not ask without a refresh token: see
+      // [ensureSession].
+      await ensureSession();
+      refreshToken = await token;
 
       Sync.shared.logger?.i('Start to request GetResourceTokens');
       if (_logDebugCloud) {
@@ -268,7 +329,7 @@ class CognitoAzureUserSession extends UserSession
       _tokenExpiry = (await asyncTimeStamp).add(Duration(hours: 4));
 
       // Setup or update ServicePoints
-      final mappedServicePoints = await asyncMapped;
+      final mappedServicePoints = await _mappedServicePoints();
 
       if (_logDebugCloud) {
         Sync.shared.logger?.f(
@@ -536,20 +597,152 @@ class CognitoAzureUserSession extends UserSession
   }
 
   // check to refresh the refresh token
-  Future<void> _refreshIfExpired() async {
+  //
+  // One check at a time: every caller joins the one running, and none waits
+  // longer than [_refreshTimeout] for it.
+  Future<void> _refreshIfExpired() =>
+      _refreshIfExpiredTask ??= _runRefreshIfExpired();
+
+  Future<void> _runRefreshIfExpired() async {
+    try {
+      await _refreshIfExpiredOnce().timeout(_refreshTimeout);
+    } on TimeoutException {
+      // Leave the stuck refresh behind, so the next call starts a new one
+      // instead of waiting on it again.
+      _refreshed = null;
+      final error = ConnectivityException('Token refresh timed out',
+          hasConnectionStatus: true);
+      _lastConnectivityError = error;
+      _lastConnectivityFailure = DateTime.now();
+      throw error;
+    } finally {
+      _refreshIfExpiredTask = null;
+    }
+  }
+
+  Future<void> _refreshIfExpiredOnce() async {
+    var needsRefresh = false;
     try {
       await _refreshed;
     } catch (e) {
       //ignore & refresh new task
-      _refreshed = refresh();
-      await _refreshed;
+      needsRefresh = true;
     }
 
-    final now = await NetworkTime.shared.now;
-    if (now.isAfter(_tokenExpiry)) {
-      _refreshed = refresh();
-      await _refreshed;
+    if (!needsRefresh) {
+      final now = await NetworkTime.shared.now;
+      needsRefresh = now.isAfter(_tokenExpiry);
     }
+
+    if (!needsRefresh) {
+      return;
+    }
+
+    // Offline a moment ago: fail fast instead of probing the internet again
+    // for every save. Explicit refresh() calls are not held back.
+    final lastError = _lastConnectivityError;
+    final failedAt = _lastConnectivityFailure;
+    if (lastError != null &&
+        failedAt != null &&
+        DateTime.now().difference(failedAt) < _connectivityBackoff) {
+      throw ConnectivityException(
+          'Skipped token refresh, the last one failed for connectivity '
+          '${DateTime.now().difference(failedAt).inSeconds}s ago: $lastError',
+          hasConnectionStatus: lastError.hasConnectionStatus);
+    }
+
+    _refreshed = refresh();
+    await _refreshed;
+  }
+
+  /// Waits for [_initialized], bounded: one stalled Cognito call must not hold
+  /// every later session call. On a timeout the next caller starts a fresh
+  /// attempt. Returns whether it finished.
+  Future<bool> _awaitInitialized() async {
+    final task = _initializeTask;
+    if (task == null) {
+      return true;
+    }
+
+    try {
+      await task.timeout(_initializeTimeout);
+      return true;
+    } on TimeoutException {
+      Sync.shared.logger?.w('Cognito initialization timed out after '
+          '${_initializeTimeout.inSeconds}s, retrying on the next call');
+      if (identical(_initializeTask, task)) {
+        _initializeTask = _initialized();
+      }
+      return false;
+    }
+  }
+
+  /// Makes sure a signed-in user has a session (and so a refresh token)
+  /// before asking for resource tokens.
+  ///
+  /// When restoring the session failed - offline at launch, a timed out
+  /// Cognito call - the user is still there but has no refresh token. Asking
+  /// without one takes the server's guest branch, and the `guest` role it
+  /// answers with is saved: the next offline launch then sees a signed-out
+  /// user. So try once more, and otherwise fail as a connectivity problem.
+  ///
+  /// Only Cognito saying the user has no valid session (revoked or expired
+  /// refresh token, no tokens stored) carries on as before. A guest without
+  /// a Cognito user is not affected.
+  @visibleForTesting
+  Future<void> ensureSession() async {
+    final user = _cognitoUser;
+    if (user == null || _session != null) {
+      return;
+    }
+
+    Object? error;
+    try {
+      _session = await user.getSession().timeout(_initializeTimeout);
+    } catch (e, stackTrace) {
+      error = e;
+      Sync.shared.logger?.w('Cognito session unavailable for ${user.username}',
+          error: e, stackTrace: stackTrace);
+    }
+
+    if (_session != null || _isSessionGone(error)) {
+      return;
+    }
+
+    throw ConnectivityException('Cognito session unavailable',
+        hasConnectionStatus: true);
+  }
+
+  /// Whether [error] is a failure to reach Cognito rather than an answer from
+  /// it. The Cognito client wraps every transport error (a timeout from
+  /// [TimeoutHttpClient] included) as `Unknown error`, and a failed host
+  /// lookup as `NetworkError`.
+  @visibleForTesting
+  static bool isNetworkError(Object error) {
+    if (error is TimeoutException ||
+        error is SocketException ||
+        error is ConnectivityException) {
+      return true;
+    }
+
+    if (error is CognitoClientException) {
+      return error.code == 'NetworkError' || error.code == 'Unknown error';
+    }
+
+    return false;
+  }
+
+  /// Whether [error] from `getSession` means the user has no session to
+  /// restore, as opposed to one that could not be reached.
+  bool _isSessionGone(Object? error) {
+    if (error is CognitoClientException) {
+      return error.code == 'NotAuthorizedException' ||
+          error.code == 'UserNotFoundException';
+    }
+
+    final message = error?.toString() ?? '';
+    return message.contains('Local storage is missing an ID Token') ||
+        message.contains('Username is null');
   }
 
   /// Check the storage token (in this case is sas uri) is null or expired
@@ -661,11 +854,21 @@ class CognitoAzureUserSession extends UserSession
     try {
       _cognitoUser = await _userPool.getCurrentUser();
       _session = await _cognitoUser?.getSession();
-    } on CognitoClientException catch (e, stacktrace) {
-      if (await ConnectionHelper.shared.hasConnection()) {
-        Sync.shared.logger
-            ?.e('initiate cognito error $e', error: e, stackTrace: stacktrace);
-        Sync.shared.exceptionNotifier.value = Tuple3(true, e, stacktrace);
+    } catch (e, stacktrace) {
+      // Every error, not only Cognito's: every session call awaits this task,
+      // so it must not throw. A user left without a session is handled by
+      // [ensureSession].
+      try {
+        if (await ConnectionHelper.shared.hasConnection()) {
+          Sync.shared.logger?.e('initiate cognito error $e',
+              error: e, stackTrace: stacktrace);
+          // Network failures are expected offline: report them as non-fatal
+          // so they don't show up as crashes. Auth errors stay fatal.
+          Sync.shared.exceptionNotifier.value =
+              Tuple3(!isNetworkError(e), e, stacktrace);
+        }
+      } catch (_) {
+        // Reporting is best effort; the original error is what matters.
       }
     }
   }
