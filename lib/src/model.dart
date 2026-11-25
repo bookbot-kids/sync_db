@@ -230,12 +230,9 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     updatedAt = now;
     if (isCreated) {
       syncStatus = SyncStatus.created;
-    } else {
-      if (syncStatus == SyncStatus.created) {
-        // do nothing
-      } else {
-        syncStatus = SyncStatus.updated;
-      }
+    } else if (syncStatus != SyncStatus.created ||
+        await _storedCopyHasLeftCreated()) {
+      syncStatus = SyncStatus.updated;
     }
 
     final newPartition =
@@ -243,6 +240,15 @@ abstract class Model extends ChangeNotifier implements ModelHandler {
     if (partition == null && newPartition != null) {
       partition = newPartition;
     }
+  }
+
+  /// The sync that creates a record marks only the *stored* copy synced. The
+  /// object that was saved keeps `created`, and saving it again would send a
+  /// second create, and log no changed fields for a partial update. A stored
+  /// copy that has left `created` means this object is an update now.
+  Future<bool> _storedCopyHasLeftCreated() async {
+    final stored = await find(id, filterDeletedAt: false);
+    return stored != null && stored.syncStatus != SyncStatus.created;
   }
 
   Future<void> sync() async {

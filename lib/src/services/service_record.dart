@@ -13,6 +13,41 @@ class ServiceRecord extends Model {
     updatedFields = updatedFields.addItems(items, isSet: true);
   }
 
+  /// Drops [sent] from the stored log of [id]'s changed fields, and the log
+  /// itself once it is empty. Reads the log again inside the transaction, so
+  /// fields a save appended while the request was in flight are kept.
+  ///
+  /// When the record was saved again after the values sent ([sentUpdatedAt]),
+  /// a sent field may hold a newer value than the one that went up, so the
+  /// whole log stays and the next write sends it again.
+  static Future<void> removeSentFields(
+      String? id, String name, Set<String> sent,
+      {required int sentUpdatedAt,
+      required Future<Model?> Function() findRecord}) async {
+    if (id == null) return;
+    final db = ServiceRecord().db;
+    await db.writeTxn(() async {
+      final record = await findRecord();
+      final storedUpdatedAt = record?.updatedAt?.millisecondsSinceEpoch ?? 0;
+      if (storedUpdatedAt > sentUpdatedAt) return;
+
+      final current = await db.serviceRecords
+          .filter()
+          .idEqualTo(id)
+          .nameEqualTo(name)
+          .findFirst();
+      if (current == null) return;
+      final remaining =
+          current.updatedFields.where((f) => !sent.contains(f)).toList();
+      if (remaining.isEmpty) {
+        await db.serviceRecords.delete(current.localId);
+      } else {
+        current.updatedFields = remaining;
+        await db.serviceRecords.put(current);
+      }
+    });
+  }
+
   @override
   Future<void> clear() async {
     await db.serviceRecords.clear();

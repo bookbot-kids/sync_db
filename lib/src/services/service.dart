@@ -251,13 +251,18 @@ abstract class Service {
 
     await Sync.shared.db.local.writeTxn(() async {
       var transientRecords = <String, dynamic>{};
-      // Get updating records to compare
+      // Records changed here and not uploaded yet. `created` counts too: a
+      // record saved through an object that still says `created` is pending
+      // like an update, and a server copy fetched before that save must not
+      // replace it.
       if (service.access == Access.all) {
-        final recentUpdatedRecords = await handler
-            .queryStatus(SyncStatus.updated, filterDeletedAt: false);
-        transientRecords = {
-          for (var record in recentUpdatedRecords) record.id!: record
-        };
+        for (final status in [SyncStatus.updated, SyncStatus.created]) {
+          final pending =
+              await handler.queryStatus(status, filterDeletedAt: false);
+          for (final record in pending) {
+            transientRecords[record.id!] = record;
+          }
+        }
       }
 
       // Check all records can be saved - don't save over records that have been updated locally (unless read only)
@@ -268,9 +273,18 @@ abstract class Service {
               await handler.find(record[idKey], filterDeletedAt: false);
         }
 
+        final serverUpdatedAt = record[updatedKey];
+        final localUpdatedAt =
+            existingRecord?.updatedAt?.millisecondsSinceEpoch ?? 0;
+        // A `created` row with the same time as the server copy is our own
+        // create whose response was lost: take the server copy so the row is
+        // marked synced instead of being created again.
+        final serverIsNewer = serverUpdatedAt is num &&
+            (serverUpdatedAt > localUpdatedAt ||
+                (serverUpdatedAt == localUpdatedAt &&
+                    existingRecord?.syncStatus == SyncStatus.created));
         if (existingRecord == null ||
-            record[updatedKey] >
-                (existingRecord.updatedAt?.millisecondsSinceEpoch ?? 0) ||
+            serverIsNewer ||
             service.access == Access.read) {
           // save record
           existingRecord ??=

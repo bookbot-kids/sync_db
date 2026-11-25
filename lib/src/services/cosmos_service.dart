@@ -205,7 +205,7 @@ class CosmosService extends Service {
               // paging operations (limit = 10)
               final size = operations.length;
               const maxPage = 9;
-              var shouldDeleteServiceRecord = false;
+              final sentFields = <String>{};
               for (var i = 0; i < size; i += maxPage) {
                 final pack = operations.sublist(
                     i, (i + maxPage) > size ? size : (i + maxPage));
@@ -214,12 +214,21 @@ class CosmosService extends Service {
                 if (updatedRecord != null) {
                   await updateRecordStatus(
                       immutableServicePoint, updatedRecord);
-                  shouldDeleteServiceRecord = true;
+                  for (final operation in pack) {
+                    sentFields
+                        .add((operation['path'] as String).substring(1));
+                  }
                 }
               }
 
-              if (shouldDeleteServiceRecord) {
-                await serviceRecord.deleteLocal();
+              // Only what was sent: a save during the request may have logged
+              // more fields, and they still have to go up.
+              if (sentFields.isNotEmpty) {
+                await ServiceRecord.removeSentFields(
+                    record.id, record.tableName, sentFields,
+                    sentUpdatedAt: recordMap[updatedKey] as int,
+                    findRecord: () =>
+                        handler.find(record.id, filterDeletedAt: false));
               }
             } else {
               final recordMap = record.map;
